@@ -435,7 +435,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
-    const [activeTab, setActiveTab] = useState(activeTabProp);
+    const [activeTab, setActiveTab] = useState(activeTabProp || "overview");
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<any[]>([]);
     const [episodesLoading, setEpisodesLoading] = useState(false);
@@ -1339,7 +1339,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showFullCast, setShowFullCast] = useState(showFullCastProp);
     const [showFullCrew, setShowFullCrew] = useState(showFullCrewProp);
 
-    useEffect(() => { setActiveTab(activeTabProp); }, [activeTabProp]);
+    useEffect(() => { setActiveTab(activeTabProp || "overview"); }, [activeTabProp]);
     useEffect(() => {
         const isUrlDriven = typeof window !== 'undefined' && window.location.pathname.includes('/watch');
         if (!isUrlDriven) return;
@@ -2549,7 +2549,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 ) : (
                     <div className="flex flex-col pb-20">
                         {/* Responsive Hero Media Container */}
-                        <div className="relative w-full min-h-[500px] md:h-[70vh] shrink-0 bg-black group/hero overflow-hidden">
+                        <div className="relative w-full min-h-[500px] md:h-[70vh] shrink-0 bg-black group/hero overflow-visible">
                              <div className="absolute inset-0 w-full h-full overflow-hidden">
                                 {trailer && !isTV && !showPlayer && !isCasting && (
                                      <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
@@ -2561,27 +2561,37 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30 pointer-events-none"></div>
                                 <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent pointer-events-none"></div>
                                  {trailer && videoLoaded && (
-                                     <TvFocusButton onClick={toggleMute} className="absolute top-4 right-4 md:bottom-6 md:right-6 z-30 p-2 sm:p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
+                                     <TvFocusButton onClick={toggleMute} className="absolute top-4 right-4 md:bottom-6 md:right-6 z-30 w-10 h-10 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
                              </div>
 
-                             {/* Hero Content Overlay: Poster on Left, Info & Controls on Right */}
+                             {/* Hero Content Overlay: Poster on Left (Anime Only), Info & Controls on Right */}
                              <div className="absolute bottom-0 left-0 w-full max-w-7xl inset-x-0 mx-auto px-4 sm:px-8 md:px-10 pb-8 sm:pb-10 pt-16 flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-8 z-30 pointer-events-auto">
-                                {/* Left Poster Image Card */}
-                                <div className="w-32 sm:w-44 md:w-52 lg:w-56 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-zinc-900 group/poster relative">
-                                    <img
-                                        src={displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/300x450"}
-                                        alt={title}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover/poster:scale-105"
-                                    />
-                                </div>
+                                {/* Left Poster Image Card (Anime Only) */}
+                                {isAnime && (
+                                    <div className="w-32 sm:w-44 md:w-52 lg:w-56 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-zinc-900 group/poster relative">
+                                        <img
+                                            src={displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/300x450"}
+                                            alt={title}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover/poster:scale-105"
+                                        />
+                                    </div>
+                                )}
 
-                                {/* Right Section: Clean Title, Metadata, Watch Buttons */}
+                                {/* Right Section: Clean Title / Logo, Metadata, Watch Buttons */}
                                 <div className="flex-1 flex flex-col items-center sm:items-start justify-end gap-3 min-w-0 text-center sm:text-left">
                                     <div className="flex flex-col items-center sm:items-start gap-1">
-                                        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight drop-shadow-md">
-                                            {title}
-                                        </h1>
+                                        {!isAnime && logo ? (
+                                            <img 
+                                                src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
+                                                alt={title} 
+                                                className="max-h-20 sm:max-h-28 lg:max-h-36 w-auto object-contain drop-shadow-2xl mb-1 sm:mb-2" 
+                                            />
+                                        ) : (
+                                            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight drop-shadow-md">
+                                                {title}
+                                            </h1>
+                                        )}
                                         {isAnime && displayData.name && displayData.name !== title && (
                                             <span className="text-xs sm:text-sm font-medium text-zinc-400">
                                                 {displayData.name}
@@ -2591,11 +2601,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                     {/* Metadata Badges */}
                                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-white/90 text-xs sm:text-sm font-medium">
-                                        {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
-                                        <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {releaseDate}</span>
-                                        <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
+                                        {ratingLabel !== 'NR' && <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
+                                        <span className="flex items-center gap-1.5 font-medium"><Calendar size={14} className={accentText}/> {releaseDate}</span>
+                                        <span className="flex items-center gap-1.5 font-medium"><Clock size={14} className={accentText}/> {runtime}</span>
                                         {displayData.vote_average && (
-                                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded border border-white/10">
+                                            <span className="flex items-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/10 font-medium">
                                                 <Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}
                                             </span>
                                         )}
@@ -2604,24 +2614,24 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {/* Action Buttons Bar */}
                                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2.5">
                                         {isExclusive && (
-                                            <div className="relative flex items-center bg-white rounded-xl text-black shadow-xl hover:scale-[1.02] transition-all duration-200" ref={providerDropdownRef}>
+                                            <div className="relative flex items-center bg-white rounded-full text-black shadow-xl hover:scale-[1.02] transition-all duration-200" ref={providerDropdownRef}>
                                                 <TvFocusButton 
                                                     onClick={handleWatchClick} 
-                                                    className="flex items-center justify-center gap-2 px-5 py-2.5 font-extrabold text-sm transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-xl"
+                                                    className="flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-sm transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-full"
                                                 >
                                                     <Play size={18} fill="currentColor" /> 
                                                     {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
                                                 </TvFocusButton>
                                                 <TvFocusButton 
                                                     onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)} 
-                                                    className="px-2.5 py-2.5 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-xl" 
+                                                    className="px-3.5 py-2.5 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-full" 
                                                     title="Select Provider"
                                                 >
                                                     <ChevronDown size={18} className={`transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`} />
                                                 </TvFocusButton>
 
                                                 {isProviderDropdownOpen && (
-                                                    <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <div className="absolute left-0 top-full mt-2 w-56 bg-[#121212]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
                                                         {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
                                                             <TvFocusButton
                                                                 key={prov.id}
@@ -2629,7 +2639,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     handleProviderChange(prov.id);
                                                                     setIsProviderDropdownOpen(false);
                                                                 }}
-                                                                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors flex items-center justify-between"
+                                                                className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-between"
                                                             >
                                                                 <span>{prov.name}</span>
                                                                 {selectedProviderId === prov.id && <Check size={14} className="text-red-500" />}
@@ -2641,7 +2651,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         )}
 
                                         {isExclusive && (
-                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 bg-white/10 text-white border border-white/20 hover:bg-white/15 backdrop-blur-md shadow-md" title="Start a Watch Party">
+                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all hover:scale-[1.02] active:scale-95 bg-white/10 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md shadow-md" title="Start a Watch Party">
                                                 <Users size={18} /> Watch Party
                                             </TvFocusButton>
                                         )}
@@ -2649,21 +2659,21 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {(() => {
                                             const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
                                             const effectiveTrailerKey = displayData.videos?.results?.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube')?.key 
-                                              || displayData.videos?.results?.find((v: any) => v.site === 'YouTube')?.key 
-                                              || aniListTrailerKey 
-                                              || details?.videos?.results?.[0]?.key;
+                                               || displayData.videos?.results?.find((v: any) => v.site === 'YouTube')?.key 
+                                               || aniListTrailerKey 
+                                               || details?.videos?.results?.[0]?.key;
 
                                             return (
                                                 <div className="flex items-center gap-2">
-                                                    <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isWatchlisted ? 'text-green-400 border-green-500 bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
-                                                    <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isFavorite ? 'text-red-500 border-red-500 bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
-                                                    <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${copied ? 'text-green-400 border-green-500 bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
-                                                    <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-xl border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
-                                                    <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-xl border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
+                                                    <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
+                                                    <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
+                                                    <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${copied ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
+                                                    <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
+                                                    <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
                                                     {effectiveTrailerKey && (
                                                         <TvFocusButton 
                                                             onClick={() => setViewingTrailerKey(effectiveTrailerKey)} 
-                                                            className="w-10 h-10 rounded-xl border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
+                                                            className="w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
                                                             title="Watch Trailer"
                                                         >
                                                             <Play size={16} fill="currentColor" className="ml-0.5"/>
@@ -2681,30 +2691,33 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         <div className="max-w-7xl mx-auto w-full px-4 py-6 md:p-10 mt-0 md:-mt-6 relative z-20">
                             {/* Premium Tab Navigation Underlined Text */}
                             <div className="flex items-center gap-6 md:gap-8 border-b border-white/10 pb-2 mb-8 overflow-x-auto hide-scrollbar w-full py-1 select-none">
-                                {tabs.map(tab => (
-                                    <TvFocusButton 
-                                        key={tab.id} 
-                                        onClick={() => {
-                                            tabChangedByUserRef.current = true;
-                                            setActiveTab(tab.id);
-                                        }} 
-                                        className={`relative pb-2.5 text-xs md:text-sm font-medium tracking-wide transition-all duration-300 whitespace-nowrap active:scale-95 bg-transparent border-0 outline-none p-0 cursor-pointer ${
-                                            activeTab === tab.id 
-                                                ? 'text-red-500' 
-                                                : 'text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                    >
-                                        <span>{tab.label}</span>
-                                        {activeTab === tab.id && (
-                                            <span className="absolute bottom-0 left-0 w-full h-[2.5px] bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,0.4)] animate-in fade-in" />
-                                        )}
-                                    </TvFocusButton>
-                                ))}
+                                {tabs.map(tab => {
+                                    const isActive = (activeTab || 'overview') === tab.id;
+                                    return (
+                                        <TvFocusButton 
+                                            key={tab.id} 
+                                            onClick={() => {
+                                                tabChangedByUserRef.current = true;
+                                                setActiveTab(tab.id);
+                                            }} 
+                                            className={`relative pb-2.5 text-xs md:text-sm tracking-wide transition-all duration-300 whitespace-nowrap active:scale-95 bg-transparent border-0 outline-none p-0 cursor-pointer ${
+                                                isActive 
+                                                    ? 'text-red-500 font-semibold' 
+                                                    : 'text-zinc-500 hover:text-zinc-300 font-medium'
+                                            }`}
+                                        >
+                                            <span>{tab.label}</span>
+                                            {isActive && (
+                                                <span className="absolute bottom-0 left-0 w-full h-[2.5px] bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,0.4)] animate-in fade-in" />
+                                            )}
+                                        </TvFocusButton>
+                                    );
+                                })}
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                                 <div className="lg:col-span-2 space-y-10">
-                                    {activeTab === 'overview' && (
+                                    {(activeTab || 'overview') === 'overview' && (
                                         <div className="animate-in fade-in">
                                             {nextAiringEpisode && (
                                                 <div className="mb-8 p-5 bg-gradient-to-r from-red-950/10 to-zinc-900/30 border border-red-500/15 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-500 shadow-md">
