@@ -444,6 +444,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [viewingTrailerKey, setViewingTrailerKey] = useState<string | null>(null);
     const showPlayer = initialShowPlayer;
     const [playParams, setPlayParams] = useState(initialPlayParams);
+    const [isTmdbSource, setIsTmdbSource] = useState(false);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
 
     const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
@@ -2094,6 +2095,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     }, [collection, movie.id]);
 
     const handleWatchClick = () => {
+        setIsTmdbSource(false);
         const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
         const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
         const currentResumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
@@ -2675,6 +2677,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 providerId={selectedProviderId}
                                 episodes={episodes}
                                 details={displayData}
+                                isTmdbSource={isTmdbSource}
                                 onToggleWatchlist={() => onToggleWatchlist(movie)}
                                 isWatchlisted={isWatchlisted}
                                 onEpisodeChange={(season, episode) => {
@@ -3968,6 +3971,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     id={`episode-card-${episode.episode_number}`}
                                                                     onClick={() => {
                                                                         if (isExclusive) {
+                                                                            setIsTmdbSource(true);
                                                                             setPlayParams({ season: selectedSeason, episode: episode.episode_number });
                                                                             onPlayStateChangeRef.current?.(true, selectedSeason, episode.episode_number);
                                                                             if (onProgress) {

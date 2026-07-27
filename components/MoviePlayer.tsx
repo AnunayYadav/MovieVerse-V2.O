@@ -148,6 +148,7 @@ interface MoviePlayerProps {
   details?: any;
   onToggleWatchlist?: () => void;
   isWatchlisted?: boolean;
+  isTmdbSource?: boolean;
 }
 
 const getBrowserLanguage = (): string => {
@@ -246,7 +247,7 @@ const switchNativeAudioTrack = (video: HTMLVideoElement, lang: string) => {
 };
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, isAnimeDirect, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey, episodes: initialEpisodes, details, onToggleWatchlist, isWatchlisted
+  tmdbId, onClose, mediaType, isAnime, isAnimeDirect, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey, episodes: initialEpisodes, details, onToggleWatchlist, isWatchlisted, isTmdbSource = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerVideoFrameRef = useRef<HTMLDivElement>(null);
@@ -255,6 +256,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [embedUrl, setEmbedUrl] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings' | 'subtitles'>('sources');
+
+  const [useTmdbMode, setUseTmdbMode] = useState<boolean>(!!isTmdbSource);
+  
+  useEffect(() => {
+    setUseTmdbMode(!!isTmdbSource);
+  }, [isTmdbSource]);
 
   const [currentSeason, setCurrentSeason] = useState(initialSeason);
   const [currentEpisode, setCurrentEpisode] = useState(initialEpisode);
@@ -1832,10 +1839,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [currentSeason, animeSeasonMap, isAnime]);
 
-  // ── Fetch seasons: Use anime season map for anime, TMDB for non-anime ──
+  // ── Fetch seasons: Use anime season map for anime (unless in TMDB mode), TMDB for non-anime ──
   useEffect(() => {
     if (mediaType === 'tv' && tmdbId) {
-      if (isAnime && animeSeasonMap.length > 0) {
+      if (isAnime && animeSeasonMap.length > 0 && !useTmdbMode) {
         // Use AniList entries as seasons
         const animeSeasons = animeSeasonMap.map((entry, idx) => ({
           id: entry.anilistId,
@@ -1847,7 +1854,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }));
         setSeasons(animeSeasons);
       } else {
-        // Non-anime: use TMDB seasons
+        // TMDB seasons: Use details.seasons if passed, else fetch from TMDB
+        if (details?.seasons && details.seasons.length > 0) {
+          const validTMDBSeasons = details.seasons.filter((s: any) => s.season_number > 0);
+          if (validTMDBSeasons.length > 0) {
+            setSeasons(validTMDBSeasons);
+            return;
+          }
+        }
         fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`)
           .then(res => res.json())
           .then(data => {
@@ -1858,18 +1872,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           .catch(err => console.error("Error fetching tv show details:", err));
       }
     }
-  }, [tmdbId, mediaType, apiKey, isAnime, animeSeasonMap]);
+  }, [tmdbId, mediaType, apiKey, isAnime, animeSeasonMap, useTmdbMode, details?.seasons]);
 
-  // ── Fetch episodes: Use Consumet-first, then Jikan/MAL, then TMDB ──
+  // ── Fetch episodes: Use Consumet-first for AniList mode, TMDB for TMDB mode ──
   useEffect(() => {
     if (mediaType === 'tv' && tmdbId && currentSeason) {
-      const currentKey = `${tmdbId}-${currentSeason}`;
+      const currentKey = `${tmdbId}-${currentSeason}-${useTmdbMode ? 'tmdb' : 'anilist'}`;
       if (lastFetchedAnimeRef.current === currentKey) {
         return;
       }
       lastFetchedAnimeRef.current = currentKey;
 
-      if (isAnime && animeSeasonMap.length > 0) {
+      if (isAnime && animeSeasonMap.length > 0 && !useTmdbMode) {
         const idx = Math.min(currentSeason - 1, animeSeasonMap.length - 1);
         const entry = animeSeasonMap[idx];
         
@@ -1944,8 +1958,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           fetchConsumetFallbackInPlayer();
         }
       } else {
-        // Non-anime: use TMDB episodes
+        // TMDB mode or Non-anime: use TMDB episodes
         setEpisodesLoading(true);
+        setAnimeEpisodesLoading(false);
         fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
           .then(res => res.json())
           .then(data => {
@@ -1953,12 +1968,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             setEpisodesLoading(false);
           })
           .catch(err => {
-            console.error('Error fetching episodes:', err);
+            console.error('Error fetching TMDB episodes in player:', err);
             setEpisodesLoading(false);
           });
       }
     }
-  }, [tmdbId, mediaType, currentSeason, apiKey, isAnime, animeSeasonMap]);
+  }, [tmdbId, mediaType, currentSeason, apiKey, isAnime, animeSeasonMap, useTmdbMode]);
   
 
 
@@ -5674,6 +5689,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-xs font-bold tracking-wider text-zinc-300 uppercase flex items-center gap-2">
                 <span>Episodes</span>
+                {isAnime && animeSeasonMap.length > 0 && (
+                  <button
+                    onClick={() => setUseTmdbMode(!useTmdbMode)}
+                    className={`text-[9px] font-medium px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                      useTmdbMode 
+                        ? 'bg-red-600/20 text-red-400 border-red-500/20' 
+                        : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border-white/5'
+                    }`}
+                    title={useTmdbMode ? "Switch to AniList Episodes" : "Switch to TMDB Episodes"}
+                  >
+                    {useTmdbMode ? 'TMDB Seasons' : 'AniList Seasons'}
+                  </button>
+                )}
               </h3>
               <span className="text-[10px] text-zinc-500 font-semibold bg-white/5 px-2 py-0.5 rounded-full">{episodeList.length} Total</span>
             </div>
