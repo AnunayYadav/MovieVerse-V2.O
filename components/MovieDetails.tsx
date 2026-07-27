@@ -1796,7 +1796,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         .then(tvData => {
                                             if (tvData && tvData.seasons && tvData.seasons.length > 0) {
                                                 const activeSeasons = tvData.seasons.filter((s: any) => s.season_number > 0);
-                                                const matchedSeasonNumber = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear }, tvData.seasons);
+                                                const matchedSeasonNumber = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear, startDate: media.startDate }, tvData.seasons);
 
                                                 setDetails((prev: any) => {
                                                     if (!prev) return prev;
@@ -2088,11 +2088,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (activeSeasons.length === 1) return activeSeasons[0].season_number;
 
         const titles = [
-          anime.title.english,
-          anime.title.romaji,
-          anime.title.userPreferred
+          typeof anime?.title === 'string' ? anime.title : null,
+          anime?.title?.english,
+          anime?.title?.romaji,
+          anime?.title?.userPreferred
         ].filter((t: any): t is string => typeof t === 'string' && t.length > 0);
 
+        // 1. Try matching season names in title (e.g. "Thousand-Year Blood War" in "BLEACH: Thousand-Year Blood War")
+        for (const s of activeSeasons) {
+            if (!s.name) continue;
+            const sName = s.name.toLowerCase().trim();
+            if (sName === 'specials' || sName.startsWith('season') || sName.length < 3) continue;
+            for (const title of titles) {
+                const t = title.toLowerCase();
+                if (t.includes(sName) || sName.includes(t)) {
+                    return s.season_number;
+                }
+            }
+        }
+
+        // 2. Try parsing season/part numbers from title (e.g. "Season 2", "Part 3")
         let parsedSeasonFromTitle: number | null = null;
         for (const title of titles) {
           const t = title.toLowerCase();
@@ -2121,11 +2136,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
           if (match) return match.season_number;
         }
 
-        if (anime.seasonYear) {
+        // 3. Try matching by Air Date / Season Year
+        const targetYear = anime.seasonYear || anime.startDate?.year || anime.year;
+        if (targetYear) {
           const matchedByYear = activeSeasons.filter(s => {
             if (!s.air_date) return false;
             const tmdbYear = new Date(s.air_date).getFullYear();
-            return tmdbYear === anime.seasonYear;
+            return tmdbYear === targetYear;
           });
           if (matchedByYear.length > 0) {
             return matchedByYear[0].season_number;
