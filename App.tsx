@@ -1662,56 +1662,7 @@ export default function App() {
         };
     }, []);
 
-    // Synchronize modal history stack — ONE-WAY PUSH ONLY
-    // This effect only RECORDS state changes to the history stack.
-    // It NEVER restores selectedMovie/selectedPersonId from the stack.
-    // Back-navigation is handled exclusively by popstate → syncStateFromPath.
-    useEffect(() => {
-        if (isSyncingPath.current) return;
 
-        // All closed — clear the history stack
-        if (!selectedMovie && !selectedPersonId && !selectedCharacterId) {
-            if (modalHistory.length > 0) {
-                setModalHistory([]);
-            }
-            return;
-        }
-
-        const currentTop = modalHistory[modalHistory.length - 1];
-
-        // Character opened — push or trim to it
-        if (selectedCharacterId && (!currentTop || currentTop.type !== 'character' || currentTop.data !== selectedCharacterId)) {
-            const idx = modalHistory.findIndex(x => x.type === 'character' && x.data === selectedCharacterId);
-            if (idx >= 0) {
-                setModalHistory(modalHistory.slice(0, idx + 1));
-            } else {
-                setModalHistory(prev => [...prev, { type: 'character', data: selectedCharacterId }]);
-            }
-            return;
-        }
-
-        // Person opened — push or trim to it
-        if (selectedPersonId && (!currentTop || currentTop.type !== 'person' || currentTop.data !== selectedPersonId)) {
-            const idx = modalHistory.findIndex(x => x.type === 'person' && x.data === selectedPersonId);
-            if (idx >= 0) {
-                setModalHistory(modalHistory.slice(0, idx + 1));
-            } else {
-                setModalHistory(prev => [...prev, { type: 'person', data: selectedPersonId }]);
-            }
-            return;
-        }
-
-        // Movie opened — push or trim to it
-        if (selectedMovie && (!currentTop || currentTop.type !== 'movie' || currentTop.data.id !== selectedMovie.id)) {
-            const idx = modalHistory.findIndex(x => x.type === 'movie' && x.data.id === selectedMovie.id);
-            if (idx >= 0) {
-                setModalHistory(modalHistory.slice(0, idx + 1));
-            } else {
-                setModalHistory(prev => [...prev, { type: 'movie', data: selectedMovie }]);
-            }
-            return;
-        }
-    }, [selectedMovie, selectedPersonId, selectedCharacterId]);
 
     // Homepage sections states
     const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(0, 3));
@@ -1790,22 +1741,27 @@ export default function App() {
         window.scrollTo({ top: 0, behavior: 'instant' });
     }, [selectedCategory]);
 
+    const isWatchingRef = useRef(false);
     const selectedMovieRef = useRef<Movie | null>(null);
-    const movieDetailsStartIdxRef = useRef<number | null>(null);
-    const mangaDetailsStartIdxRef = useRef<number | null>(null);
+    const selectedPersonIdRef = useRef<number | null>(null);
+    const selectedCharacterIdRef = useRef<number | null>(null);
+    const selectedStudioIdRef = useRef<number | null>(null);
+    const selectedStudioNameRef = useRef<string | null>(null);
+    const selectedMangaIdRef = useRef<string | null>(null);
+    const activeMangaChapterIdRef = useRef<string | null>(null);
+    const selectedDramaSlugRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        selectedMovieRef.current = selectedMovie;
-        if (!selectedMovie) {
-            movieDetailsStartIdxRef.current = null;
-        }
-    }, [selectedMovie]);
+    useEffect(() => { isWatchingRef.current = isWatching; }, [isWatching]);
+    useEffect(() => { selectedMovieRef.current = selectedMovie; }, [selectedMovie]);
+    useEffect(() => { selectedPersonIdRef.current = selectedPersonId; }, [selectedPersonId]);
+    useEffect(() => { selectedCharacterIdRef.current = selectedCharacterId; }, [selectedCharacterId]);
+    useEffect(() => { selectedStudioIdRef.current = selectedStudioId; }, [selectedStudioId]);
+    useEffect(() => { selectedStudioNameRef.current = selectedStudioName; }, [selectedStudioName]);
+    useEffect(() => { selectedMangaIdRef.current = selectedMangaId; }, [selectedMangaId]);
+    useEffect(() => { activeMangaChapterIdRef.current = activeMangaChapterId; }, [activeMangaChapterId]);
+    useEffect(() => { selectedDramaSlugRef.current = selectedDramaSlug; }, [selectedDramaSlug]);
 
-    useEffect(() => {
-        if (!selectedMangaId) {
-            mangaDetailsStartIdxRef.current = null;
-        }
-    }, [selectedMangaId]);
+    const isPopStateNavigating = useRef(false);
 
     const selectedCategoryRef = useRef("All");
     useEffect(() => {
@@ -2115,17 +2071,7 @@ export default function App() {
                 setIsPersonAniListStaff(false);
             }
 
-            if (movieToSelect) {
-                setModalHistory([{ type: 'movie', data: movieToSelect }]);
-            } else if (personIdToSelect) {
-                setModalHistory([{ type: 'person', data: personIdToSelect }]);
-            } else if (characterIdToSelect) {
-                setModalHistory([{ type: 'character', data: characterIdToSelect }]);
-            } else if (studioIdToSelect || studioNameToSelect) {
-                setModalHistory([{ type: 'studio', data: { id: studioIdToSelect, name: studioNameToSelect } } as any]);
-            } else {
-                setModalHistory([]);
-            }
+
 
             setActiveDetailsTab(detailsTab);
             setShowDetailsCast(showCast);
@@ -2146,18 +2092,52 @@ export default function App() {
         }
     }, [apiKey]);
 
+    const handlePopState = useCallback(() => {
+        isPopStateNavigating.current = true;
+
+        if (isWatchingRef.current) {
+            setIsWatching(false);
+        } else if (selectedCharacterIdRef.current) {
+            setSelectedCharacterId(null);
+        } else if (selectedPersonIdRef.current) {
+            setSelectedPersonId(null);
+            setSelectedPersonName(null);
+            setIsPersonAniListStaff(false);
+        } else if (selectedStudioIdRef.current || selectedStudioNameRef.current) {
+            setSelectedStudioId(null);
+            setSelectedStudioName(null);
+        } else if (activeMangaChapterIdRef.current) {
+            setActiveMangaChapterId(null);
+        } else if (selectedMangaIdRef.current) {
+            setSelectedMangaId(null);
+        } else if (selectedDramaSlugRef.current) {
+            setSelectedDramaSlug(null);
+        } else if (selectedMovieRef.current) {
+            setSelectedMovie(null);
+            setShowDetailsCast(false);
+            setShowDetailsCrew(false);
+            setActiveDetailsTab("overview");
+        } else {
+            syncStateFromPath();
+        }
+
+        setTimeout(() => {
+            isPopStateNavigating.current = false;
+        }, 100);
+    }, [syncStateFromPath]);
+
     useEffect(() => {
         if (isAuthenticated) {
             syncStateFromPath();
-            window.addEventListener('popstate', syncStateFromPath);
-            return () => window.removeEventListener('popstate', syncStateFromPath);
+            window.addEventListener('popstate', handlePopState);
+            return () => window.removeEventListener('popstate', handlePopState);
         }
-    }, [isAuthenticated, syncStateFromPath]);
+    }, [isAuthenticated, syncStateFromPath, handlePopState]);
 
     // Synchronous URL sync: aligns pathname with app state on render commit.
     useEffect(() => {
         if (authChecking || !isAuthenticated) return;
-        if (isSyncingPath.current) return;
+        if (isPopStateNavigating.current || isSyncingPath.current) return;
 
         let newPath = '/';
         if (activeWatchPartyRoom) {
@@ -2228,53 +2208,30 @@ export default function App() {
             } else {
                 newPath = '/manga';
             }
-
         } else if (selectedCategory === 'Novels') {
             if (!window.location.pathname.startsWith('/novel')) {
                 newPath = '/novels';
             } else {
                 newPath = window.location.pathname;
             }
-
         } else if (selectedCategory === 'Dramas') {
             if (selectedDramaSlug) {
                 newPath = `/drama/${selectedDramaSlug}`;
             } else {
                 newPath = '/browse/dramas';
             }
-
         } else if (selectedCategory === 'Music') {
             newPath = '/music';
-
         } else if (selectedCategory === 'Radio') {
             newPath = '/radio';
-
         } else if (selectedCategory === 'Podcasts') {
             newPath = '/podcasts';
-
         } else if (selectedCategory === 'Collection' && currentCollection) {
             newPath = `/custom-collection/${currentCollection}`;
         }
 
-        const isPushing = window.location.pathname !== newPath;
-        if (isPushing && !isNavigatingBack && !isSyncingPath.current) {
-            lastPushedPathRef.current = newPath;
-            const newIdx = (window.history.state?.idx || 0) + 1;
-            history.pushState({ idx: newIdx }, '', newPath);
-            currentHistoryIdxRef.current = newIdx;
-            setIsNavigatingBack(false);
-        }
-
-        const finalIdx = window.history.state?.idx || 0;
-        if (selectedMovie) {
-            if (movieDetailsStartIdxRef.current === null) {
-                movieDetailsStartIdxRef.current = finalIdx;
-            }
-        }
-        if (selectedCategory === 'Manga' && selectedMangaId) {
-            if (mangaDetailsStartIdxRef.current === null) {
-                mangaDetailsStartIdxRef.current = finalIdx;
-            }
+        if (window.location.pathname !== newPath) {
+            history.pushState(null, '', newPath);
         }
     }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, selectedDramaSlug, searchQuery]);
 
@@ -4930,22 +4887,9 @@ export default function App() {
                             onSearchClear={() => setSearchQuery('')}
                             isAiSearchActive={isAiSearchActive}
                             onCloseDetails={() => {
-                                const startIdx = mangaDetailsStartIdxRef.current;
-                                const currentIdx = window.history.state?.idx;
-                                const canGoBack = window.history.state && typeof currentIdx === 'number' && currentIdx > 0;
-                                if (canGoBack && typeof startIdx === 'number') {
-                                    const steps = currentIdx - (startIdx - 1);
-                                    if (steps > 0) {
-                                        window.history.go(-steps);
-                                        return;
-                                    }
-                                }
-                                if (canGoBack) {
-                                    window.history.back();
-                                } else {
-                                    setSelectedMangaId(null);
-                                }
-                            }}
+                                 setSelectedMangaId(null);
+                                 setActiveMangaChapterId(null);
+                             }}
                             disableEntryAnimation={isNavigatingBack}
                             profile={userProfile}
                         />
@@ -5614,20 +5558,6 @@ export default function App() {
                         setShowDetailsCast(false);
                         setShowDetailsCrew(false);
                         setIsWatching(false);
-
-                        const startIdx = movieDetailsStartIdxRef.current;
-                        const currentIdx = window.history.state?.idx;
-                        const canGoBack = window.history.state && typeof currentIdx === 'number' && currentIdx > 0;
-                        if (canGoBack && typeof startIdx === 'number') {
-                            const steps = currentIdx - (startIdx - 1);
-                            if (steps > 0) {
-                                window.history.go(-steps);
-                                return;
-                            }
-                        }
-                        if (canGoBack) {
-                            window.history.back();
-                        }
                     }}
                     apiKey={apiKey}
                     onPersonClick={(id, name, isAniList) => {

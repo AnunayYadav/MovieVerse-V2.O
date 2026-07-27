@@ -2729,48 +2729,41 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             {/* Integrated Horizontal Popularity Meter */}
                                             {displayData.vote_count > 0 && (
-                                                <div className="p-4 sm:p-5 bg-white/[0.03] hover:bg-white/[0.05] rounded-2xl border border-white/10 backdrop-blur-md mb-8 transition-all duration-300 shadow-xl group">
-                                                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                                <div className="p-3.5 sm:p-4 bg-white/[0.04] rounded-3xl mb-6 shadow-sm">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2.5 mb-2.5">
                                                         <div className="flex items-center gap-2.5">
-                                                            <div className="p-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20">
-                                                                <TrendingUp size={16} />
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Popularity & Rating</h4>
-                                                                <p className="text-[10px] text-zinc-400 font-medium">Based on {displayData.vote_count.toLocaleString()} audience votes</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-xl sm:text-2xl font-black text-white tracking-tight">{Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%</span>
-                                                            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-red-500/20 text-red-400 border border-red-500/30">
+                                                            <span className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                                                                {Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%
+                                                            </span>
+                                                            <span className="text-xs font-medium text-zinc-300">
                                                                 {(displayData.vote_average || 0).toFixed(1)} / 10
                                                             </span>
+                                                            <span className="text-xs text-zinc-400">
+                                                                • {displayData.vote_count.toLocaleString()} votes
+                                                            </span>
                                                         </div>
+                                                        {displayData.popularity ? (
+                                                            <span className="text-xs text-zinc-400">
+                                                                Index: <span className="text-zinc-200 font-medium">{Math.round(displayData.popularity).toLocaleString()}</span>
+                                                            </span>
+                                                        ) : null}
                                                     </div>
 
-                                                    <div className="w-full bg-white/10 h-3 rounded-full overflow-hidden relative shadow-inner p-0.5 border border-white/5">
+                                                    <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                                                         <div 
-                                                            className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(239,68,68,0.5)]"
+                                                            className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 rounded-full transition-all duration-1000 ease-out"
                                                             style={{ width: `${Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%` }}
                                                         />
-                                                    </div>
-
-                                                    <div className="flex flex-wrap items-center justify-between text-[11px] text-zinc-400 font-medium mt-3 pt-2.5 border-t border-white/5 gap-2">
-                                                        <span>Positive Sentiment: <strong className="text-zinc-200">{Math.round(((displayData.vote_average || 0) / 10) * displayData.vote_count).toLocaleString()}</strong> votes</span>
-                                                        {displayData.popularity ? <span>Popularity Index: <strong className="text-zinc-200">{Math.round(displayData.popularity).toLocaleString()}</strong></span> : null}
                                                     </div>
                                                 </div>
                                             )}
 
                                             {/* Movie & Genre Tags */}
                                             {((displayData.genres && displayData.genres.length > 0) || (displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags)) && (
-                                                <div className="mb-10">
-                                                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                        <Tag size={13} className="text-red-500" /> Movie Genres & Tags
-                                                    </h4>
+                                                <div className="mb-8">
                                                     <div className="flex flex-wrap gap-2">
                                                         {displayData.genres?.map((genre: any) => (
-                                                            <span key={genre.id || genre.name} className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-red-600/15 text-red-300 border border-red-500/30 shadow-sm backdrop-blur-md">
+                                                            <span key={genre.id || genre.name} className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/10 text-zinc-200 transition-colors">
                                                                 {genre.name}
                                                             </span>
                                                         ))}
@@ -2780,7 +2773,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 const tagName = typeof tag === 'string' ? tag : tag.name;
                                                                 if (!tagName) return null;
                                                                 return (
-                                                                    <span key={idx} className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 transition-colors">
+                                                                    <span key={idx} className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors">
                                                                         #{tagName}
                                                                     </span>
                                                                 );
