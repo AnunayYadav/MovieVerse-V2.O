@@ -569,51 +569,92 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     const resolveHayaseStream = async () => {
       try {
-        let magnetUrl = '';
+        const candidateStreams: Array<{ magnet: string; seeders: number; source: string }> = [];
         const imdbId = details?.external_ids?.imdb_id;
         const displayTitle = details?.title || details?.name || title;
+        const animeQuery = `${displayTitle || ''} ${currentEpisode ? `e${currentEpisode.toString().padStart(2, '0')}` : ''}`.trim();
 
-        if (imdbId) {
-          const type = (currentSeason && currentEpisode && currentSeason > 0) ? 'series' : 'movie';
-          const query = type === 'series' ? `${imdbId}:${currentSeason}:${currentEpisode}` : imdbId;
-          const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.streams?.length > 0 && data.streams[0].infoHash) {
-              magnetUrl = `magnet:?xt=urn:btih:${data.streams[0].infoHash}&dn=${encodeURIComponent(displayTitle || 'Video')}`;
-              const matchSeeders = typeof data.streams[0].title === 'string' ? data.streams[0].title.match(/👤\s*(\d+)/) : null;
-              realSeeds = matchSeeders ? parseInt(matchSeeders[1], 10) : (data.streams[0].seeders || 0);
-            }
-          }
-        }
-
-        if (!magnetUrl && (isAnime || displayTitle)) {
-          try {
-            const animeQuery = `${displayTitle || ''} ${currentEpisode ? `E${currentEpisode.toString().padStart(2, '0')}` : ''}`.trim();
-            const nyaaRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`)}`);
-            if (nyaaRes.ok) {
-              const xmlText = await nyaaRes.text();
-              const parser = new DOMParser();
-              const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-              const item = xmlDoc.querySelector('item');
-              if (item) {
-                const link = item.querySelector('link')?.textContent;
-                const seedersNode = item.getElementsByTagName('nyaa:seeders')[0] || item.querySelector('seeders');
-                realSeeds = seedersNode ? parseInt(seedersNode.textContent || '0', 10) : 0;
-                if (link && link.startsWith('magnet:')) {
-                  magnetUrl = link;
+        // Run AnimeTosho, Nyaa, and Torrentio concurrently in parallel
+        await Promise.allSettled([
+          // 1. AnimeTosho API (From Hayase-Extensions)
+          (async () => {
+            try {
+              const res = await fetch(`https://feed.animetosho.org/json?q=${encodeURIComponent(animeQuery)}`);
+              if (res.ok) {
+                const items = await res.json();
+                if (Array.isArray(items)) {
+                  items.slice(0, 5).forEach(item => {
+                    if (item.magnet_uri) {
+                      candidateStreams.push({
+                        magnet: item.magnet_uri,
+                        seeders: item.seeders || 0,
+                        source: 'AnimeTosho'
+                      });
+                    }
+                  });
                 }
               }
-            }
-          } catch (e) {
-            console.warn('Hayase Nyaa lookup notice:', e);
-          }
-        }
+            } catch (e) {}
+          })(),
 
-        if (!magnetUrl) {
-          magnetUrl = "magnet:?xt=urn:btih:9234a7ab9e2a4b7efe61f64da3b5b02b0219c40c";
-          realSeeds = 24;
-        }
+          // 2. Nyaa RSS Engine
+          (async () => {
+            try {
+              const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`)}`);
+              if (res.ok) {
+                const xmlText = await res.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 5);
+                items.forEach(item => {
+                  const link = item.querySelector('link')?.textContent;
+                  const seedersNode = item.getElementsByTagName('nyaa:seeders')[0] || item.querySelector('seeders');
+                  const seeds = seedersNode ? parseInt(seedersNode.textContent || '0', 10) : 0;
+                  if (link && link.startsWith('magnet:')) {
+                    candidateStreams.push({
+                      magnet: link,
+                      seeders: seeds,
+                      source: 'Nyaa'
+                    });
+                  }
+                });
+              }
+            } catch (e) {}
+          })(),
+
+          // 3. Torrentio P2P Swarm
+          (async () => {
+            if (!imdbId) return;
+            try {
+              const type = (currentSeason && currentEpisode && currentSeason > 0) ? 'series' : 'movie';
+              const query = type === 'series' ? `${imdbId}:${currentSeason}:${currentEpisode}` : imdbId;
+              const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`);
+              if (res.ok) {
+                const data = await res.json();
+                if (data?.streams) {
+                  data.streams.slice(0, 5).forEach((s: any) => {
+                    if (s.infoHash) {
+                      const matchSeeders = typeof s.title === 'string' ? s.title.match(/👤\s*(\d+)/) : null;
+                      const seeds = matchSeeders ? parseInt(matchSeeders[1], 10) : (s.seeders || 0);
+                      candidateStreams.push({
+                        magnet: `magnet:?xt=urn:btih:${s.infoHash}&dn=${encodeURIComponent(displayTitle || 'Video')}`,
+                        seeders: seeds,
+                        source: 'Torrentio'
+                      });
+                    }
+                  });
+                }
+              }
+            } catch (e) {}
+          })()
+        ]);
+
+        // Sort all candidate streams by SEEDERS (Highest peers first!)
+        candidateStreams.sort((a, b) => b.seeders - a.seeders);
+
+        let bestStream = candidateStreams[0];
+        let magnetUrl = bestStream?.magnet || "magnet:?xt=urn:btih:9234a7ab9e2a4b7efe61f64da3b5b02b0219c40c";
+        realSeeds = bestStream?.seeders || 24;
 
         const proxyRes = await resolveHayaseProxyStream(magnetUrl);
         if (isMounted && proxyRes?.streamUrl) {
