@@ -1790,9 +1790,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 const targetYear = media.startDate?.year || media.seasonYear;
                                 const fullTitle = (media.title.english || media.title.userPreferred || media.title.romaji || '').toLowerCase();
 
-                                // For anime, strictly prefer results with genre 16 (Animation) or Japanese original language ('ja')
+                                // For animated media, strictly prefer TMDB Animation genre (genre ID 16) across all languages
                                 const animeCandidates = (searchData.results || []).filter((item: any) => 
-                                    (item.genre_ids?.includes(16) || item.original_language === 'ja')
+                                    item.genre_ids?.includes(16)
                                 );
                                 const candidates = animeCandidates.length > 0 ? animeCandidates : (searchData.results || []);
 
@@ -2335,7 +2335,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
             const data = await res.json();
             const animeCandidates = (data.results || []).filter((item: any) => 
-                (item.genre_ids?.includes(16) || item.original_language === 'ja')
+                item.genre_ids?.includes(16)
             );
             const candidates = animeCandidates.length > 0 ? animeCandidates : (data.results || []);
 
