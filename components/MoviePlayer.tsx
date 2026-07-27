@@ -5425,10 +5425,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const mainAnimeProviders = animeProvidersList.filter(p => p.id === 'vidnest_animepahe' || p.id === 'megaplay');
   const otherAnimeProviders = animeProvidersList.filter(p => p.id !== 'vidnest_animepahe' && p.id !== 'megaplay');
 
-  if (isFullscreen) {
-    return renderVideoPlayerCore();
-  }
-
   return (
     <div className="w-full h-full bg-[#08080a] text-white select-none overflow-y-auto custom-scrollbar font-sans">
       {/* Top Watch Header Bar */}
@@ -5496,7 +5492,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         <div className="flex-1 flex flex-col min-w-0">
           
           {/* Video Player Frame Container */}
-          <div ref={playerVideoFrameRef} className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 shrink-0">
+          <div 
+            ref={playerVideoFrameRef} 
+            className={
+              isFullscreen 
+                ? "fixed inset-0 z-[9999] w-screen h-screen bg-black flex items-center justify-center overflow-hidden" 
+                : "relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 shrink-0"
+            }
+          >
             {renderVideoPlayerCore()}
           </div>
 

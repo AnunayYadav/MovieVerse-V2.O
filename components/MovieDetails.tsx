@@ -1814,25 +1814,65 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     || searchData.results?.find((item: any) => item.genre_ids?.includes(16) && item.original_language === 'ja')
                                     || searchData.results?.[0];
 
-                                if (tmdbMatch && tmdbMatch.id) {
+                                 if (tmdbMatch && tmdbMatch.id) {
                                     fetch(`${TMDB_BASE_URL}/tv/${tmdbMatch.id}?api_key=${apiKey}`)
                                         .then(res => res.json())
                                         .then(tvData => {
                                             if (tvData && tvData.seasons && tvData.seasons.length > 0) {
-                                                const activeSeasons = tvData.seasons.filter((s: any) => s.season_number > 0);
-                                                const matchedSeasonNumber = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear, startDate: media.startDate }, tvData.seasons);
+                                                const activeSeasons = tvData.seasons.filter((s: any) => s.season_number > 0 && s.episode_count > 0);
+                                                const allSeasons = tvData.seasons.filter((s: any) => s.season_number > 0);
 
                                                 setDetails((prev: any) => {
                                                     if (!prev) return prev;
                                                     return {
                                                         ...prev,
                                                         tmdbShowId: tvData.id,
-                                                        number_of_seasons: activeSeasons.length,
-                                                        seasons: activeSeasons,
+                                                        number_of_seasons: allSeasons.length,
+                                                        seasons: allSeasons,
                                                     };
                                                 });
+
                                                 if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
-                                                    setSelectedSeason(matchedSeasonNumber);
+                                                    const startDateObj = media.startDate;
+                                                    const targetTime = (startDateObj?.year && startDateObj?.month && startDateObj?.day) 
+                                                        ? new Date(startDateObj.year, startDateObj.month - 1, startDateObj.day).getTime() 
+                                                        : null;
+
+                                                    const validSeasonsToScan = activeSeasons.length > 0 ? activeSeasons : allSeasons;
+
+                                                    if (targetTime && !isNaN(targetTime) && validSeasonsToScan.length > 1) {
+                                                        setEpisodesLoading(true);
+                                                        Promise.all(validSeasonsToScan.map((s: any) => 
+                                                            fetch(`${TMDB_BASE_URL}/tv/${tvData.id}/season/${s.season_number}?api_key=${apiKey}`)
+                                                                .then(r => r.json())
+                                                                .catch(() => null)
+                                                        )).then(seasonsData => {
+                                                            let bestSeasonNumber = validSeasonsToScan[0].season_number;
+                                                            let minDiff = Infinity;
+
+                                                            seasonsData.forEach(seasonRes => {
+                                                                if (!seasonRes || !seasonRes.episodes) return;
+                                                                for (const ep of seasonRes.episodes) {
+                                                                    if (!ep.air_date) continue;
+                                                                    const epTime = new Date(ep.air_date).getTime();
+                                                                    if (isNaN(epTime)) continue;
+                                                                    const diff = Math.abs(epTime - targetTime);
+                                                                    if (diff < minDiff) {
+                                                                        minDiff = diff;
+                                                                        bestSeasonNumber = seasonRes.season_number;
+                                                                    }
+                                                                }
+                                                            });
+
+                                                            setSelectedSeason(bestSeasonNumber);
+                                                        }).catch(() => {
+                                                            const fallback = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear, startDate: media.startDate }, tvData.seasons);
+                                                            setSelectedSeason(fallback);
+                                                        });
+                                                    } else {
+                                                        const matchedSeasonNumber = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear, startDate: media.startDate }, tvData.seasons);
+                                                        setSelectedSeason(matchedSeasonNumber);
+                                                    }
                                                 }
                                             }
                                         })
