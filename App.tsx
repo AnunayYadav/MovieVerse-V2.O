@@ -5270,14 +5270,14 @@ export default function App() {
                                                     {isExclusive && (
                                                         <TvFocusButton
                                                             onClick={() => setSelectedMovie(featuredMovie)}
-                                                            className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+                                                            className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                                         >
                                                             <Play size={18} fill="currentColor" /> Watch Now
                                                         </TvFocusButton>
                                                     )}
                                                     <TvFocusButton
                                                         onClick={() => setSelectedMovie(featuredMovie)}
-                                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
+                                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
                                                     >
                                                         <Info size={18} /> More Info
                                                     </TvFocusButton>

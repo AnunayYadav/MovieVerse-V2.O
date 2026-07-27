@@ -1263,7 +1263,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                   <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                     <TvFocusButton
                       onClick={() => handleAnimeClick(featured)}
-                      className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+                      className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                     >
                       <Play size={18} fill="currentColor" /> Watch Now
                     </TvFocusButton>
@@ -1272,7 +1272,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                         href={`https://www.youtube.com/watch?v=${featured.trailer.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
+                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
                       >
                         Trailer
                       </a>

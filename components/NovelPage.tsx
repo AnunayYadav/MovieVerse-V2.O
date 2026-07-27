@@ -1798,7 +1798,7 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                 <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                   <TvFocusButton
                     onClick={() => handleNovelSelect(trendingNovels[heroIndex])}
-                    className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+                    className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                   >
                     <BookOpen size={18} /> Read Now
                   </TvFocusButton>
