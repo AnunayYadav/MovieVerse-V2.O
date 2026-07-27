@@ -2018,6 +2018,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         });
     }, [animeRelations]);
 
+    const relationCategories = useMemo(() => {
+        if (!sortedRelations || sortedRelations.length === 0) return [];
+        
+        const categories: { key: string; title: string; formats: string[]; items: any[] }[] = [
+            { key: 'TV', title: 'TV Series', formats: ['TV', 'TV_SHORT'], items: [] },
+            { key: 'MOVIE', title: 'Movies', formats: ['MOVIE'], items: [] },
+            { key: 'OVA', title: 'OVAs', formats: ['OVA'], items: [] },
+            { key: 'SPECIAL', title: 'Specials', formats: ['SPECIAL'], items: [] },
+            { key: 'ONA', title: 'ONAs & Web Anime', formats: ['ONA'], items: [] },
+            { key: 'OTHER', title: 'Music & Other Relations', formats: [], items: [] },
+        ];
+
+        sortedRelations.forEach((edge: any) => {
+            const fmt = (edge.node?.format || '').toUpperCase();
+            const matched = categories.find(c => c.formats.includes(fmt));
+            if (matched) {
+                matched.items.push(edge);
+            } else {
+                const otherCat = categories.find(c => c.key === 'OTHER');
+                if (otherCat) otherCat.items.push(edge);
+            }
+        });
+
+        return categories.filter(cat => cat.items.length > 0);
+    }, [sortedRelations]);
+
     const RELATION_COLORS: Record<string, string> = {
         PREQUEL: 'bg-emerald-600/80 text-white border-emerald-500/30',
         SEQUEL: 'bg-red-600/80 text-white border-red-500/30',
@@ -2923,59 +2949,84 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     )}
 
                                     {activeTab === 'relations' && (
-                                        <div className="animate-in fade-in text-left">
-                                            {sortedRelations.length === 0 ? (
+                                        <div className="animate-in fade-in text-left space-y-8 pb-6 select-none">
+                                            {relationCategories.length === 0 ? (
                                                 <div className="text-zinc-500 text-xs py-3 px-1 italic">No relation data found.</div>
                                             ) : (
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                                    {sortedRelations.map((edge: any) => {
-                                                        const relNode = edge.node;
-                                                        const relTitle = relNode.title.userPreferred || relNode.title.english || relNode.title.romaji;
-                                                        const relYear = relNode.startDate?.year || 'TBA';
-                                                        const relType = edge.relationType;
-                                                        const relFormat = relNode.format || 'Anime';
-                                                        const isMatching = matchingRelationId === relNode.id;
+                                                relationCategories.map((cat) => (
+                                                    <div key={cat.key} className="space-y-3">
+                                                        {/* Category Title Header */}
+                                                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                                            <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+                                                                <span>{cat.title}</span>
+                                                                <span className="text-[10px] sm:text-xs font-bold text-zinc-400 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10">
+                                                                    {cat.items.length}
+                                                                </span>
+                                                            </h3>
+                                                        </div>
 
-                                                        return (
-                                                            <div 
-                                                                key={relNode.id} 
-                                                                onClick={() => {
-                                                                    if (!isMatching) handleRelationClick(relNode);
-                                                                }}
-                                                                className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 hover:border-red-500/40 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500 animate-in fade-in cursor-pointer animate-duration-500"
-                                                            >
-                                                                <img
-                                                                    src={relNode.coverImage?.large || "https://placehold.co/300x450"}
-                                                                    alt={relTitle}
-                                                                    loading="lazy"
-                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                                />
-                                                                {isMatching && (
-                                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
-                                                                        <Loader2 className="animate-spin text-red-600" size={24} />
+                                                        {/* Horizontal Scroll Row */}
+                                                        <div className="flex gap-4 sm:gap-5 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
+                                                            {cat.items.map((edge: any) => {
+                                                                const relNode = edge.node;
+                                                                const relTitle = relNode.title.userPreferred || relNode.title.english || relNode.title.romaji;
+                                                                const relYear = relNode.startDate?.year || 'TBA';
+                                                                const relType = edge.relationType;
+                                                                const relFormat = relNode.format || 'Anime';
+                                                                const isMatching = matchingRelationId === relNode.id;
+
+                                                                return (
+                                                                    <div 
+                                                                        key={relNode.id} 
+                                                                        onClick={() => {
+                                                                            if (!isMatching) handleRelationClick(relNode);
+                                                                        }}
+                                                                        className="w-36 sm:w-44 md:w-48 lg:w-52 shrink-0 group/rel cursor-pointer flex flex-col transition-all duration-300"
+                                                                    >
+                                                                        {/* Poster Box */}
+                                                                        <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 group-hover/rel:border-red-500/50 group-hover/rel:shadow-[0_4px_20px_rgba(239,68,68,0.2)] group-hover/rel:scale-[1.02] transition-all duration-300">
+                                                                            <img
+                                                                                src={relNode.coverImage?.extraLarge || relNode.coverImage?.large || "https://placehold.co/300x450"}
+                                                                                alt={relTitle}
+                                                                                loading="lazy"
+                                                                                className="w-full h-full object-cover transition-transform duration-500 group-hover/rel:scale-105"
+                                                                            />
+
+                                                                            {isMatching && (
+                                                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                                                    <Loader2 className="animate-spin text-red-600" size={24} />
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Relation Type Badge on Poster */}
+                                                                            {relType && (
+                                                                                <div className="absolute top-2 left-2 z-10 select-none">
+                                                                                    <span className={`px-2.5 py-0.5 rounded text-[9px] font-semibold ${getRelationBadgeClass(relType)} shadow-md backdrop-blur-md`}>
+                                                                                        {formatRelationType(relType)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Text & Details Below Poster */}
+                                                                        <div className="mt-2.5 px-0.5 text-left space-y-1">
+                                                                            <h4 className="text-xs sm:text-sm font-bold text-zinc-100 group-hover/rel:text-red-400 transition-colors line-clamp-2 leading-snug">
+                                                                                {relTitle}
+                                                                            </h4>
+                                                                            <div className="flex items-center gap-2 text-[10px] sm:text-xs text-zinc-400 font-medium">
+                                                                                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-300 font-semibold text-[10px]">
+                                                                                    {relFormat === 'TV' || relFormat === 'OVA' || relFormat === 'ONA' ? relFormat : relFormat.charAt(0).toUpperCase() + relFormat.slice(1).toLowerCase()}
+                                                                                </span>
+                                                                                <span>•</span>
+                                                                                <span className="text-zinc-400">{relYear}</span>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
-                                                                )}
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-90 transition-opacity duration-300 pointer-events-none" />
-                                                                
-                                                                {/* Relation Badge */}
-                                                                <div className="absolute top-2 left-2 z-10 select-none">
-                                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wider ${getRelationBadgeClass(relType)} shadow-md backdrop-blur-sm`}>
-                                                                        {formatRelationType(relType)}
-                                                                    </span>
-                                                                </div>
-
-                                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-                                                                    <h4 className="text-xs font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300">
-                                                                        {relTitle}
-                                                                    </h4>
-                                                                    <p className="text-[9px] text-zinc-400 mt-1 font-light">
-                                                                        {relFormat} • {relYear}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))
                                             )}
                                         </div>
                                     )}
