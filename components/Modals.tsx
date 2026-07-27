@@ -1900,12 +1900,13 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
 interface StudioPageProps {
     studioId?: number | null;
     studioName?: string | null;
+    isAnime?: boolean;
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
 }
 
-export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, onClose, apiKey, onMovieClick }) => {
+export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, isAnime, onClose, apiKey, onMovieClick }) => {
     const [details, setDetails] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -1988,50 +1989,84 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, on
 
         const fetchStudioAndWorks = async () => {
             try {
-                let resolvedCompanyId: number | null = studioId && studioId > 0 ? studioId : null;
-
-                if (!resolvedCompanyId && studioName) {
-                    const searchRes = await fetch(`${TMDB_BASE_URL}/search/company?api_key=${apiKey}&query=${encodeURIComponent(studioName)}`);
-                    if (searchRes.ok) {
-                        const searchData = await searchRes.json();
-                        if (searchData.results && searchData.results.length > 0) resolvedCompanyId = searchData.results[0].id;
-                    }
-                }
-
                 let companyDetails: any = null;
                 let companyMovies: any[] = [];
 
-                if (resolvedCompanyId) {
-                    const detRes = await fetch(`${TMDB_BASE_URL}/company/${resolvedCompanyId}?api_key=${apiKey}`);
-                    if (detRes.ok) companyDetails = await detRes.json();
-
-                    const pagesToFetch = [1, 2, 3];
-                    const moviePromises = pagesToFetch.map(p =>
-                        fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_companies=${resolvedCompanyId}&sort_by=popularity.desc&page=${p}`)
-                            .then(r => r.ok ? r.json() : { results: [] })
-                            .then(d => (d.results || []).map((m: any) => ({ ...m, media_type: 'movie' })))
-                            .catch(() => [])
-                    );
-
-                    const tvPromises = [1, 2].map(p =>
-                        fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_companies=${resolvedCompanyId}&sort_by=popularity.desc&page=${p}`)
-                            .then(r => r.ok ? r.json() : { results: [] })
-                            .then(d => (d.results || []).map((m: any) => ({ ...m, media_type: 'tv' })))
-                            .catch(() => [])
-                    );
-
-                    const results = await Promise.all([...moviePromises, ...tvPromises]);
-                    const combined = results.flat();
-                    const seen = new Set<number>();
-                    combined.forEach(m => {
-                        if (m.id && !seen.has(m.id)) {
-                            seen.add(m.id);
-                            companyMovies.push(m);
+                if (isAnime && studioName) {
+                    const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 50) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format startDate { year month day } popularity averageScore } } } }`;
+                    try {
+                        const aniRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { search: studioName } }) });
+                        if (aniRes.ok) {
+                            const aniJson = await aniRes.json();
+                            const aniStudio = aniJson?.data?.Studio;
+                            if (aniStudio) {
+                                companyDetails = { id: aniStudio.id, name: aniStudio.name, favourites: aniStudio.favourites, isAnimationStudio: true };
+                                if (aniStudio.media?.nodes) {
+                                    companyMovies = aniStudio.media.nodes.map((node: any) => ({
+                                        id: node.id,
+                                        title: node.title?.english || node.title?.userPreferred || node.title?.romaji,
+                                        name: node.title?.english || node.title?.userPreferred || node.title?.romaji,
+                                        poster_path: node.coverImage?.large || node.coverImage?.extraLarge,
+                                        backdrop_path: node.bannerImage || node.coverImage?.extraLarge,
+                                        release_date: node.startDate?.year ? `${node.startDate.year}-${String(node.startDate.month || 1).padStart(2, '0')}-${String(node.startDate.day || 1).padStart(2, '0')}` : '',
+                                        first_air_date: node.startDate?.year ? `${node.startDate.year}-${String(node.startDate.month || 1).padStart(2, '0')}-${String(node.startDate.day || 1).padStart(2, '0')}` : '',
+                                        vote_average: node.averageScore ? node.averageScore / 10 : 0,
+                                        vote_count: node.popularity || 0,
+                                        popularity: node.popularity || 0,
+                                        media_type: node.format === 'MOVIE' ? 'movie' : 'tv',
+                                        isAnimeDirect: true
+                                    }));
+                                }
+                            }
                         }
-                    });
+                    } catch (e) {
+                        console.error("AniList studio fetch error:", e);
+                    }
                 }
 
-                if ((!companyDetails || companyMovies.length === 0) && studioName) {
+                if (!companyDetails) {
+                    let resolvedCompanyId: number | null = (!isAnime && studioId && studioId > 0) ? studioId : null;
+
+                    if (!resolvedCompanyId && studioName) {
+                        const searchRes = await fetch(`${TMDB_BASE_URL}/search/company?api_key=${apiKey}&query=${encodeURIComponent(studioName)}`);
+                        if (searchRes.ok) {
+                            const searchData = await searchRes.json();
+                            if (searchData.results && searchData.results.length > 0) resolvedCompanyId = searchData.results[0].id;
+                        }
+                    }
+
+                    if (resolvedCompanyId) {
+                        const detRes = await fetch(`${TMDB_BASE_URL}/company/${resolvedCompanyId}?api_key=${apiKey}`);
+                        if (detRes.ok) companyDetails = await detRes.json();
+
+                        const pagesToFetch = [1, 2, 3];
+                        const moviePromises = pagesToFetch.map(p =>
+                            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_companies=${resolvedCompanyId}&sort_by=popularity.desc&page=${p}`)
+                                .then(r => r.ok ? r.json() : { results: [] })
+                                .then(d => (d.results || []).map((m: any) => ({ ...m, media_type: 'movie' })))
+                                .catch(() => [])
+                        );
+
+                        const tvPromises = [1, 2].map(p =>
+                            fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_companies=${resolvedCompanyId}&sort_by=popularity.desc&page=${p}`)
+                                .then(r => r.ok ? r.json() : { results: [] })
+                                .then(d => (d.results || []).map((m: any) => ({ ...m, media_type: 'tv' })))
+                                .catch(() => [])
+                        );
+
+                        const results = await Promise.all([...moviePromises, ...tvPromises]);
+                        const combined = results.flat();
+                        const seen = new Set<number>();
+                        combined.forEach(m => {
+                            if (m.id && !seen.has(m.id)) {
+                                seen.add(m.id);
+                                companyMovies.push(m);
+                            }
+                        });
+                    }
+                }
+
+                if ((!companyDetails || companyMovies.length === 0) && studioName && !isAnime) {
                     const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 40) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format startDate { year month day } popularity averageScore } } } }`;
                     try {
                         const aniRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { search: studioName } }) });
@@ -2060,7 +2095,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, on
                 }
 
                 if (!companyDetails && !studioName) throw new Error("Studio details not found.");
-                setDetails(companyDetails || { id: resolvedCompanyId || 0, name: studioName || "Production Studio" });
+                setDetails(companyDetails || { id: studioId || 0, name: studioName || "Production Studio" });
                 setMergedCredits(companyMovies);
                 setLoading(false);
             } catch (err: any) {
@@ -2070,7 +2105,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, on
             }
         };
         fetchStudioAndWorks();
-    }, [studioId, studioName, apiKey]);
+    }, [studioId, studioName, isAnime, apiKey]);
 
     useEffect(() => {
         if (details?.name) document.title = `${details.name} - MovieVerse AI`;

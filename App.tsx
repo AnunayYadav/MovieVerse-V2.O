@@ -1601,6 +1601,7 @@ export default function App() {
     const [isPersonAniListStaff, setIsPersonAniListStaff] = useState<boolean>(false);
     const [selectedStudioId, setSelectedStudioId] = useState<number | null>(null);
     const [selectedStudioName, setSelectedStudioName] = useState<string | null>(null);
+    const [isAnimeStudio, setIsAnimeStudio] = useState<boolean>(false);
     const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
@@ -5566,9 +5567,10 @@ export default function App() {
                         setSelectedPersonName(name || null);
                         setIsPersonAniListStaff(!!isAniList);
                     }}
-                    onStudioClick={(id, name) => {
+                    onStudioClick={(id, name, isAnime) => {
                         setSelectedStudioId(id);
                         setSelectedStudioName(name);
+                        setIsAnimeStudio(!!isAnime);
                     }}
                     onCharacterClick={(id) => { setSelectedMovie(null); setSelectedCharacterId(id); }}
                     onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
@@ -5651,9 +5653,11 @@ export default function App() {
                 <StudioPage
                     studioId={selectedStudioId}
                     studioName={selectedStudioName}
+                    isAnime={isAnimeStudio}
                     onClose={() => {
                         setSelectedStudioId(null);
                         setSelectedStudioName(null);
+                        setIsAnimeStudio(false);
                         const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
                         if (canGoBack) {
                             window.history.back();
@@ -5663,6 +5667,7 @@ export default function App() {
                     onMovieClick={(m) => {
                         setSelectedStudioId(null);
                         setSelectedStudioName(null);
+                        setIsAnimeStudio(false);
                         setSelectedMovie(m);
                     }}
                 />
@@ -5676,9 +5681,10 @@ export default function App() {
                     initialOtt={activeOtt}
                     initialProvider={activeProvider}
                     onClose={() => { setActiveOtt(null); setActiveProvider(null); }}
-                    onStudioClick={(id, name) => {
+                    onStudioClick={(id, name, isAnime) => {
                         setSelectedStudioId(id);
                         setSelectedStudioName(name);
+                        setIsAnimeStudio(!!isAnime);
                     }}
                 />
             )}

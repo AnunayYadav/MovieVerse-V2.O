@@ -89,7 +89,7 @@ interface MoviePageProps {
     onClose: () => void;
     apiKey: string;
     onPersonClick: (id: number, name?: string, isAniList?: boolean) => void;
-    onStudioClick: (id: number | null, name: string) => void;
+    onStudioClick: (id: number | null, name: string, isAnime?: boolean) => void;
     onToggleWatchlist: (m: Movie) => void;
     isWatchlisted: boolean;
     onSwitchMovie: (m: Movie) => void;
@@ -2733,7 +2733,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <div className="flex flex-wrap items-center justify-between gap-2.5 mb-2.5">
                                                         <div className="flex items-center gap-2.5">
                                                             <span className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                                                                {Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%
+                                                                Popularity {Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%
                                                             </span>
                                                             <span className="text-xs font-medium text-zinc-300">
                                                                 {(displayData.vote_average || 0).toFixed(1)} / 10
@@ -2763,19 +2763,34 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <div className="mb-8">
                                                     <div className="flex flex-wrap gap-2">
                                                         {displayData.genres?.map((genre: any) => (
-                                                            <span key={genre.id || genre.name} className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/10 text-zinc-200 transition-colors">
+                                                            <button 
+                                                                key={genre.id || genre.name} 
+                                                                onClick={() => {
+                                                                    onClose();
+                                                                    if (onKeywordClick) onKeywordClick({ id: genre.id || 0, name: genre.name });
+                                                                }}
+                                                                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/10 hover:bg-white/20 text-zinc-200 transition-all cursor-pointer border-0 outline-none active:scale-95"
+                                                            >
                                                                 {genre.name}
-                                                            </span>
+                                                            </button>
                                                         ))}
                                                         {(displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags || [])
                                                             .slice(0, 16)
                                                             .map((tag: any, idx: number) => {
                                                                 const tagName = typeof tag === 'string' ? tag : tag.name;
+                                                                const tagId = typeof tag === 'object' && tag.id ? tag.id : 0;
                                                                 if (!tagName) return null;
                                                                 return (
-                                                                    <span key={idx} className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors">
+                                                                    <button 
+                                                                        key={idx} 
+                                                                        onClick={() => {
+                                                                            onClose();
+                                                                            if (onKeywordClick) onKeywordClick({ id: tagId, name: tagName });
+                                                                        }}
+                                                                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 hover:bg-white/15 text-zinc-300 transition-all cursor-pointer border-0 outline-none active:scale-95"
+                                                                    >
                                                                         #{tagName}
-                                                                    </span>
+                                                                    </button>
                                                                 );
                                                             })}
                                                     </div>
@@ -3899,7 +3914,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <div className="space-y-1">
                                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Tv size={10}/> Studio</p>
                                                             <button 
-                                                                onClick={() => onStudioClick(displayData.studioId || null, displayData.studio)}
+                                                                onClick={() => onStudioClick(displayData.studioId || null, displayData.studio, true)}
                                                                 className="text-white hover:text-red-500 font-bold text-sm truncate bg-transparent border-0 p-0 focus:outline-none text-left transition-colors cursor-pointer block"
                                                             >
                                                                 {displayData.studio}
@@ -4033,7 +4048,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     {displayData.production_companies.map((company) => (
                                                         <div 
                                                             key={company.id} 
-                                                            onClick={() => onStudioClick(company.id, company.name)}
+                                                            onClick={() => onStudioClick(company.id, company.name, false)}
                                                             className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-white/5 transition-colors group/prod cursor-pointer"
                                                             title={`View ${company.name} Studios`}
                                                         >
