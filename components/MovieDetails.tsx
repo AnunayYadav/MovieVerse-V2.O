@@ -2548,8 +2548,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     </div>
                 ) : (
                     <div className="flex flex-col pb-20">
-                        {/* Responsive Hero Media Container (16:9 aspect-video on mobile, 75vh height on desktop) */}
-                        <div className="relative w-full aspect-video md:h-[75vh] md:aspect-auto shrink-0 bg-black group/hero">
+                        {/* Responsive Hero Media Container */}
+                        <div className="relative w-full min-h-[500px] md:h-[70vh] shrink-0 bg-black group/hero overflow-hidden">
                              <div className="absolute inset-0 w-full h-full overflow-hidden">
                                 {trailer && !isTV && !showPlayer && !isCasting && (
                                      <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
@@ -2557,52 +2557,71 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                      </div>
                                 )}
                                 <img src={displayData.backdrop_path ? (displayData.backdrop_path.startsWith('http') ? displayData.backdrop_path : `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}`) : displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && !isTV && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
-                                <div className="absolute inset-0 bg-black -z-20"></div>
-                                <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
+                                <div className="absolute inset-0 bg-black/40 -z-20"></div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30 pointer-events-none"></div>
+                                <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent pointer-events-none"></div>
                                  {trailer && videoLoaded && (
-                                     <TvFocusButton onClick={toggleMute} className="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-30 p-2 sm:p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
+                                     <TvFocusButton onClick={toggleMute} className="absolute top-4 right-4 md:bottom-6 md:right-6 z-30 p-2 sm:p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
                              </div>
 
-                             {/* Desktop Overlay Content (hidden on mobile below md) */}
-                             <div className="hidden md:flex absolute bottom-0 left-0 w-full px-10 pb-12 flex-col gap-6 z-30 pointer-events-none">
-                                <div className="pointer-events-auto w-full">
-                                     {logo ? (
-                                         <div className="flex flex-col gap-2.5 mb-4 items-start select-none">
-                                             <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/>
-                                             {isAnime && title && title !== displayData.name && (
-                                                 <span className="text-red-500 font-extrabold tracking-wider text-xs md:text-sm uppercase bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-md max-w-max backdrop-blur-md shadow-md animate-in fade-in slide-in-from-left-4 duration-500">{title}</span>
-                                             )}
-                                         </div>
-                                     ) : (
-                                         <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>
-                                     )}
-                                     <div className={`flex flex-wrap items-center gap-4 text-white/90 text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-85 group-hover:opacity-100' : 'opacity-100'}`}>
+                             {/* Hero Content Overlay: Poster on Left, Info & Controls on Right */}
+                             <div className="absolute bottom-0 left-0 w-full max-w-7xl inset-x-0 mx-auto px-4 sm:px-8 md:px-10 pb-8 sm:pb-10 pt-16 flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-8 z-30 pointer-events-auto">
+                                {/* Left Poster Image Card */}
+                                <div className="w-32 sm:w-44 md:w-52 lg:w-56 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-zinc-900 group/poster relative">
+                                    <img
+                                        src={displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/300x450"}
+                                        alt={title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover/poster:scale-105"
+                                    />
+                                </div>
+
+                                {/* Right Section: Clean Title, Metadata, Watch Buttons */}
+                                <div className="flex-1 flex flex-col items-center sm:items-start justify-end gap-3 min-w-0 text-center sm:text-left">
+                                    <div className="flex flex-col items-center sm:items-start gap-1">
+                                        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight drop-shadow-md">
+                                            {title}
+                                        </h1>
+                                        {isAnime && displayData.name && displayData.name !== title && (
+                                            <span className="text-xs sm:text-sm font-medium text-zinc-400">
+                                                {displayData.name}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Metadata Badges */}
+                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-white/90 text-xs sm:text-sm font-medium">
                                         {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
-                                        <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
-                                        <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
-                                        {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                                     </div>
-                                    <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
+                                        <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {releaseDate}</span>
+                                        <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
+                                        {displayData.vote_average && (
+                                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded border border-white/10">
+                                                <Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Action Buttons Bar */}
+                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2.5">
                                         {isExclusive && (
-                                            <div className="relative flex items-center bg-white rounded-md text-black shadow-md hover:scale-[1.02] transition-all duration-200" ref={providerDropdownRef}>
+                                            <div className="relative flex items-center bg-white rounded-xl text-black shadow-xl hover:scale-[1.02] transition-all duration-200" ref={providerDropdownRef}>
                                                 <TvFocusButton 
                                                     onClick={handleWatchClick} 
-                                                    className="flex items-center justify-center gap-2.5 px-6 py-2.5 font-bold text-sm sm:text-base transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-md"
+                                                    className="flex items-center justify-center gap-2 px-5 py-2.5 font-extrabold text-sm transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-xl"
                                                 >
                                                     <Play size={18} fill="currentColor" /> 
-                                                     {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
+                                                    {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
                                                 </TvFocusButton>
                                                 <TvFocusButton 
                                                     onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)} 
-                                                    className="px-3 py-2.5 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-md" 
+                                                    className="px-2.5 py-2.5 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-xl" 
                                                     title="Select Provider"
                                                 >
                                                     <ChevronDown size={18} className={`transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`} />
                                                 </TvFocusButton>
 
                                                 {isProviderDropdownOpen && (
-                                                    <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
                                                         {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
                                                             <TvFocusButton
                                                                 key={prov.id}
@@ -2620,9 +2639,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 )}
                                             </div>
                                         )}
+
                                         {isExclusive && (
-                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</TvFocusButton>
+                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 bg-white/10 text-white border border-white/20 hover:bg-white/15 backdrop-blur-md shadow-md" title="Start a Watch Party">
+                                                <Users size={18} /> Watch Party
+                                            </TvFocusButton>
                                         )}
+
                                         {(() => {
                                             const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
                                             const effectiveTrailerKey = displayData.videos?.results?.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube')?.key 
@@ -2631,16 +2654,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                               || details?.videos?.results?.[0]?.key;
 
                                             return (
-                                                <div className="flex items-center gap-3">
-                                                    <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
-                                                    <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
-                                                    <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
-                                                    <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
-                                                    <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
+                                                <div className="flex items-center gap-2">
+                                                    <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isWatchlisted ? 'text-green-400 border-green-500 bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
+                                                    <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isFavorite ? 'text-red-500 border-red-500 bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
+                                                    <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${copied ? 'text-green-400 border-green-500 bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
+                                                    <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-xl border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
+                                                    <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-xl border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
                                                     {effectiveTrailerKey && (
                                                         <TvFocusButton 
                                                             onClick={() => setViewingTrailerKey(effectiveTrailerKey)} 
-                                                            className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
+                                                            className="w-10 h-10 rounded-xl border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
                                                             title="Watch Trailer"
                                                         >
                                                             <Play size={16} fill="currentColor" className="ml-0.5"/>
@@ -2650,120 +2673,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             );
                                         })()}
                                     </div>
-                                 </div>
+                                </div>
                              </div>
-                        </div>
-
-                        {/* Netflix-Style Mobile Details Flow Layout (visible on mobile only, below md) */}
-                        <div className="md:hidden w-full px-4 pt-5 pb-1 flex flex-col gap-3.5 select-none text-left animate-in fade-in slide-in-from-bottom-2 duration-500 relative z-30">
-                            {/* Logo or Text Title */}
-                            <div className="min-h-[40px] flex flex-col items-start gap-1 justify-end select-none">
-                                {logo ? (
-                                    <>
-                                        <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className="max-h-12 max-w-[70%] object-contain object-left mb-1 drop-shadow-2xl" />
-                                        {isAnime && title && title !== displayData.name && (
-                                            <span className="text-red-500 font-extrabold tracking-wider text-[10px] uppercase bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded backdrop-blur-sm shadow-sm">{title}</span>
-                                        )}
-                                    </>
-                                ) : (
-                                    <h2 className="text-xl font-bold text-white leading-tight drop-shadow-md mb-1">{title}</h2>
-                                )}
-                            </div>
-
-                            {/* Metadata Row */}
-                            <div className="flex flex-wrap items-center gap-3 text-white/80 text-xs font-semibold">
-                                {ratingLabel !== 'NR' && <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold shadow-sm ${ratingColor}`}>{ratingLabel}</span>}
-                                <span className="flex items-center gap-1.5"><Calendar size={12} className={accentText}/> {releaseDate.split(',')[1]?.trim() || releaseDate}</span>
-                                <span className="flex items-center gap-1.5"><Clock size={12} className={accentText}/> {runtime}</span>
-                                {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={12} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                            </div>
-
-                            {/* Primary Buttons Grid: Play filled, Watch Party outlined */}
-                            <div className="grid grid-cols-2 gap-3 w-full mt-1.5">
-                                {isExclusive && (
-                                    <div className="relative flex items-center bg-white rounded-md text-black shadow-md" ref={mobileProviderDropdownRef}>
-                                        <TvFocusButton 
-                                            onClick={handleWatchClick} 
-                                            className="py-2 px-3 flex-1 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-md"
-                                        >
-                                            <Play size={14} fill="currentColor"/> 
-                                            {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
-                                        </TvFocusButton>
-                                        <TvFocusButton 
-                                            onClick={() => setIsMobileProviderDropdownOpen(!isMobileProviderDropdownOpen)} 
-                                            className="p-2 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-md" 
-                                            title="Select Provider"
-                                        >
-                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isMobileProviderDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </TvFocusButton>
-
-                                        {isMobileProviderDropdownOpen && (
-                                            <div className="absolute left-0 top-full mt-2 w-48 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
-                                                    <TvFocusButton
-                                                        key={prov.id}
-                                                        onClick={() => {
-                                                            handleProviderChange(prov.id);
-                                                            setIsMobileProviderDropdownOpen(false);
-                                                        }}
-                                                        className="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 transition-colors flex items-center justify-between"
-                                                    >
-                                                        <span>{prov.name}</span>
-                                                        {selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
-                                                    </TvFocusButton>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {isExclusive && (
-                                    <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md">
-                                        <Users size={14}/> Watch Party
-                                    </TvFocusButton>
-                                )}
-                            </div>
-
-                            {/* Secondary Action Buttons Compact Row */}
-                             {(() => {
-                                 const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
-                                 const effectiveTrailerKey = displayData.videos?.results?.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube')?.key 
-                                   || displayData.videos?.results?.find((v: any) => v.site === 'YouTube')?.key 
-                                   || aniListTrailerKey 
-                                   || details?.videos?.results?.[0]?.key;
-
-                                 return (
-                                     <div className="grid grid-cols-6 gap-0.5 py-3 border-y border-white/5 mt-1.5 text-gray-400">
-                                         <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                             {isWatchlisted ? <Bookmark size={18} fill="currentColor" className="text-green-400"/> : <Bookmark size={18} className="text-white"/>}
-                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
-                                         </TvFocusButton>
-                                         <TvFocusButton onClick={() => onToggleFavorite(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                             <Heart size={18} className={isFavorite ? "text-red-500 fill-red-500" : "text-white"}/>
-                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Favorite</span>
-                                         </TvFocusButton>
-                                         <TvFocusButton onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                             {copied ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Share2 size={18} className="text-white"/>}
-                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
-                                         </TvFocusButton>
-                                         <TvFocusButton onClick={() => setShowDownloadModal(true)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                             <Download size={18} className="text-white"/>
-                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Download</span>
-                                         </TvFocusButton>
-                                         <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
-                                             <Shield size={18} className="text-white"/>
-                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Parents Guide</span>
-                                         </TvFocusButton>
-                                         <TvFocusButton 
-                                             onClick={() => effectiveTrailerKey && setViewingTrailerKey(effectiveTrailerKey)} 
-                                             disabled={!effectiveTrailerKey} 
-                                             className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30 cursor-pointer"
-                                         >
-                                             <PlayCircle size={18} className="text-white"/>
-                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Trailer</span>
-                                         </TvFocusButton>
-                                     </div>
-                                 );
-                             })()}
                         </div>
 
                         {/* Details and Tabs section wrapper */}
