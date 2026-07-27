@@ -29,16 +29,6 @@ export async function resolveHayaseProxyStream(magnetUri: string, customProxyUrl
   const proxyBase = (customProxyUrl || localStorage.getItem('hayase_proxy_url') || 'https://movieverse-v2-o.onrender.com').replace(/\/$/, '');
   const encodedMagnet = encodeURIComponent(magnetUri);
 
-  // Ping proxy
-  try {
-    const health = await fetch(`${proxyBase}/health`, { signal: AbortSignal.timeout(2000) });
-    if (!health.ok) {
-      throw new Error('Proxy server returned non-OK status');
-    }
-  } catch (e) {
-    console.warn('[Hayase Proxy] Health check warning:', e);
-  }
-
   return {
     streamUrl: `${proxyBase}/stream?magnet=${encodedMagnet}`,
     fileName: 'Nyaa P2P Torrent Stream'
