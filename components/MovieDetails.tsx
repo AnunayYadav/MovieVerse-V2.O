@@ -1832,7 +1832,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     };
                                                 });
 
-                                                if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
+                                                // Validate whether initial season or last_watched_data actually exists in activeSeasons
+                                                const hasValidLastWatched = movie.last_watched_data?.season && activeSeasons.some((s: any) => s.season_number === movie.last_watched_data.season);
+                                                const isCurrentSeasonValid = activeSeasons.some((s: any) => s.season_number === selectedSeason);
+
+                                                if (!hasValidLastWatched || !isCurrentSeasonValid) {
                                                     const startDateObj = media.startDate;
                                                     const targetTime = (startDateObj?.year && startDateObj?.month && startDateObj?.day) 
                                                         ? new Date(startDateObj.year, startDateObj.month - 1, startDateObj.day).getTime() 
@@ -1865,13 +1869,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             });
 
                                                             setSelectedSeason(bestSeasonNumber);
+                                                            setPlayParams(prev => ({ ...prev, season: bestSeasonNumber }));
                                                         }).catch(() => {
                                                             const fallback = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear, startDate: media.startDate }, tvData.seasons);
                                                             setSelectedSeason(fallback);
+                                                            setPlayParams(prev => ({ ...prev, season: fallback }));
                                                         });
                                                     } else {
                                                         const matchedSeasonNumber = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear, startDate: media.startDate }, tvData.seasons);
                                                         setSelectedSeason(matchedSeasonNumber);
+                                                        setPlayParams(prev => ({ ...prev, season: matchedSeasonNumber }));
                                                     }
                                                 }
                                             }
@@ -1911,9 +1918,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     }
                     setLoading(false);
                     if (data.seasons && data.seasons.length > 0) {
-                        if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
-                            const firstSeason = data.seasons.find((s: Season) => s.season_number === 1) || data.seasons[0];
+                        const validSeasons = data.seasons.filter((s: Season) => s.season_number > 0 && (s.episode_count === undefined || s.episode_count === null || s.episode_count > 0));
+                        const isCurrentValid = validSeasons.some((s: Season) => s.season_number === selectedSeason);
+                        if (!isCurrentValid && validSeasons.length > 0) {
+                            const firstSeason = validSeasons.find((s: Season) => s.season_number === 1) || validSeasons[0];
                             setSelectedSeason(firstSeason.season_number);
+                            setPlayParams(prev => ({ ...prev, season: firstSeason.season_number }));
                         }
                     }
                 })
