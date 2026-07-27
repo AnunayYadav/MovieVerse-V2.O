@@ -127,11 +127,14 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
               items.forEach(item => {
                 const itemTitle = item.querySelector('title')?.textContent || 'Nyaa Torrent';
                 const link = item.querySelector('link')?.textContent || '';
+                const seedersNode = item.getElementsByTagName('nyaa:seeders')[0] || item.querySelector('seeders');
+                const realSeeds = seedersNode ? parseInt(seedersNode.textContent || '0', 10) : 0;
+
                 if (link.startsWith('magnet:')) {
                   streamList.push({
                     name: `[Nyaa] ${itemTitle}`,
                     magnet: link,
-                    seeds: 100
+                    seeds: realSeeds
                   });
                 }
               });
@@ -152,10 +155,13 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
               data.streams.slice(0, 5).forEach((s: any) => {
                 const infoHash = s.infoHash;
                 const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(s.title || title || 'Video')}`;
+                const matchSeeders = typeof s.title === 'string' ? s.title.match(/👤\s*(\d+)/) : null;
+                const realSeeds = matchSeeders ? parseInt(matchSeeders[1], 10) : (s.seeders || 0);
+
                 streamList.push({
                   name: s.title ? s.title.split('\n')[0] : 'High Quality Torrent Stream',
                   magnet,
-                  seeds: 50
+                  seeds: realSeeds
                 });
               });
             }
