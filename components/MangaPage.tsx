@@ -4,7 +4,7 @@ import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 import { fetchAniListUserList } from '../services/anilistSync';
 import JSZip from 'jszip';
-import { processMangaPageOffline } from '../utils/mangaTranslator';
+
 
 export interface MangaDexManga {
   id: string;
@@ -1041,66 +1041,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
 
-  // Offline Manga Translation States
-  const [isOfflineTranslateActive, setIsOfflineTranslateActive] = useState(false);
-  const [isOfflineTranslating, setIsOfflineTranslating] = useState(false);
-  const [offlineTranslationProgress, setOfflineTranslationProgress] = useState({ msg: '', percent: 0 });
-  const [translatedPageCache, setTranslatedPageCache] = useState<Record<string, string>>({});
 
-  // Top-level offline translation callback
-  const translatePageUrl = useCallback(async (pageUrl: string) => {
-    if (!pageUrl || translatedPageCache[pageUrl]) return;
-
-    setIsOfflineTranslating(true);
-    setOfflineTranslationProgress({ msg: 'Initializing Japanese OCR...', percent: 10 });
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = pageUrl;
-      await new Promise((res) => {
-        img.onload = res;
-        img.onerror = () => res(null);
-      });
-
-      const result = await processMangaPageOffline(img, (msg, percent) => {
-        setOfflineTranslationProgress({ msg, percent });
-      });
-
-      if (result && result.processedCanvasDataUrl) {
-        setTranslatedPageCache(prev => ({
-          ...prev,
-          [pageUrl]: result.processedCanvasDataUrl
-        }));
-      }
-    } catch (err) {
-      console.error("Offline translation failed:", err);
-    } finally {
-      setIsOfflineTranslating(false);
-    }
-  }, [translatedPageCache]);
-
-  // Top-level auto-translation effect for all chapter pages
-  useEffect(() => {
-    if (!isOfflineTranslateActive || isOfflineTranslating || !pages || pages.length === 0) return;
-
-    // Prioritize active page first, then subsequent pages, then earlier pages
-    const pagesFromActive = [
-      ...pages.slice(activePageIdx),
-      ...pages.slice(0, activePageIdx)
-    ];
-
-    const nextUntranslatedRaw = pagesFromActive.find(rawPage => {
-      const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
-      return pageUrl && !translatedPageCache[pageUrl];
-    });
-
-    if (nextUntranslatedRaw) {
-      const pageUrl = typeof nextUntranslatedRaw === 'string' ? nextUntranslatedRaw : nextUntranslatedRaw?.src;
-      if (pageUrl) {
-        translatePageUrl(pageUrl);
-      }
-    }
-  }, [isOfflineTranslateActive, activePageIdx, pages, translatedPageCache, isOfflineTranslating, translatePageUrl]);
 
 
   // Sync bookmark status
@@ -4159,16 +4100,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onChapterSelect(e.target.value);
     };
 
-    const handleToggleOfflineTranslation = async () => {
-      if (isOfflineTranslateActive) {
-        setIsOfflineTranslateActive(false);
-        showToast("Offline translation disabled");
-        return;
-      }
 
-      setIsOfflineTranslateActive(true);
-      showToast("Offline translation enabled - Translating pages...");
-    };
 
 
 
@@ -4481,7 +4413,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <ChevronLeft size={15} />
               </button>
             )}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-transparent border-none rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/10 rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
               <BookOpen size={14} className="text-red-500 shrink-0" />
               <span className="truncate">{selectedManga ? getMangaTitle(selectedManga) : 'Loading...'}</span>
             </div>
@@ -4493,7 +4425,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             onChange={onChapterSelect}
             options={menuChapterOptions}
             icon={<LayoutList size={14} className="text-red-500 shrink-0" />}
-            className="px-3 py-1.5 bg-transparent hover:bg-transparent border-none rounded-xl font-semibold text-xs"
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl font-semibold text-xs transition-colors"
             containerClassName="w-40 sm:w-56"
             dropdownClassName="w-56 max-h-60"
             menuAlign="center"
@@ -4505,29 +4437,20 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             <button
               onClick={goToPrevChapter}
               disabled={!hasPrevChapter}
-              className="flex items-center gap-1 px-3 py-1.5 bg-transparent border-none hover:bg-transparent disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
-              title="Older Chapter"
+              className="p-2 bg-transparent border-none hover:bg-transparent text-zinc-300 hover:text-white disabled:opacity-20 rounded-xl transition-all active:scale-95 shrink-0"
+              title="Previous Chapter"
             >
-              <ChevronLeft size={13} /> PREV
+              <ChevronLeft size={16} />
             </button>
 
             {/* NEXT button */}
             <button
               onClick={goToNextChapter}
               disabled={!hasNextChapter}
-              className="flex items-center gap-1 px-3 py-1.5 bg-transparent border-none hover:bg-transparent disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
-              title="Newer Chapter"
+              className="p-2 bg-transparent border-none hover:bg-transparent text-zinc-300 hover:text-white disabled:opacity-20 rounded-xl transition-all active:scale-95 shrink-0"
+              title="Next Chapter"
             >
-              NEXT <ChevronRight size={13} />
-            </button>
-
-            {/* Bookmark button */}
-            <button
-              onClick={() => showToast("Added to reading list")}
-              className="hidden sm:inline-flex p-2 bg-transparent border-none hover:bg-transparent text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
-              title="Bookmark Chapter"
-            >
-              <Bookmark size={14} />
+              <ChevronRight size={16} />
             </button>
 
             {/* Download button */}
@@ -4539,22 +4462,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <Download size={14} />
             </button>
 
-            {/* Offline Manga Translator Toggle Button */}
-            <button
-              onClick={handleToggleOfflineTranslation}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 border shrink-0 ${
-                isOfflineTranslateActive
-                  ? 'bg-red-600/90 border-red-500/60 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]'
-                  : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
-              }`}
-              title="Translate Japanese Manga Offline On-Device"
-            >
-              <Globe size={13} className={isOfflineTranslating ? 'animate-spin text-yellow-400' : isOfflineTranslateActive ? 'text-white' : 'text-zinc-400'} />
-              <span className="hidden sm:inline">
-                {isOfflineTranslating ? 'Translating...' : isOfflineTranslateActive ? 'Offline Translated' : 'Translate (Offline)'}
-              </span>
-            </button>
-
             {/* Fullscreen button */}
             <button
               onClick={toggleFullscreen}
@@ -4563,8 +4470,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             >
               {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
             </button>
-
-
 
             {/* Settings toggler (only at top) */}
             {!isBottom && (
@@ -4583,17 +4488,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     return (
       <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
-
-        {/* On-Device Translation Progress Banner */}
-        {isOfflineTranslating && (
-          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[200] bg-zinc-950/95 border border-red-500/50 backdrop-blur-xl px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-            <Loader2 className="animate-spin text-red-500" size={16} />
-            <div className="flex flex-col text-left">
-              <span className="text-[11px] font-bold text-white leading-tight">Translating Japanese Page (Offline)</span>
-              <span className="text-[9px] text-zinc-400 font-medium">{offlineTranslationProgress.msg} ({offlineTranslationProgress.percent}%)</span>
-            </div>
-          </div>
-        )}
 
         {/* Top Horizontal Floating Menu Bar */}
         <HorizontalMenuBar />
@@ -4632,7 +4526,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         <GigaViewerPage page={page} pageNum={i + 1} />
                       ) : (
                         <img
-                          src={isOfflineTranslateActive && translatedPageCache[url] ? translatedPageCache[url] : url}
+                          src={url}
                           alt={`Page ${i + 1}`}
                           referrerPolicy="no-referrer"
                           className="w-full h-auto block pointer-events-none"
@@ -4679,11 +4573,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     ) : (
                       <img
                         key={activePageIdx}
-                        src={
-                          isOfflineTranslateActive && translatedPageCache[typeof pages[activePageIdx] === 'string' ? pages[activePageIdx] : pages[activePageIdx]?.src]
-                            ? translatedPageCache[typeof pages[activePageIdx] === 'string' ? pages[activePageIdx] : pages[activePageIdx]?.src]
-                            : pages[activePageIdx]
-                        }
+                        src={typeof pages[activePageIdx] === 'string' ? pages[activePageIdx] : pages[activePageIdx]?.src}
                         alt={`Page ${activePageIdx + 1}`}
                         referrerPolicy="no-referrer"
                         className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
