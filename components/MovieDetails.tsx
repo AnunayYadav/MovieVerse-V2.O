@@ -2503,10 +2503,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        <div className={`fixed top-16 inset-x-0 bottom-0 z-[50] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
-                    <TvFocusButton onClick={handleClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group">
+                    <TvFocusButton onClick={handleClose} className="fixed top-20 left-4 md:left-8 z-[60] bg-black/50 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
                         <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
                     </TvFocusButton>
                 )}
