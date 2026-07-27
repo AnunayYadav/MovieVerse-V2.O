@@ -1790,17 +1790,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 const targetYear = media.startDate?.year || media.seasonYear;
                                 const fullTitle = (media.title.english || media.title.userPreferred || media.title.romaji || '').toLowerCase();
 
-                                // 1. Prefer an exact or subtitle match in TMDB show name (e.g. "Thousand-Year Blood War")
-                                let bestMatch = searchData.results?.find((item: any) => {
-                                    if (!item.name) return false;
-                                    const nameLower = item.name.toLowerCase();
-                                    return fullTitle.includes(nameLower) || nameLower.includes(fullTitle);
-                                });
+                                // For anime, strictly prefer results with genre 16 (Animation) or Japanese original language ('ja')
+                                const animeCandidates = (searchData.results || []).filter((item: any) => 
+                                    (item.genre_ids?.includes(16) || item.original_language === 'ja')
+                                );
+                                const candidates = animeCandidates.length > 0 ? animeCandidates : (searchData.results || []);
 
-                                // 2. If no exact title match, match closest release year to AniList start date
-                                if (!bestMatch && targetYear) {
+                                // 1. First priority: Filter candidate with closest release year to AniList start date
+                                let bestMatch: any = null;
+                                if (targetYear) {
                                     let minDiff = Infinity;
-                                    for (const item of (searchData.results || [])) {
+                                    for (const item of candidates) {
                                         if (!item.first_air_date) continue;
                                         const itemYear = new Date(item.first_air_date).getFullYear();
                                         const diff = Math.abs(itemYear - targetYear);
@@ -1811,9 +1811,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     }
                                 }
 
-                                const tmdbMatch = bestMatch 
-                                    || searchData.results?.find((item: any) => item.genre_ids?.includes(16) && item.original_language === 'ja')
-                                    || searchData.results?.[0];
+                                // 2. Second priority: Candidate with exact/subtitle title match
+                                if (!bestMatch) {
+                                    bestMatch = candidates.find((item: any) => {
+                                        if (!item.name) return false;
+                                        const nameLower = item.name.toLowerCase();
+                                        return fullTitle.includes(nameLower) || nameLower.includes(fullTitle);
+                                    });
+                                }
+
+                                const tmdbMatch = bestMatch || candidates[0] || searchData.results?.[0];
 
                                  if (tmdbMatch && tmdbMatch.id) {
                                     fetch(`${TMDB_BASE_URL}/tv/${tmdbMatch.id}?api_key=${apiKey}`)
@@ -2327,11 +2334,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         try {
             const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
             const data = await res.json();
-            let match = data.results?.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
-            ) || data.results?.find((item: any) => 
-                item.genre_ids?.includes(16)
-            ) || data.results?.[0];
+            const animeCandidates = (data.results || []).filter((item: any) => 
+                (item.genre_ids?.includes(16) || item.original_language === 'ja')
+            );
+            const candidates = animeCandidates.length > 0 ? animeCandidates : (data.results || []);
+
+            const relYear = relationNode.startDate?.year;
+            let match = candidates.find((item: any) => {
+                if (!item.first_air_date || !relYear) return false;
+                return Math.abs(new Date(item.first_air_date).getFullYear() - relYear) <= 2;
+            }) || candidates[0];
             
             if (match) {
                 let resolvedSeason = 1;
