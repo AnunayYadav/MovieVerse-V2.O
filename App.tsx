@@ -3580,7 +3580,21 @@ export default function App() {
     const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
     const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); setIsSidebarOpen(false); };
     const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); setIsSidebarOpen(false); };
-    const handleKeywordClick = (keyword: Keyword) => { setSelectedMovie(null); resetFilters(); setActiveKeyword(keyword); setSelectedCategory("Deep Dive"); setIsSidebarOpen(false); };
+    const handleKeywordClick = (keyword: Keyword) => {
+        setSelectedMovie(null);
+        resetFilters();
+        const genreMatch = Object.keys(GENRES_MAP).find(
+            g => g.toLowerCase() === keyword.name.toLowerCase() ||
+                 (g === 'Sci-Fi' && keyword.name.toLowerCase().includes('sci'))
+        );
+        if (genreMatch) {
+            setSelectedCategory(genreMatch);
+        } else {
+            setActiveKeyword(keyword);
+            setSelectedCategory("Deep Dive");
+        }
+        setIsSidebarOpen(false);
+    };
     const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); setIsSidebarOpen(false); };
     const handleSearchSubmit = (query: string) => {
         if (selectedCategory === "Categories") return;

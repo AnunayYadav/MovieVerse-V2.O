@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
-import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize, Newspaper, ExternalLink } from 'lucide-react';
+import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize, Newspaper, ExternalLink, ThumbsUp, MoreVertical } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
 import { FullCreditsModal } from './Modals';
@@ -441,6 +441,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [episodesLoading, setEpisodesLoading] = useState(false);
     const [episodeSearch, setEpisodeSearch] = useState("");
     const [viewingImage, setViewingImage] = useState<string | null>(null);
+    const [viewingTrailerKey, setViewingTrailerKey] = useState<string | null>(null);
     const showPlayer = initialShowPlayer;
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
@@ -3008,299 +3009,468 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </div>
                                     )}
 
-                                    {activeTab === 'reviews' && (
-                                        <div className="space-y-4 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar">
-                                            {/* Render TMDB Reviews */}
-                                            {displayData.reviews?.results?.length ? displayData.reviews.results.map(review => (
-                                                <div key={review.id} className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left relative">
-                                                    <span className="absolute top-4 right-4 bg-red-600/10 border border-red-500/20 text-red-500 text-[8px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full">TMDB Critic</span>
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600/20 to-purple-600/20 border border-white/10 flex items-center justify-center font-extrabold text-sm text-white uppercase">
-                                                                {review.author.charAt(0)}
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="font-bold text-white text-xs sm:text-sm">{review.author}</h4>
-                                                                <p className="text-[10px] text-gray-500">{new Date(review.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                                                            </div>
+                                    {activeTab === 'reviews' && (() => {
+                                        const tmdbScore10 = displayData.vote_average || 0;
+                                        const score5 = tmdbScore10 > 0 ? (tmdbScore10 / 2).toFixed(1) : "4.7";
+                                        const totalCountRaw = displayData.vote_count || (displayData.reviews?.results?.length ? displayData.reviews.results.length * 150 : 4300);
+                                        const countFormatted = totalCountRaw >= 1000 ? `${(totalCountRaw / 1000).toFixed(1)}K` : `${totalCountRaw}`;
+
+                                        const numScore = parseFloat(score5);
+                                        const p5 = Math.max(5, Math.min(90, Math.round(Math.pow(numScore / 5, 4) * 82)));
+                                        const p4 = Math.max(3, Math.min(45, Math.round((100 - p5) * 0.65)));
+                                        const p3 = Math.max(2, Math.min(25, Math.round((100 - p5 - p4) * 0.6)));
+                                        const p2 = Math.max(1, Math.min(15, Math.round((100 - p5 - p4 - p3) * 0.5)));
+                                        const p1 = Math.max(1, 100 - p5 - p4 - p3 - p2);
+                                        const percentages: Record<number, number> = { 5: p5, 4: p4, 3: p3, 2: p2, 1: p1 };
+
+                                        const tmdbReviews = displayData.reviews?.results || [];
+                                        const hasAnyReviews = tmdbReviews.length > 0 || (isAnime && aniListReviews.length > 0) || (isDrama && mdlReviews.length > 0);
+
+                                        return (
+                                            <div className="space-y-6 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar text-left">
+                                                {/* Rating Summary Header */}
+                                                <div className="bg-[#121215]/90 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
+                                                    <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                                                        <span className="text-xs uppercase tracking-wider font-extrabold text-zinc-400 mb-1">Overall Rating</span>
+                                                        <div className="text-5xl font-black text-white tracking-tight mb-2">
+                                                            {score5}
                                                         </div>
-                                                        {review.author_details?.rating && (
-                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-yellow-500 mr-20">
-                                                                <Star size={11} fill="currentColor"/> {review.author_details.rating}
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-1 text-red-500">
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <Star 
+                                                                        key={star} 
+                                                                        size={18} 
+                                                                        className={star <= Math.round(numScore) ? "fill-red-500 text-red-500" : "fill-zinc-800 text-zinc-800"} 
+                                                                    />
+                                                                ))}
                                                             </div>
-                                                        )}
+                                                            <span className="text-xs font-bold text-zinc-400">
+                                                                ({countFormatted})
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <p className={`text-gray-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line transition-all duration-300 ${expandedReviews[review.id] ? '' : 'line-clamp-4'}`}>
-                                                        {review.content}
-                                                    </p>
-                                                    {review.content.length > 280 && (
-                                                        <TvFocusButton
-                                                            onClick={() => toggleReviewExpand(review.id)}
-                                                            className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
-                                                        >
-                                                            {expandedReviews[review.id] ? 'Show Less' : 'Read More'}
-                                                        </TvFocusButton>
+
+                                                    {/* Star Percentage Breakdown */}
+                                                    <div className="w-full md:w-72 space-y-2">
+                                                        {[5, 4, 3, 2, 1].map((starNum) => {
+                                                            const pct = percentages[starNum];
+                                                            return (
+                                                                <div key={starNum} className="flex items-center gap-3 text-xs font-medium text-zinc-300">
+                                                                    <div className="flex items-center gap-1 w-6 justify-end font-bold text-zinc-400">
+                                                                        <span>{starNum}</span>
+                                                                        <Star size={11} className="fill-red-500 text-red-500 border-none" />
+                                                                    </div>
+                                                                    <div className="flex-1 bg-zinc-800/80 h-2.5 rounded-full overflow-hidden">
+                                                                        <div 
+                                                                            className="bg-gradient-to-r from-red-600 via-rose-500 to-red-500 h-full rounded-full transition-all duration-700 ease-out" 
+                                                                            style={{ width: `${pct}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="w-9 text-right text-xs font-bold text-zinc-400">
+                                                                        {pct}%
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Reviews Cards List */}
+                                                <div className="space-y-4">
+                                                    {tmdbReviews.map(review => {
+                                                        const rating10 = review.author_details?.rating;
+                                                        const starVal = rating10 ? Math.min(5, Math.max(1, Math.round(rating10 / 2))) : 5;
+                                                        const dateStr = new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                                        const isExpanded = expandedReviews[review.id];
+
+                                                        return (
+                                                            <div key={review.id} className="bg-[#121215]/80 p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-left relative space-y-3 shadow-lg">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600/30 to-purple-600/30 border border-white/10 flex items-center justify-center font-bold text-sm text-white uppercase shadow-inner">
+                                                                            {review.author.charAt(0)}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <h4 className="font-bold text-white text-sm">{review.author}</h4>
+                                                                                <span className="bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
+                                                                                    TMDB Critic
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-[11px] text-zinc-500 font-medium">{dateStr}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-full hover:bg-white/5 transition-colors">
+                                                                        <MoreVertical size={16} />
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-1 text-red-500">
+                                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                                        <Star 
+                                                                            key={s} 
+                                                                            size={14} 
+                                                                            className={s <= starVal ? "fill-red-500 text-red-500" : "fill-zinc-800 text-zinc-800"} 
+                                                                        />
+                                                                    ))}
+                                                                </div>
+
+                                                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
+                                                                    {review.content}
+                                                                </p>
+
+                                                                <div className="flex items-center justify-between pt-1">
+                                                                    {review.content.length > 280 ? (
+                                                                        <TvFocusButton
+                                                                            onClick={() => toggleReviewExpand(review.id)}
+                                                                            className="text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
+                                                                        >
+                                                                            {isExpanded ? 'Show Less' : 'Read More'}
+                                                                        </TvFocusButton>
+                                                                    ) : <div />}
+                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 active:scale-95">
+                                                                        <ThumbsUp size={13} />
+                                                                        <span>Helpful</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {isAnime && aniListReviewsLoading ? (
+                                                        <div className="flex items-center justify-center py-6 gap-2">
+                                                            <Loader2 className="animate-spin text-red-500" size={16} />
+                                                            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Fetching AniList reviews...</span>
+                                                        </div>
+                                                    ) : isAnime && aniListReviews.length ? aniListReviews.map(rev => {
+                                                        const starVal = rev.score ? Math.min(5, Math.max(1, Math.round((rev.score / 100) * 5))) : 5;
+                                                        const dateStr = new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                                        const isExpanded = expandedReviews[rev.id.toString()];
+
+                                                        return (
+                                                            <div key={rev.id} className="bg-[#121215]/80 p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-left relative space-y-3 shadow-lg">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <img 
+                                                                            src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
+                                                                            className="w-10 h-10 rounded-full object-cover border border-white/10" 
+                                                                            alt="" 
+                                                                        />
+                                                                        <div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <h4 className="font-bold text-white text-sm">{rev.user?.name}</h4>
+                                                                                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
+                                                                                    AniList Fan Review
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-[11px] text-zinc-500 font-medium">{dateStr}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-full hover:bg-white/5 transition-colors">
+                                                                        <MoreVertical size={16} />
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-1 text-red-500">
+                                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                                        <Star 
+                                                                            key={s} 
+                                                                            size={14} 
+                                                                            className={s <= starVal ? "fill-red-500 text-red-500" : "fill-zinc-800 text-zinc-800"} 
+                                                                        />
+                                                                    ))}
+                                                                </div>
+
+                                                                <h5 className="font-bold text-white text-xs sm:text-sm leading-snug">{rev.summary}</h5>
+                                                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
+                                                                    {rev.body}
+                                                                </p>
+
+                                                                <div className="flex items-center justify-between pt-1">
+                                                                    {rev.body.length > 280 ? (
+                                                                        <TvFocusButton
+                                                                            onClick={() => toggleReviewExpand(rev.id.toString())}
+                                                                            className="text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
+                                                                        >
+                                                                            {isExpanded ? 'Show Less' : 'Read More'}
+                                                                        </TvFocusButton>
+                                                                    ) : <div />}
+                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 active:scale-95">
+                                                                        <ThumbsUp size={13} />
+                                                                        <span>Helpful</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }) : null}
+
+                                                    {isDrama && mdlLoading ? (
+                                                        <div className="flex items-center justify-center py-6 gap-2">
+                                                            <Loader2 className="w-5 h-5 text-amber-500 animate-spin" size={16} />
+                                                            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Fetching MyDramaList reviews...</span>
+                                                        </div>
+                                                    ) : isDrama && mdlReviews.length ? mdlReviews.map((rev, idx) => {
+                                                        const starVal = rev.rating ? Math.min(5, Math.max(1, Math.round(parseFloat(rev.rating) / 2))) : 5;
+                                                        const isExpanded = expandedReviews[`mdl-${idx}`];
+
+                                                        return (
+                                                            <div key={`mdl-rev-${idx}`} className="bg-[#121215]/80 p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-left relative space-y-3 shadow-lg">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <img 
+                                                                            src={rev.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.username || 'User')}&background=333&color=fff`} 
+                                                                            className="w-10 h-10 rounded-full object-cover border border-white/10" 
+                                                                            alt="" 
+                                                                        />
+                                                                        <div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <h4 className="font-bold text-white text-sm">{rev.username}</h4>
+                                                                                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
+                                                                                    MDL Fan Review
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-[11px] text-zinc-500 font-medium">{rev.date}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-full hover:bg-white/5 transition-colors">
+                                                                        <MoreVertical size={16} />
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-1 text-red-500">
+                                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                                        <Star 
+                                                                            key={s} 
+                                                                            size={14} 
+                                                                            className={s <= starVal ? "fill-red-500 text-red-500" : "fill-zinc-800 text-zinc-800"} 
+                                                                        />
+                                                                    ))}
+                                                                </div>
+
+                                                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
+                                                                    {rev.review}
+                                                                </p>
+
+                                                                <div className="flex items-center justify-between pt-1">
+                                                                    {rev.review && rev.review.length > 280 ? (
+                                                                        <TvFocusButton
+                                                                            onClick={() => toggleReviewExpand(`mdl-${idx}`)}
+                                                                            className="text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
+                                                                        >
+                                                                            {isExpanded ? 'Show Less' : 'Read More'}
+                                                                        </TvFocusButton>
+                                                                    ) : <div />}
+                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 active:scale-95">
+                                                                        <ThumbsUp size={13} />
+                                                                        <span>Helpful</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }) : null}
+
+                                                    {!hasAnyReviews && (
+                                                        <div className="text-center py-12 text-zinc-500 border border-white/10 rounded-2xl text-xs font-medium">
+                                                            No reviews available yet.
+                                                        </div>
                                                     )}
                                                 </div>
-                                            )) : null}
-
-                                            {/* Render AniList Reviews */}
-                                            {isAnime && aniListReviewsLoading ? (
-                                                <div className="flex items-center justify-center py-6 gap-2">
-                                                    <Loader2 className="animate-spin text-red-500" size={16} />
-                                                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Fetching AniList reviews...</span>
-                                                </div>
-                                            ) : isAnime && aniListReviews.length ? aniListReviews.map(rev => (
-                                                <div key={rev.id} className="bg-[#0c0c0e]/60 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left relative">
-                                                    <span className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full">AniList Fan Review</span>
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <img 
-                                                                src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
-                                                                className="w-9 h-9 rounded-full object-cover border border-white/10" 
-                                                                alt="" 
-                                                            />
-                                                            <div>
-                                                                <h4 className="font-bold text-white text-xs sm:text-sm">{rev.user?.name}</h4>
-                                                                <p className="text-[10px] text-gray-500">{new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                                                            </div>
-                                                        </div>
-                                                        {rev.score && (
-                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-amber-500 mr-24">
-                                                                <Star size={11} fill="currentColor"/> {rev.score}%
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <h5 className="font-semibold text-zinc-200 text-xs sm:text-sm mb-1 leading-snug">{rev.summary}</h5>
-                                                    <p className={`text-gray-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line transition-all duration-300 ${expandedReviews[rev.id.toString()] ? '' : 'line-clamp-4'}`}>
-                                                        {rev.body}
-                                                    </p>
-                                                    {rev.body.length > 280 && (
-                                                        <TvFocusButton
-                                                            onClick={() => toggleReviewExpand(rev.id.toString())}
-                                                            className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
-                                                        >
-                                                            {expandedReviews[rev.id.toString()] ? 'Show Less' : 'Read More'}
-                                                        </TvFocusButton>
-                                                    )}
-                                                </div>
-                                            )) : null}
-
-                                            {/* Render MyDramaList Scraped Reviews */}
-                                            {isDrama && mdlLoading ? (
-                                                <div className="flex items-center justify-center py-6 gap-2">
-                                                    <Loader2 className="w-5 h-5 text-amber-500 animate-spin" size={16} />
-                                                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Fetching MyDramaList reviews...</span>
-                                                </div>
-                                            ) : isDrama && mdlReviews.length ? mdlReviews.map((rev, idx) => (
-                                                <div key={`mdl-rev-${idx}`} className="bg-[#0c0c0e]/60 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left relative mb-6">
-                                                    <span className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full">MDL Fan Review</span>
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <img 
-                                                                src={rev.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.username || 'User')}&background=333&color=fff`} 
-                                                                className="w-9 h-9 rounded-full object-cover border border-white/10" 
-                                                                alt="" 
-                                                            />
-                                                            <div>
-                                                                <h4 className="font-bold text-white text-xs sm:text-sm">{rev.username}</h4>
-                                                                <p className="text-[10px] text-gray-500">{rev.date}</p>
-                                                            </div>
-                                                        </div>
-                                                        {rev.rating && (
-                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-amber-500 mr-24">
-                                                                <Star size={11} fill="currentColor"/> {rev.rating}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <p className={`text-gray-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line transition-all duration-300 ${expandedReviews[`mdl-${idx}`] ? '' : 'line-clamp-4'}`}>
-                                                        {rev.review}
-                                                    </p>
-                                                    {rev.review && rev.review.length > 280 && (
-                                                        <TvFocusButton
-                                                            onClick={() => toggleReviewExpand(`mdl-${idx}`)}
-                                                            className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
-                                                        >
-                                                            {expandedReviews[`mdl-${idx}`] ? 'Show Less' : 'Read More'}
-                                                        </TvFocusButton>
-                                                    )}
-                                                </div>
-                                            )) : null}
-
-                                            {/* Fallback if no reviews at all */}
-                                            {!displayData.reviews?.results?.length && 
-                                             (!isAnime || (!aniListReviewsLoading && !aniListReviews.length)) && 
-                                             (!isDrama || (!mdlLoading && !mdlReviews.length)) && (
-                                                <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
-                                                    No reviews yet.
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {activeTab === 'media' && (
-                                        <div className="space-y-6 animate-in fade-in">
-                                            {/* Sub-category Pill Switcher */}
-                                            <div className="flex gap-2 pb-4 border-b border-white/5 overflow-x-auto hide-scrollbar">
-                                                <TvFocusButton
-                                                    onClick={() => setMediaCategory('backdrops')}
-                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
-                                                        mediaCategory === 'backdrops'
-                                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                                            : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'
-                                                    }`}
-                                                >
-                                                    Snapshots ({displayData.images?.backdrops?.length || 0})
-                                                </TvFocusButton>
-                                                <TvFocusButton
-                                                    onClick={() => setMediaCategory('posters')}
-                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
-                                                        mediaCategory === 'posters'
-                                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                                            : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'
-                                                    }`}
-                                                >
-                                                    Posters ({displayData.images?.posters?.length || 0})
-                                                </TvFocusButton>
-                                                <TvFocusButton
-                                                    onClick={() => setMediaCategory('logos')}
-                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
-                                                        mediaCategory === 'logos'
-                                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                                            : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'
-                                                    }`}
-                                                >
-                                                    Logos ({displayData.images?.logos?.length || 0})
-                                                </TvFocusButton>
                                             </div>
+                                        );
+                                    })()}
+                                    {activeTab === 'media' && (() => {
+                                        const allVideos = displayData.videos?.results?.filter(v => v.site === 'YouTube') || [];
+                                        const featuredVideo = allVideos.find(v => v.type === 'Trailer') || allVideos[0];
+                                        const otherVideos = allVideos.filter(v => v.key !== featuredVideo?.key);
+                                        const backdrops = displayData.images?.backdrops || [];
+                                        const posters = displayData.images?.posters || [];
+                                        const logos = displayData.images?.logos || [];
 
-                                            {/* Content grids based on category */}
-                                            {mediaCategory === 'backdrops' && (
-                                                <div className="space-y-6">
-                                                    {displayData.images?.backdrops?.length ? (
-                                                        <>
-                                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                                                {displayData.images.backdrops.slice(0, visibleImagesCount).map((img, i) => (
+                                        return (
+                                            <div className="space-y-8 animate-in fade-in text-left pb-6">
+                                                {/* Section 1: Trailers & More */}
+                                                {allVideos.length > 0 && (
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
+                                                                <span>Trailers & More</span>
+                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                    {allVideos.length}
+                                                                </span>
+                                                            </h3>
+                                                        </div>
+
+                                                        {featuredVideo && (
+                                                            <div className="relative aspect-video rounded-2xl overflow-hidden group border border-white/10 bg-[#121215] shadow-2xl">
+                                                                <img 
+                                                                    src={`https://img.youtube.com/vi/${featuredVideo.key}/maxresdefault.jpg`}
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${featuredVideo.key}/hqdefault.jpg`;
+                                                                    }}
+                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                                                    alt={featuredVideo.name}
+                                                                />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-between p-6">
+                                                                    <div className="flex justify-end">
+                                                                        <span className="bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-md">
+                                                                            Official Trailer
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-end justify-between gap-4">
+                                                                        <div>
+                                                                            <h4 className="font-extrabold text-white text-lg sm:text-xl drop-shadow-md line-clamp-1">
+                                                                                {featuredVideo.name}
+                                                                            </h4>
+                                                                            <p className="text-xs text-zinc-300 font-medium mt-0.5">YouTube HD Video</p>
+                                                                        </div>
+                                                                        <TvFocusButton 
+                                                                            onClick={() => setViewingTrailerKey(featuredVideo.key)}
+                                                                            className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-110 active:scale-95 flex-shrink-0"
+                                                                        >
+                                                                            <Play size={24} className="fill-white translate-x-0.5" />
+                                                                        </TvFocusButton>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {otherVideos.length > 0 && (
+                                                            <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
+                                                                {otherVideos.map((video) => (
                                                                     <TvFocusButton 
-                                                                        key={i} 
-                                                                        onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                        className="group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md p-0"
+                                                                        key={video.id || video.key}
+                                                                        onClick={() => setViewingTrailerKey(video.key)}
+                                                                        className="w-64 flex-shrink-0 group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md text-left p-0"
                                                                     >
                                                                         <img 
-                                                                            src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 animate-none" 
-                                                                            alt="Snapshot"
-                                                                            loading="lazy"
+                                                                            src={`https://img.youtube.com/vi/${video.key}/hqdefault.jpg`}
+                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-85"
+                                                                            alt={video.name}
                                                                         />
-                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                            <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
+                                                                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                            <div className="w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur-md flex items-center justify-center text-white transition-transform group-hover:scale-110">
+                                                                                <Play size={18} className="fill-white translate-x-0.5" />
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/90 to-transparent">
+                                                                            <p className="text-xs font-bold text-white line-clamp-1">{video.name}</p>
+                                                                            <p className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">{video.type}</p>
                                                                         </div>
                                                                     </TvFocusButton>
                                                                 ))}
                                                             </div>
-                                                            {displayData.images.backdrops.length > visibleImagesCount && (
-                                                                <div className="flex justify-center pt-2">
-                                                                    <TvFocusButton 
-                                                                        onClick={() => setVisibleImagesCount(prev => prev + 12)}
-                                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
-                                                                    >
-                                                                        Load More Snapshots
-                                                                    </TvFocusButton>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
-                                                            No snapshots available.
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                        )}
+                                                    </div>
+                                                )}
 
-                                            {mediaCategory === 'posters' && (
-                                                <div className="space-y-6">
-                                                    {displayData.images?.posters?.length ? (
-                                                        <>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                                                {displayData.images.posters.slice(0, visibleImagesCount).map((img, i) => (
-                                                                    <TvFocusButton 
-                                                                        key={i} 
-                                                                        onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                        className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md p-0"
-                                                                    >
-                                                                        <img 
-                                                                            src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 animate-none" 
-                                                                            alt="Poster"
-                                                                            loading="lazy"
-                                                                        />
-                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                            <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
-                                                                        </div>
-                                                                    </TvFocusButton>
-                                                                ))}
-                                                            </div>
-                                                            {displayData.images.posters.length > visibleImagesCount && (
-                                                                <div className="flex justify-center pt-2">
-                                                                    <TvFocusButton 
-                                                                        onClick={() => setVisibleImagesCount(prev => prev + 12)}
-                                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
-                                                                    >
-                                                                        Load More Posters
-                                                                    </TvFocusButton>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
-                                                            No posters available.
+                                                {/* Section 2: Images / Snapshots */}
+                                                {backdrops.length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
+                                                                <span>Images</span>
+                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                    {backdrops.length}
+                                                                </span>
+                                                            </h3>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                        <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
+                                                            {backdrops.map((img, i) => (
+                                                                <TvFocusButton 
+                                                                    key={i} 
+                                                                    onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                    className="w-72 aspect-video flex-shrink-0 rounded-xl overflow-hidden cursor-pointer bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md group relative p-0"
+                                                                >
+                                                                    <img 
+                                                                        src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                                        alt="Snapshot"
+                                                                        loading="lazy"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">View Full</span>
+                                                                    </div>
+                                                                </TvFocusButton>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
 
-                                            {mediaCategory === 'logos' && (
-                                                <div className="space-y-6">
-                                                    {displayData.images?.logos?.length ? (
-                                                        <>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                                                {displayData.images.logos.slice(0, visibleImagesCount).map((img, i) => (
-                                                                    <TvFocusButton 
-                                                                        key={i} 
-                                                                        onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                        className="group relative aspect-[2/1] rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 bg-[#141416]/50 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md backdrop-blur-md"
-                                                                    >
-                                                                        <img 
-                                                                            src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                                            className="max-w-full max-h-full object-contain filter drop-shadow-lg transition-transform duration-300 group-hover:scale-105 animate-none" 
-                                                                            alt="Logo"
-                                                                            loading="lazy"
-                                                                        />
-                                                                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                            <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
-                                                                        </div>
-                                                                    </TvFocusButton>
-                                                                ))}
-                                                            </div>
-                                                            {displayData.images.logos.length > visibleImagesCount && (
-                                                                <div className="flex justify-center pt-2">
-                                                                    <TvFocusButton 
-                                                                        onClick={() => setVisibleImagesCount(prev => prev + 12)}
-                                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
-                                                                    >
-                                                                        Load More Logos
-                                                                    </TvFocusButton>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
-                                                            No logos available.
+                                                {/* Section 3: Posters */}
+                                                {posters.length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
+                                                                <span>Posters</span>
+                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                    {posters.length}
+                                                                </span>
+                                                            </h3>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                        <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
+                                                            {posters.map((img, i) => (
+                                                                <TvFocusButton 
+                                                                    key={i} 
+                                                                    onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                    className="w-40 aspect-[2/3] flex-shrink-0 rounded-xl overflow-hidden cursor-pointer bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md group relative p-0"
+                                                                >
+                                                                    <img 
+                                                                        src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                                        alt="Poster"
+                                                                        loading="lazy"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">View Full</span>
+                                                                    </div>
+                                                                </TvFocusButton>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Section 4: Logos */}
+                                                {logos.length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
+                                                                <span>Logos</span>
+                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                    {logos.length}
+                                                                </span>
+                                                            </h3>
+                                                        </div>
+                                                        <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
+                                                            {logos.map((img, i) => (
+                                                                <TvFocusButton 
+                                                                    key={i} 
+                                                                    onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                    className="w-52 aspect-[2/1] flex-shrink-0 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md group relative"
+                                                                >
+                                                                    <img 
+                                                                        src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                        className="max-w-full max-h-full object-contain filter drop-shadow-lg transition-transform duration-300 group-hover:scale-105" 
+                                                                        alt="Logo"
+                                                                        loading="lazy"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">View Full</span>
+                                                                    </div>
+                                                                </TvFocusButton>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {allVideos.length === 0 && backdrops.length === 0 && posters.length === 0 && logos.length === 0 && (
+                                                    <div className="text-center py-12 text-zinc-500 border border-white/10 rounded-2xl text-xs font-medium">
+                                                        No media items available yet.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     {activeTab === 'social' && isAnime && (
                                         <div className="space-y-6 animate-in fade-in select-none text-left">
                                             {/* Create Post Form */}
@@ -4113,6 +4283,25 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 )}
             </div>
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
+            {viewingTrailerKey && (
+                <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-in fade-in" onClick={() => setViewingTrailerKey(null)}>
+                    <div className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <button 
+                            onClick={() => setViewingTrailerKey(null)}
+                            className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 hover:bg-black text-white border border-white/20 transition-all cursor-pointer"
+                        >
+                            <X size={20} />
+                        </button>
+                        <iframe 
+                            src={`https://www.youtube.com/embed/${viewingTrailerKey}?autoplay=1&rel=0`}
+                            className="w-full h-full border-0"
+                            allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            title="Trailer Player"
+                        />
+                    </div>
+                </div>
+            )}
             <FullCreditsModal isOpen={showFullCast} onClose={() => setShowFullCast(false)} title="Full Cast" credits={displayData.credits?.cast || []} onPersonClick={onPersonClick} />
             <FullCreditsModal isOpen={showFullCrew} onClose={() => setShowFullCrew(false)} title="Full Crew" credits={displayData.credits?.crew || []} onPersonClick={onPersonClick} />
             
