@@ -111,32 +111,62 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
       setStatusText(`Searching P2P torrent swarm for ${title || imdbId}...`);
 
       try {
-        let streamUrl = '';
-        if (imdbId) {
+        let streamList: Array<{ name: string; magnet: string; seeds?: number }> = [];
+
+        // 1. If Anime or Nyaa title search
+        if (isAnime || (title && (title.includes('Anime') || !imdbId))) {
+          try {
+            const animeQuery = `${title || ''} ${episode ? `E${episode.toString().padStart(2, '0')}` : ''}`.trim();
+            const nyaaRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`)}`);
+            if (nyaaRes.ok) {
+              const xmlText = await nyaaRes.text();
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+              const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 5);
+
+              items.forEach(item => {
+                const itemTitle = item.querySelector('title')?.textContent || 'Nyaa Torrent';
+                const link = item.querySelector('link')?.textContent || '';
+                if (link.startsWith('magnet:')) {
+                  streamList.push({
+                    name: `[Nyaa] ${itemTitle}`,
+                    magnet: link,
+                    seeds: 100
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Nyaa fetch notice:', e);
+          }
+        }
+
+        // 2. Query Torrentio / Swarm by IMDB ID
+        if (imdbId && streamList.length === 0) {
           const type = (season && episode && season > 0) ? 'series' : 'movie';
           const query = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
           const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.streams && data.streams.length > 0) {
-              const parsedTorrents = data.streams.map((s: any) => {
+              data.streams.slice(0, 5).forEach((s: any) => {
                 const infoHash = s.infoHash;
                 const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(s.title || title || 'Video')}`;
-                return {
+                streamList.push({
                   name: s.title ? s.title.split('\n')[0] : 'High Quality Torrent Stream',
                   magnet,
                   seeds: 50
-                };
+                });
               });
-
-              if (isMounted && parsedTorrents.length > 0) {
-                setAutoFetchedTorrents(parsedTorrents);
-                setMagnetInput(parsedTorrents[0].magnet);
-                setStatusText(`Auto-selected top torrent for ${title || 'Video'}`);
-                return;
-              }
             }
           }
+        }
+
+        if (isMounted && streamList.length > 0) {
+          setAutoFetchedTorrents(streamList);
+          setMagnetInput(streamList[0].magnet);
+          setStatusText(`Found ${streamList.length} P2P torrent streams for ${title || 'Video'}`);
+          return;
         }
       } catch (e) {
         console.warn('Auto Torrent Search Notice:', e);
