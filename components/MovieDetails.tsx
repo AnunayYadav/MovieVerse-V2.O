@@ -459,6 +459,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     );
 
     const [aniListId, setAniListId] = useState<number | null>(null);
+    const [aniListMedia, setAniListMedia] = useState<any | null>(null);
     const [socialActivities, setSocialActivities] = useState<any[]>([]);
     const [socialActivitiesLoading, setSocialActivitiesLoading] = useState(false);
     const [socialRecommendations, setSocialRecommendations] = useState<any[]>([]);
@@ -636,6 +637,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   popularity
                   duration
                   status
+                  bannerImage
+                  coverImage { extraLarge large medium }
+                  trailer { id site thumbnail }
                   studios(isMain: true) { edges { node { id name } } }
                   nextAiringEpisode {
                     airingAt
@@ -724,6 +728,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   popularity
                   duration
                   status
+                  bannerImage
+                  coverImage { extraLarge large medium }
+                  trailer { id site thumbnail }
                   studios(isMain: true) { edges { node { id name } } }
                   nextAiringEpisode {
                     airingAt
@@ -812,6 +819,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             const media = json?.data?.Media;
             if (media) {
                 setAniListId(media.id);
+                setAniListMedia(media);
                 localStorage.setItem(`movieverse_anilist_map_${details.id}`, media.id.toString());
 
                 if (media.nextAiringEpisode) {
@@ -1768,6 +1776,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     };
                     setDetails(mappedDetails);
                     setAniListId(media.id);
+                    setAniListMedia(media);
                 }
                 setLoading(false);
             })
@@ -2548,14 +2557,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {isExclusive && (
                                             <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</TvFocusButton>
                                         )}
-                                        <div className="flex items-center gap-3">
-                                            <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
-                                            <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
-                                            <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
-                                            <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
-                                            <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
-                                            {details?.videos?.results?.[0] && <TvFocusButton onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></TvFocusButton>}
-                                        </div>
+                                        {(() => {
+                                            const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
+                                            const effectiveTrailerKey = displayData.videos?.results?.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube')?.key 
+                                              || displayData.videos?.results?.find((v: any) => v.site === 'YouTube')?.key 
+                                              || aniListTrailerKey 
+                                              || details?.videos?.results?.[0]?.key;
+
+                                            return (
+                                                <div className="flex items-center gap-3">
+                                                    <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
+                                                    <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
+                                                    <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
+                                                    <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
+                                                    <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
+                                                    {effectiveTrailerKey && (
+                                                        <TvFocusButton 
+                                                            onClick={() => setViewingTrailerKey(effectiveTrailerKey)} 
+                                                            className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
+                                                            title="Watch Trailer"
+                                                        >
+                                                            <Play size={16} fill="currentColor" className="ml-0.5"/>
+                                                        </TvFocusButton>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                  </div>
                              </div>
@@ -2631,36 +2658,46 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             </div>
 
                             {/* Secondary Action Buttons Compact Row */}
-                            <div className="grid grid-cols-6 gap-0.5 py-3 border-y border-white/5 mt-1.5 text-gray-400">
-                                <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                    {isWatchlisted ? <Bookmark size={18} fill="currentColor" className="text-green-400"/> : <Bookmark size={18} className="text-white"/>}
-                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
-                                </TvFocusButton>
-                                <TvFocusButton onClick={() => onToggleFavorite(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                    <Heart size={18} className={isFavorite ? "text-red-500 fill-red-500" : "text-white"}/>
-                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Favorite</span>
-                                </TvFocusButton>
-                                <TvFocusButton onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                    {copied ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Share2 size={18} className="text-white"/>}
-                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
-                                </TvFocusButton>
-                                <TvFocusButton onClick={() => setShowDownloadModal(true)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
-                                    <Download size={18} className="text-white"/>
-                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Download</span>
-                                </TvFocusButton>
-                                <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
-                                    <Shield size={18} className="text-white"/>
-                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Parents Guide</span>
-                                </TvFocusButton>
-                                <TvFocusButton 
-                                    onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} 
-                                    disabled={!details?.videos?.results?.[0]} 
-                                    className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30"
-                                >
-                                    <PlayCircle size={18} className="text-white"/>
-                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Trailer</span>
-                                </TvFocusButton>
-                            </div>
+                             {(() => {
+                                 const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
+                                 const effectiveTrailerKey = displayData.videos?.results?.find((v: any) => v.type === 'Trailer' && v.site === 'YouTube')?.key 
+                                   || displayData.videos?.results?.find((v: any) => v.site === 'YouTube')?.key 
+                                   || aniListTrailerKey 
+                                   || details?.videos?.results?.[0]?.key;
+
+                                 return (
+                                     <div className="grid grid-cols-6 gap-0.5 py-3 border-y border-white/5 mt-1.5 text-gray-400">
+                                         <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                             {isWatchlisted ? <Bookmark size={18} fill="currentColor" className="text-green-400"/> : <Bookmark size={18} className="text-white"/>}
+                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
+                                         </TvFocusButton>
+                                         <TvFocusButton onClick={() => onToggleFavorite(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                             <Heart size={18} className={isFavorite ? "text-red-500 fill-red-500" : "text-white"}/>
+                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Favorite</span>
+                                         </TvFocusButton>
+                                         <TvFocusButton onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                             {copied ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Share2 size={18} className="text-white"/>}
+                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
+                                         </TvFocusButton>
+                                         <TvFocusButton onClick={() => setShowDownloadModal(true)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                             <Download size={18} className="text-white"/>
+                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Download</span>
+                                         </TvFocusButton>
+                                         <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
+                                             <Shield size={18} className="text-white"/>
+                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Parents Guide</span>
+                                         </TvFocusButton>
+                                         <TvFocusButton 
+                                             onClick={() => effectiveTrailerKey && setViewingTrailerKey(effectiveTrailerKey)} 
+                                             disabled={!effectiveTrailerKey} 
+                                             className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30 cursor-pointer"
+                                         >
+                                             <PlayCircle size={18} className="text-white"/>
+                                             <span className="text-[9px] font-bold tracking-wide mt-0.5">Trailer</span>
+                                         </TvFocusButton>
+                                     </div>
+                                 );
+                             })()}
                         </div>
 
                         {/* Details and Tabs section wrapper */}
@@ -3029,7 +3066,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         return (
                                             <div className="space-y-6 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar text-left">
                                                 {/* Rating Summary Header */}
-                                                <div className="bg-[#121215]/90 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
+                                                <div className="bg-[#121215] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
                                                     <div className="flex flex-col items-center md:items-start text-center md:text-left">
                                                         <span className="text-xs uppercase tracking-wider font-extrabold text-zinc-400 mb-1">Overall Rating</span>
                                                         <div className="text-5xl font-black text-white tracking-tight mb-2">
@@ -3059,7 +3096,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 <div key={starNum} className="flex items-center gap-3 text-xs font-medium text-zinc-300">
                                                                     <div className="flex items-center gap-1 w-6 justify-end font-bold text-zinc-400">
                                                                         <span>{starNum}</span>
-                                                                        <Star size={11} className="fill-red-500 text-red-500 border-none" />
+                                                                        <Star size={11} className="fill-red-500 text-red-500" />
                                                                     </div>
                                                                     <div className="flex-1 bg-zinc-800/80 h-2.5 rounded-full overflow-hidden">
                                                                         <div 
@@ -3085,16 +3122,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const isExpanded = expandedReviews[review.id];
 
                                                         return (
-                                                            <div key={review.id} className="bg-[#121215]/80 p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-left relative space-y-3 shadow-lg">
+                                                            <div key={review.id} className="bg-[#121215] p-5 rounded-2xl transition-all text-left relative space-y-3 shadow-lg">
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600/30 to-purple-600/30 border border-white/10 flex items-center justify-center font-bold text-sm text-white uppercase shadow-inner">
+                                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600/30 to-purple-600/30 flex items-center justify-center font-bold text-sm text-white uppercase shadow-inner">
                                                                             {review.author.charAt(0)}
                                                                         </div>
                                                                         <div>
                                                                             <div className="flex items-center gap-2">
                                                                                 <h4 className="font-bold text-white text-sm">{review.author}</h4>
-                                                                                <span className="bg-red-500/10 border border-red-500/20 text-red-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
+                                                                                <span className="bg-red-500/15 text-red-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
                                                                                     TMDB Critic
                                                                                 </span>
                                                                             </div>
@@ -3129,7 +3166,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             {isExpanded ? 'Show Less' : 'Read More'}
                                                                         </TvFocusButton>
                                                                     ) : <div />}
-                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 active:scale-95">
+                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer bg-[#1c1c20] hover:bg-[#25252b] px-3.5 py-1.5 rounded-full active:scale-95">
                                                                         <ThumbsUp size={13} />
                                                                         <span>Helpful</span>
                                                                     </div>
@@ -3149,18 +3186,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const isExpanded = expandedReviews[rev.id.toString()];
 
                                                         return (
-                                                            <div key={rev.id} className="bg-[#121215]/80 p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-left relative space-y-3 shadow-lg">
+                                                            <div key={rev.id} className="bg-[#121215] p-5 rounded-2xl transition-all text-left relative space-y-3 shadow-lg">
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex items-center gap-3">
                                                                         <img 
                                                                             src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
-                                                                            className="w-10 h-10 rounded-full object-cover border border-white/10" 
+                                                                            className="w-10 h-10 rounded-full object-cover" 
                                                                             alt="" 
                                                                         />
                                                                         <div>
                                                                             <div className="flex items-center gap-2">
                                                                                 <h4 className="font-bold text-white text-sm">{rev.user?.name}</h4>
-                                                                                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
+                                                                                <span className="bg-amber-500/15 text-amber-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
                                                                                     AniList Fan Review
                                                                                 </span>
                                                                             </div>
@@ -3196,7 +3233,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             {isExpanded ? 'Show Less' : 'Read More'}
                                                                         </TvFocusButton>
                                                                     ) : <div />}
-                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 active:scale-95">
+                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer bg-[#1c1c20] hover:bg-[#25252b] px-3.5 py-1.5 rounded-full active:scale-95">
                                                                         <ThumbsUp size={13} />
                                                                         <span>Helpful</span>
                                                                     </div>
@@ -3215,18 +3252,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const isExpanded = expandedReviews[`mdl-${idx}`];
 
                                                         return (
-                                                            <div key={`mdl-rev-${idx}`} className="bg-[#121215]/80 p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-left relative space-y-3 shadow-lg">
+                                                            <div key={`mdl-rev-${idx}`} className="bg-[#121215] p-5 rounded-2xl transition-all text-left relative space-y-3 shadow-lg">
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex items-center gap-3">
                                                                         <img 
                                                                             src={rev.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.username || 'User')}&background=333&color=fff`} 
-                                                                            className="w-10 h-10 rounded-full object-cover border border-white/10" 
+                                                                            className="w-10 h-10 rounded-full object-cover" 
                                                                             alt="" 
                                                                         />
                                                                         <div>
                                                                             <div className="flex items-center gap-2">
                                                                                 <h4 className="font-bold text-white text-sm">{rev.username}</h4>
-                                                                                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
+                                                                                <span className="bg-amber-500/15 text-amber-500 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full">
                                                                                     MDL Fan Review
                                                                                 </span>
                                                                             </div>
@@ -3261,7 +3298,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             {isExpanded ? 'Show Less' : 'Read More'}
                                                                         </TvFocusButton>
                                                                     ) : <div />}
-                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 active:scale-95">
+                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer bg-[#1c1c20] hover:bg-[#25252b] px-3.5 py-1.5 rounded-full active:scale-95">
                                                                         <ThumbsUp size={13} />
                                                                         <span>Helpful</span>
                                                                     </div>
@@ -3271,7 +3308,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     }) : null}
 
                                                     {!hasAnyReviews && (
-                                                        <div className="text-center py-12 text-zinc-500 border border-white/10 rounded-2xl text-xs font-medium">
+                                                        <div className="text-center py-12 text-zinc-500 rounded-2xl text-xs font-medium bg-[#121215]">
                                                             No reviews available yet.
                                                         </div>
                                                     )}
@@ -3280,11 +3317,30 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         );
                                     })()}
                                     {activeTab === 'media' && (() => {
-                                        const allVideos = displayData.videos?.results?.filter(v => v.site === 'YouTube') || [];
-                                        const featuredVideo = allVideos.find(v => v.type === 'Trailer') || allVideos[0];
-                                        const otherVideos = allVideos.filter(v => v.key !== featuredVideo?.key);
-                                        const backdrops = displayData.images?.backdrops || [];
-                                        const posters = displayData.images?.posters || [];
+                                        const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
+                                        let allVideos = displayData.videos?.results?.filter((v: any) => v.site === 'YouTube') || [];
+                                        if (allVideos.length === 0 && aniListTrailerKey) {
+                                            allVideos = [{
+                                                id: aniListTrailerKey,
+                                                key: aniListTrailerKey,
+                                                name: `${title} Official Trailer`,
+                                                site: 'YouTube',
+                                                type: 'Trailer'
+                                            }];
+                                        }
+                                        const featuredVideo = allVideos.find((v: any) => v.type === 'Trailer') || allVideos[0];
+                                        const otherVideos = allVideos.filter((v: any) => v.key !== featuredVideo?.key);
+
+                                        let backdrops = displayData.images?.backdrops || [];
+                                        if (backdrops.length === 0 && aniListMedia?.bannerImage) {
+                                            backdrops = [{ file_path: aniListMedia.bannerImage, isFullUrl: true }];
+                                        }
+
+                                        let posters = displayData.images?.posters || [];
+                                        if (posters.length === 0 && (aniListMedia?.coverImage?.extraLarge || aniListMedia?.coverImage?.large)) {
+                                            posters = [{ file_path: aniListMedia.coverImage?.extraLarge || aniListMedia.coverImage?.large, isFullUrl: true }];
+                                        }
+
                                         const logos = displayData.images?.logos || [];
 
                                         return (
@@ -3295,14 +3351,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Trailers & More</span>
-                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                <span className="text-xs font-bold text-zinc-500 bg-[#121215] px-2.5 py-0.5 rounded-full">
                                                                     {allVideos.length}
                                                                 </span>
                                                             </h3>
                                                         </div>
 
                                                         {featuredVideo && (
-                                                            <div className="relative aspect-video rounded-2xl overflow-hidden group border border-white/10 bg-[#121215] shadow-2xl">
+                                                            <div className="relative aspect-video rounded-2xl overflow-hidden group bg-[#121215] shadow-2xl">
                                                                 <img 
                                                                     src={`https://img.youtube.com/vi/${featuredVideo.key}/maxresdefault.jpg`}
                                                                     onError={(e) => {
@@ -3313,7 +3369,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 />
                                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-between p-6">
                                                                     <div className="flex justify-end">
-                                                                        <span className="bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-md">
+                                                                        <span className="bg-black/70 backdrop-blur-md text-white text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-md">
                                                                             Official Trailer
                                                                         </span>
                                                                     </div>
@@ -3337,11 +3393,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                         {otherVideos.length > 0 && (
                                                             <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
-                                                                {otherVideos.map((video) => (
+                                                                {otherVideos.map((video: any) => (
                                                                     <TvFocusButton 
                                                                         key={video.id || video.key}
                                                                         onClick={() => setViewingTrailerKey(video.key)}
-                                                                        className="w-64 flex-shrink-0 group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md text-left p-0"
+                                                                        className="w-64 flex-shrink-0 group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-[#121215] shadow-md text-left p-0 transition-transform duration-300 hover:scale-[1.02]"
                                                                     >
                                                                         <img 
                                                                             src={`https://img.youtube.com/vi/${video.key}/hqdefault.jpg`}
@@ -3349,7 +3405,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             alt={video.name}
                                                                         />
                                                                         <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                                            <div className="w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur-md flex items-center justify-center text-white transition-transform group-hover:scale-110">
+                                                                            <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white transition-transform group-hover:scale-110">
                                                                                 <Play size={18} className="fill-white translate-x-0.5" />
                                                                             </div>
                                                                         </div>
@@ -3370,26 +3426,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Images</span>
-                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                <span className="text-xs font-bold text-zinc-500 bg-[#121215] px-2.5 py-0.5 rounded-full">
                                                                     {backdrops.length}
                                                                 </span>
                                                             </h3>
                                                         </div>
                                                         <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
-                                                            {backdrops.map((img, i) => (
+                                                            {backdrops.map((img: any, i: number) => (
                                                                 <TvFocusButton 
                                                                     key={i} 
-                                                                    onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                    className="w-72 aspect-video flex-shrink-0 rounded-xl overflow-hidden cursor-pointer bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md group relative p-0"
+                                                                    onClick={() => setViewingImage(img.isFullUrl ? img.file_path : `${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                    className="w-72 aspect-video flex-shrink-0 rounded-xl overflow-hidden cursor-pointer bg-[#121215] shadow-md group relative p-0 transition-transform duration-300 hover:scale-[1.02]"
                                                                 >
                                                                     <img 
-                                                                        src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                        src={img.isFullUrl ? img.file_path : `${TMDB_IMAGE_BASE}${img.file_path}`} 
                                                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                                                         alt="Snapshot"
                                                                         loading="lazy"
                                                                     />
                                                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">View Full</span>
+                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/80 px-3 py-1.5 rounded-full">View Full</span>
                                                                     </div>
                                                                 </TvFocusButton>
                                                             ))}
@@ -3403,26 +3459,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Posters</span>
-                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                <span className="text-xs font-bold text-zinc-500 bg-[#121215] px-2.5 py-0.5 rounded-full">
                                                                     {posters.length}
                                                                 </span>
                                                             </h3>
                                                         </div>
                                                         <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
-                                                            {posters.map((img, i) => (
+                                                            {posters.map((img: any, i: number) => (
                                                                 <TvFocusButton 
                                                                     key={i} 
-                                                                    onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                    className="w-40 aspect-[2/3] flex-shrink-0 rounded-xl overflow-hidden cursor-pointer bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md group relative p-0"
+                                                                    onClick={() => setViewingImage(img.isFullUrl ? img.file_path : `${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                    className="w-40 aspect-[2/3] flex-shrink-0 rounded-xl overflow-hidden cursor-pointer bg-[#121215] shadow-md group relative p-0 transition-transform duration-300 hover:scale-[1.02]"
                                                                 >
                                                                     <img 
-                                                                        src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                        src={img.isFullUrl ? img.file_path : `${TMDB_IMAGE_BASE}${img.file_path}`} 
                                                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                                                         alt="Poster"
                                                                         loading="lazy"
                                                                     />
                                                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">View Full</span>
+                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/80 px-3 py-1.5 rounded-full">View Full</span>
                                                                     </div>
                                                                 </TvFocusButton>
                                                             ))}
@@ -3436,17 +3492,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Logos</span>
-                                                                <span className="text-xs font-bold text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                                                <span className="text-xs font-bold text-zinc-500 bg-[#121215] px-2.5 py-0.5 rounded-full">
                                                                     {logos.length}
                                                                 </span>
                                                             </h3>
                                                         </div>
                                                         <div className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
-                                                            {logos.map((img, i) => (
+                                                            {logos.map((img: any, i: number) => (
                                                                 <TvFocusButton 
                                                                     key={i} 
                                                                     onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                    className="w-52 aspect-[2/1] flex-shrink-0 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 bg-[#121215] border border-white/10 hover:border-white/30 transition-all hover:scale-[1.02] shadow-md group relative"
+                                                                    className="w-52 aspect-[2/1] flex-shrink-0 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 bg-[#121215] shadow-md group relative transition-transform duration-300 hover:scale-[1.02]"
                                                                 >
                                                                     <img 
                                                                         src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
@@ -3455,7 +3511,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         loading="lazy"
                                                                     />
                                                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/70 px-3 py-1.5 rounded-full border border-white/20">View Full</span>
+                                                                        <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/80 px-3 py-1.5 rounded-full">View Full</span>
                                                                     </div>
                                                                 </TvFocusButton>
                                                             ))}
@@ -3464,7 +3520,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 )}
 
                                                 {allVideos.length === 0 && backdrops.length === 0 && posters.length === 0 && logos.length === 0 && (
-                                                    <div className="text-center py-12 text-zinc-500 border border-white/10 rounded-2xl text-xs font-medium">
+                                                    <div className="text-center py-12 text-zinc-500 rounded-2xl text-xs font-medium bg-[#121215]">
                                                         No media items available yet.
                                                     </div>
                                                 )}
@@ -3473,28 +3529,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     })()}
                                     {activeTab === 'social' && isAnime && (
                                         <div className="space-y-6 animate-in fade-in select-none text-left">
-                                            {/* Create Post Form */}
-                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-5 md:p-6 backdrop-blur-md">
-                                                <h4 className="font-bold text-xs sm:text-sm text-white mb-3">Discuss this Anime</h4>
-                                                <textarea
-                                                    rows={3}
-                                                    value={socialPostText}
-                                                    onChange={(e) => setSocialPostText(e.target.value)}
-                                                    placeholder="Write your thoughts or questions about this anime..."
-                                                    className="w-full bg-white/5 border border-white/5 focus:border-white/10 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar font-normal"
-                                                />
-                                                <div className="flex justify-end mt-2">
-                                                    <TvFocusButton
-                                                        onClick={handleSocialPostSubmit}
-                                                        disabled={!socialPostText.trim()}
-                                                        className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-1.5"
-                                                    >
-                                                        <Send size={12} />
-                                                        <span>Post Discussion</span>
-                                                    </TvFocusButton>
-                                                </div>
-                                            </div>
-
                                             {/* Activities list */}
                                             <div className="space-y-4">
                                                 <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 border-b border-white/5 pb-2 uppercase tracking-wider">Community Feed</h4>
@@ -3581,11 +3615,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     )}
                                     {activeTab === 'themes' && isAnime && (
                                         <div className="space-y-6 animate-in fade-in select-none text-left">
-                                            <div className="flex items-center gap-2 pb-3 border-b border-white/5">
-                                                <div className={`w-1 h-5 sm:h-6 ${accentBg} rounded-full`} />
-                                                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white uppercase tracking-wider">Theme Songs</h3>
-                                            </div>
-
                                             {themesLoading ? (
                                                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                                                     <Loader2 className="animate-spin text-red-500" size={24} />
@@ -3594,35 +3623,35 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             ) : !animeThemes || (animeThemes.openings.length === 0 && animeThemes.endings.length === 0) ? (
                                                 <div className="text-zinc-500 text-xs py-3 px-1 italic">No theme songs found for this anime.</div>
                                             ) : (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                     {animeThemes.openings.length > 0 && (
-                                                        <div className="space-y-4">
-                                                            <h4 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
-                                                                <Headphones size={12} />
+                                                        <div className="space-y-3">
+                                                            <h4 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 mb-2">
+                                                                <Headphones size={15} className="text-red-500" />
                                                                 <span>Openings (OP)</span>
                                                             </h4>
-                                                            <div className="space-y-2">
+                                                            <div className="space-y-1">
                                                                 {animeThemes.openings.map((op, idx) => (
-                                                                    <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl gap-4 hover:bg-white/10 transition-colors">
-                                                                        <span className="text-xs text-zinc-300 font-medium leading-relaxed">{op}</span>
-                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                    <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 transition-colors gap-3">
+                                                                        <span className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed">{op}</span>
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
                                                                             <a
                                                                                 href={`https://www.youtube.com/results?search_query=${encodeURIComponent(op)}`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
-                                                                                className="p-1.5 bg-red-600/10 hover:bg-red-650/20 text-red-400 border border-red-500/20 rounded-lg transition-all"
+                                                                                className="p-1.5 bg-red-600/15 hover:bg-red-600/25 text-red-400 rounded-md transition-colors"
                                                                                 title="Search on YouTube"
                                                                             >
-                                                                                <Play size={12} fill="currentColor" />
+                                                                                <Play size={13} fill="currentColor" />
                                                                             </a>
                                                                             <a
                                                                                 href={`https://open.spotify.com/search/${encodeURIComponent(op)}`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
-                                                                                className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all"
+                                                                                className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-md transition-colors"
                                                                                 title="Search on Spotify"
                                                                             >
-                                                                                <Music size={12} />
+                                                                                <Music size={13} />
                                                                             </a>
                                                                         </div>
                                                                     </div>
@@ -3632,33 +3661,33 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     )}
 
                                                     {animeThemes.endings.length > 0 && (
-                                                        <div className="space-y-4">
-                                                            <h4 className="text-xs font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
-                                                                <Headphones size={12} />
+                                                        <div className="space-y-3">
+                                                            <h4 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 mb-2">
+                                                                <Headphones size={15} className="text-blue-400" />
                                                                 <span>Endings (ED)</span>
                                                             </h4>
-                                                            <div className="space-y-2">
+                                                            <div className="space-y-1">
                                                                 {animeThemes.endings.map((ed, idx) => (
-                                                                    <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl gap-4 hover:bg-white/10 transition-colors">
-                                                                        <span className="text-xs text-zinc-300 font-medium leading-relaxed">{ed}</span>
-                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                    <div key={idx} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/5 transition-colors gap-3">
+                                                                        <span className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed">{ed}</span>
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
                                                                             <a
                                                                                 href={`https://www.youtube.com/results?search_query=${encodeURIComponent(ed)}`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
-                                                                                className="p-1.5 bg-red-600/10 hover:bg-red-650/20 text-red-400 border border-red-500/20 rounded-lg transition-all"
+                                                                                className="p-1.5 bg-red-600/15 hover:bg-red-600/25 text-red-400 rounded-md transition-colors"
                                                                                 title="Search on YouTube"
                                                                             >
-                                                                                <Play size={12} fill="currentColor" />
+                                                                                <Play size={13} fill="currentColor" />
                                                                             </a>
                                                                             <a
                                                                                 href={`https://open.spotify.com/search/${encodeURIComponent(ed)}`}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
-                                                                                className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all"
+                                                                                className="p-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-md transition-colors"
                                                                                 title="Search on Spotify"
                                                                             >
-                                                                                <Music size={12} />
+                                                                                <Music size={13} />
                                                                             </a>
                                                                         </div>
                                                                     </div>
