@@ -1833,11 +1833,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     };
                                                 });
 
-                                                // Validate whether initial season or last_watched_data actually exists in activeSeasons
+                                                // Check if user has valid saved watch history for this show
                                                 const hasValidLastWatched = movie.last_watched_data?.season && activeSeasons.some((s: any) => s.season_number === movie.last_watched_data.season);
-                                                const isCurrentSeasonValid = activeSeasons.some((s: any) => s.season_number === selectedSeason);
 
-                                                if (!hasValidLastWatched || !isCurrentSeasonValid) {
+                                                if (hasValidLastWatched) {
+                                                    setSelectedSeason(movie.last_watched_data.season);
+                                                    setPlayParams(prev => ({ ...prev, season: movie.last_watched_data.season }));
+                                                } else {
                                                     const startDateObj = media.startDate;
                                                     const targetTime = (startDateObj?.year && startDateObj?.month && startDateObj?.day) 
                                                         ? new Date(startDateObj.year, startDateObj.month - 1, startDateObj.day).getTime() 
