@@ -1786,8 +1786,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(titleToSearch)}`)
                             .then(res => res.json())
                             .then(searchData => {
-                                const tmdbMatch = searchData.results?.find((item: any) => item.genre_ids?.includes(16) && item.original_language === 'ja')
-                                    || searchData.results?.find((item: any) => item.genre_ids?.includes(16))
+                                const targetYear = media.startDate?.year || media.seasonYear;
+                                const fullTitle = (media.title.english || media.title.userPreferred || media.title.romaji || '').toLowerCase();
+
+                                // 1. Prefer an exact or subtitle match in TMDB show name (e.g. "Thousand-Year Blood War")
+                                let bestMatch = searchData.results?.find((item: any) => {
+                                    if (!item.name) return false;
+                                    const nameLower = item.name.toLowerCase();
+                                    return fullTitle.includes(nameLower) || nameLower.includes(fullTitle);
+                                });
+
+                                // 2. If no exact title match, match closest release year to AniList start date
+                                if (!bestMatch && targetYear) {
+                                    let minDiff = Infinity;
+                                    for (const item of (searchData.results || [])) {
+                                        if (!item.first_air_date) continue;
+                                        const itemYear = new Date(item.first_air_date).getFullYear();
+                                        const diff = Math.abs(itemYear - targetYear);
+                                        if (diff < minDiff) {
+                                            minDiff = diff;
+                                            bestMatch = item;
+                                        }
+                                    }
+                                }
+
+                                const tmdbMatch = bestMatch 
+                                    || searchData.results?.find((item: any) => item.genre_ids?.includes(16) && item.original_language === 'ja')
                                     || searchData.results?.[0];
 
                                 if (tmdbMatch && tmdbMatch.id) {
@@ -1960,7 +1984,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         if (!episodes || episodes.length === 0 || !details) return;
-        const targetDateStr = details.first_air_date || (details.startDate?.year ? `${details.startDate.year}-${String(details.startDate.month || 1).padStart(2, '0')}-${String(details.startDate.day || 1).padStart(2, '0')}` : null);
+        const startDateObj = (details as any).startDate;
+        const targetDateStr = (startDateObj?.year ? `${startDateObj.year}-${String(startDateObj.month || 1).padStart(2, '0')}-${String(startDateObj.day || 1).padStart(2, '0')}` : null) || details.first_air_date || details.release_date;
         if (!targetDateStr) return;
 
         const targetTime = new Date(targetDateStr).getTime();
@@ -1980,12 +2005,21 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             }
         }
 
-        if (matchedEpNumber && minDiff <= 180 * 24 * 3600 * 1000) {
+        if (!matchedEpNumber && episodes.length > 0) {
+            matchedEpNumber = episodes[episodes.length - 1].episode_number;
+        }
+
+        if (matchedEpNumber) {
             const epNum = matchedEpNumber;
+            setDownloadEpisode(epNum);
             setTimeout(() => {
                 const el = document.getElementById(`episode-card-${epNum}`);
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('ring-2', 'ring-red-500', 'ring-offset-2', 'ring-offset-black');
+                    setTimeout(() => {
+                        el.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2', 'ring-offset-black');
+                    }, 2500);
                 }
             }, 350);
         }
@@ -2116,17 +2150,48 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const matchLocalSeason = (anime: any, tmdbSeasons: any[]): number => {
         if (!tmdbSeasons || tmdbSeasons.length === 0) return 1;
-        // Filter out season 0 (Specials) and prefer seasons that actually have released episodes
-        const seasonsWithEps = tmdbSeasons.filter(s => s.season_number > 0 && ((s.episode_count && s.episode_count > 0) || (s.air_date && new Date(s.air_date).getTime() <= Date.now())));
-        const activeSeasons = seasonsWithEps.length > 0 ? seasonsWithEps : tmdbSeasons.filter(s => s.season_number > 0);
-        
+
+        // Filter out season 0 (Specials) AND filter out unreleased empty future seasons (episode_count === 0 or air_date in far future)
+        const validSeasons = tmdbSeasons.filter(s => 
+            s.season_number > 0 && 
+            (s.episode_count === undefined || s.episode_count === null || s.episode_count > 0) &&
+            (!s.air_date || new Date(s.air_date).getTime() <= Date.now() + 60 * 86400 * 1000)
+        );
+
+        const activeSeasons = validSeasons.length > 0 
+            ? validSeasons 
+            : tmdbSeasons.filter(s => s.season_number > 0 && s.episode_count > 0);
+
+        const fallbackSeason = activeSeasons.length > 0 
+            ? activeSeasons[activeSeasons.length - 1].season_number 
+            : (tmdbSeasons.find(s => s.season_number > 0)?.season_number || 1);
+
         if (activeSeasons.length === 0) return 1;
         if (activeSeasons.length === 1) return activeSeasons[0].season_number;
 
         const startDateObj = anime?.startDate;
         const targetYear = anime?.seasonYear || startDateObj?.year || anime?.year;
+        const titles = [
+          typeof anime?.title === 'string' ? anime.title : null,
+          anime?.title?.english,
+          anime?.title?.romaji,
+          anime?.title?.userPreferred
+        ].filter((t: any): t is string => typeof t === 'string' && t.length > 0);
 
-        // 1. HIGHEST PRIORITY: Exact / Closest Air Date matching against valid active seasons
+        // 1. HIGHEST PRIORITY: Title exact/subtitle season name match (e.g. "Thousand-Year Blood War", "Separation", "Conflict", "Calamity")
+        for (const s of activeSeasons) {
+            if (!s.name) continue;
+            const sName = s.name.toLowerCase().trim();
+            if (sName === 'specials' || sName.startsWith('season') || sName.length < 3) continue;
+            for (const title of titles) {
+                const t = title.toLowerCase();
+                if (t.includes(sName) || sName.includes(t)) {
+                    return s.season_number;
+                }
+            }
+        }
+
+        // 2. SECOND PRIORITY: Air Date / Season Year matching against valid active seasons
         if (startDateObj?.year && startDateObj?.month && startDateObj?.day) {
             const targetDate = new Date(startDateObj.year, startDateObj.month - 1, startDateObj.day).getTime();
             if (!isNaN(targetDate)) {
@@ -2162,14 +2227,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             }
         }
 
-        // 2. SECOND PRIORITY: Try parsing season/part numbers from title (e.g. "Season 2", "Part 3")
-        const titles = [
-          typeof anime?.title === 'string' ? anime.title : null,
-          anime?.title?.english,
-          anime?.title?.romaji,
-          anime?.title?.userPreferred
-        ].filter((t: any): t is string => typeof t === 'string' && t.length > 0);
-
+        // 3. THIRD PRIORITY: Try parsing season/part number from title
         for (const title of titles) {
           const t = title.toLowerCase();
           const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
@@ -2180,7 +2238,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
           }
         }
 
-        return activeSeasons[activeSeasons.length - 1].season_number;
+        return fallbackSeason;
     };
 
     const handleRelationClick = async (relationNode: any) => {
