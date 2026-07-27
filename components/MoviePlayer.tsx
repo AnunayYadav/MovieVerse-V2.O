@@ -5411,10 +5411,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const mainAnimeProviders = animeProvidersList.filter(p => p.id === 'vidnest_animepahe' || p.id === 'megaplay');
   const otherAnimeProviders = animeProvidersList.filter(p => p.id !== 'vidnest_animepahe' && p.id !== 'megaplay');
 
+  const containerWidthClass = isTvShow ? 'max-w-7xl' : 'max-w-5xl';
+
   return (
     <div className="w-full h-full bg-[#08080a] text-white select-none overflow-y-auto custom-scrollbar font-sans">
       {/* Dedicated Clean Top Back Button (non-overlapping) */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 pb-0 flex items-center justify-between">
+      <div className={`${containerWidthClass} mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 pb-0 flex items-center justify-between`}>
         <button 
           onClick={onClose} 
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95 shadow-sm"
@@ -5424,7 +5426,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       </div>
 
       {/* Main Layout Container */}
-      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 md:p-8 pt-3 flex flex-col lg:flex-row gap-6">
+      <div className={`${containerWidthClass} mx-auto w-full p-4 sm:p-6 md:p-8 pt-3 flex flex-col lg:flex-row gap-6 justify-center`}>
         
         {/* LEFT / MAIN STREAMING CONTENT PANEL */}
         <div className="flex-1 flex flex-col min-w-0">
