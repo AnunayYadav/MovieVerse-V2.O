@@ -2557,9 +2557,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                      </div>
                                 )}
                                 <img src={displayData.backdrop_path ? (displayData.backdrop_path.startsWith('http') ? displayData.backdrop_path : `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}`) : displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && !isTV && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
-                                <div className="absolute inset-0 bg-black/10 -z-20"></div>
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent pointer-events-none"></div>
-                                <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/50 via-transparent to-transparent pointer-events-none"></div>
+                                <div className={`absolute inset-0 -z-20 ${isAnime ? 'bg-black/40' : 'bg-black/10'}`}></div>
+                                <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30' : 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent'}`}></div>
+                                <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent' : 'bg-gradient-to-r from-[#0a0a0a]/50 via-transparent to-transparent'}`}></div>
                                  {trailer && videoLoaded && (
                                      <TvFocusButton onClick={toggleMute} className="absolute top-4 right-4 md:bottom-6 md:right-6 z-30 w-10 h-10 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
