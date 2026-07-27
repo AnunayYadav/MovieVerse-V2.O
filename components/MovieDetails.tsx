@@ -2116,14 +2116,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const matchLocalSeason = (anime: any, tmdbSeasons: any[]): number => {
         if (!tmdbSeasons || tmdbSeasons.length === 0) return 1;
-        const activeSeasons = tmdbSeasons.filter(s => s.season_number > 0);
+        // Filter out season 0 (Specials) and prefer seasons that actually have released episodes
+        const seasonsWithEps = tmdbSeasons.filter(s => s.season_number > 0 && ((s.episode_count && s.episode_count > 0) || (s.air_date && new Date(s.air_date).getTime() <= Date.now())));
+        const activeSeasons = seasonsWithEps.length > 0 ? seasonsWithEps : tmdbSeasons.filter(s => s.season_number > 0);
+        
         if (activeSeasons.length === 0) return 1;
         if (activeSeasons.length === 1) return activeSeasons[0].season_number;
 
         const startDateObj = anime?.startDate;
         const targetYear = anime?.seasonYear || startDateObj?.year || anime?.year;
 
-        // 1. HIGHEST PRIORITY: Exact / Closest Air Date or Season Year matching
+        // 1. HIGHEST PRIORITY: Exact / Closest Air Date matching against valid active seasons
         if (startDateObj?.year && startDateObj?.month && startDateObj?.day) {
             const targetDate = new Date(startDateObj.year, startDateObj.month - 1, startDateObj.day).getTime();
             if (!isNaN(targetDate)) {
@@ -2142,8 +2145,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     }
                 }
 
-                // If closest season air_date is within ~1 year (365 days), use it!
-                if (closestSeason && minDiff <= 365 * 24 * 3600 * 1000) {
+                if (closestSeason) {
                     return closestSeason.season_number;
                 }
             }
@@ -2160,7 +2162,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             }
         }
 
-        // 2. SECOND PRIORITY: Try matching season names in title (e.g. "Thousand-Year Blood War")
+        // 2. SECOND PRIORITY: Try parsing season/part numbers from title (e.g. "Season 2", "Part 3")
         const titles = [
           typeof anime?.title === 'string' ? anime.title : null,
           anime?.title?.english,
@@ -2168,40 +2170,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
           anime?.title?.userPreferred
         ].filter((t: any): t is string => typeof t === 'string' && t.length > 0);
 
-        for (const s of activeSeasons) {
-            if (!s.name) continue;
-            const sName = s.name.toLowerCase().trim();
-            if (sName === 'specials' || sName.startsWith('season') || sName.length < 3) continue;
-            for (const title of titles) {
-                const t = title.toLowerCase();
-                if (t.includes(sName) || sName.includes(t)) {
-                    return s.season_number;
-                }
-            }
-        }
-
-        // 3. THIRD PRIORITY: Try parsing season/part numbers from title (e.g. "Season 2", "Part 3")
-        let parsedSeasonFromTitle: number | null = null;
         for (const title of titles) {
           const t = title.toLowerCase();
           const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
           if (match1 && match1[1]) {
-            parsedSeasonFromTitle = parseInt(match1[1], 10);
-            break;
-          }
-          const match2 = t.match(/\b(\d+)(?:st|nd|rd|th)\s*(?:season|part)\b/i);
-          if (match2 && match2[1]) {
-            parsedSeasonFromTitle = parseInt(match2[1], 10);
-            break;
+            const parsedNum = parseInt(match1[1], 10);
+            const match = activeSeasons.find(s => s.season_number === parsedNum);
+            if (match) return match.season_number;
           }
         }
 
-        if (parsedSeasonFromTitle !== null) {
-          const match = activeSeasons.find(s => s.season_number === parsedSeasonFromTitle);
-          if (match) return match.season_number;
-        }
-
-        return activeSeasons[0].season_number;
+        return activeSeasons[activeSeasons.length - 1].season_number;
     };
 
     const handleRelationClick = async (relationNode: any) => {
