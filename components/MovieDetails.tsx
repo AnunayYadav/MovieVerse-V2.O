@@ -2062,6 +2062,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         return rel.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
     };
 
+    const formatMediaFormat = (fmt: string) => {
+        if (!fmt) return 'Anime';
+        const clean = fmt.replace(/_/g, ' ');
+        return clean.split(' ').map(w => {
+            const u = w.toUpperCase();
+            if (u === 'TV' || u === 'OVA' || u === 'ONA') return u;
+            return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        }).join(' ');
+    };
+
     const matchLocalSeason = (anime: any, tmdbSeasons: any[]): number => {
         if (!tmdbSeasons || tmdbSeasons.length === 0) return 1;
         const activeSeasons = tmdbSeasons.filter(s => s.season_number > 0);
@@ -2949,24 +2959,24 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     )}
 
                                     {activeTab === 'relations' && (
-                                        <div className="animate-in fade-in text-left space-y-8 pb-6 select-none">
+                                        <div className="animate-in fade-in text-left space-y-6 pb-6 select-none">
                                             {relationCategories.length === 0 ? (
                                                 <div className="text-zinc-500 text-xs py-3 px-1 italic">No relation data found.</div>
                                             ) : (
                                                 relationCategories.map((cat) => (
-                                                    <div key={cat.key} className="space-y-3">
+                                                    <div key={cat.key} className="space-y-2">
                                                         {/* Category Title Header */}
-                                                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                                                            <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+                                                        <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                                                            <h3 className="text-xs sm:text-sm font-semibold text-zinc-300 tracking-wide flex items-center gap-2">
                                                                 <span>{cat.title}</span>
-                                                                <span className="text-[10px] sm:text-xs font-bold text-zinc-400 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10">
+                                                                <span className="text-[10px] font-medium text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
                                                                     {cat.items.length}
                                                                 </span>
                                                             </h3>
                                                         </div>
 
                                                         {/* Horizontal Scroll Row */}
-                                                        <div className="flex gap-4 sm:gap-5 overflow-x-auto hide-scrollbar scroll-smooth py-2 pr-2">
+                                                        <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-1.5 pr-2">
                                                             {cat.items.map((edge: any) => {
                                                                 const relNode = edge.node;
                                                                 const relTitle = relNode.title.userPreferred || relNode.title.english || relNode.title.romaji;
@@ -2981,12 +2991,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         onClick={() => {
                                                                             if (!isMatching) handleRelationClick(relNode);
                                                                         }}
-                                                                        className="w-36 sm:w-44 md:w-48 lg:w-52 shrink-0 group/rel cursor-pointer flex flex-col transition-all duration-300"
+                                                                        className="w-28 sm:w-32 md:w-36 shrink-0 group/rel cursor-pointer flex flex-col transition-all duration-300"
                                                                     >
                                                                         {/* Poster Box */}
-                                                                        <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 group-hover/rel:border-red-500/50 group-hover/rel:shadow-[0_4px_20px_rgba(239,68,68,0.2)] group-hover/rel:scale-[1.02] transition-all duration-300">
+                                                                        <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden bg-zinc-950 border border-white/10 group-hover/rel:border-red-500/40 group-hover/rel:scale-[1.02] transition-all duration-300">
                                                                             <img
-                                                                                src={relNode.coverImage?.extraLarge || relNode.coverImage?.large || "https://placehold.co/300x450"}
+                                                                                src={relNode.coverImage?.large || relNode.coverImage?.extraLarge || "https://placehold.co/300x450"}
                                                                                 alt={relTitle}
                                                                                 loading="lazy"
                                                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover/rel:scale-105"
@@ -2994,14 +3004,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                                             {isMatching && (
                                                                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
-                                                                                    <Loader2 className="animate-spin text-red-600" size={24} />
+                                                                                    <Loader2 className="animate-spin text-red-600" size={20} />
                                                                                 </div>
                                                                             )}
 
                                                                             {/* Relation Type Badge on Poster */}
                                                                             {relType && (
-                                                                                <div className="absolute top-2 left-2 z-10 select-none">
-                                                                                    <span className={`px-2.5 py-0.5 rounded text-[9px] font-semibold ${getRelationBadgeClass(relType)} shadow-md backdrop-blur-md`}>
+                                                                                <div className="absolute top-1.5 left-1.5 z-10 select-none">
+                                                                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-medium ${getRelationBadgeClass(relType)} shadow-sm backdrop-blur-md opacity-90`}>
                                                                                         {formatRelationType(relType)}
                                                                                     </span>
                                                                                 </div>
@@ -3009,16 +3019,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         </div>
 
                                                                         {/* Text & Details Below Poster */}
-                                                                        <div className="mt-2.5 px-0.5 text-left space-y-1">
-                                                                            <h4 className="text-xs sm:text-sm font-bold text-zinc-100 group-hover/rel:text-red-400 transition-colors line-clamp-2 leading-snug">
+                                                                        <div className="mt-1.5 px-0.5 text-left space-y-0.5">
+                                                                            <h4 className="text-[11px] sm:text-xs font-medium text-zinc-300 group-hover/rel:text-red-400 transition-colors line-clamp-1 leading-snug">
                                                                                 {relTitle}
                                                                             </h4>
-                                                                            <div className="flex items-center gap-2 text-[10px] sm:text-xs text-zinc-400 font-medium">
-                                                                                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-300 font-semibold text-[10px]">
-                                                                                    {relFormat === 'TV' || relFormat === 'OVA' || relFormat === 'ONA' ? relFormat : relFormat.charAt(0).toUpperCase() + relFormat.slice(1).toLowerCase()}
-                                                                                </span>
+                                                                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-normal">
+                                                                                <span>{formatMediaFormat(relFormat)}</span>
                                                                                 <span>•</span>
-                                                                                <span className="text-zinc-400">{relYear}</span>
+                                                                                <span>{relYear}</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>
