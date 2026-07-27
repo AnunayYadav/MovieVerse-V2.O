@@ -579,7 +579,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           // 1. AnimeTosho API (From Hayase-Extensions)
           (async () => {
             try {
-              const res = await fetch(`https://feed.animetosho.org/json?q=${encodeURIComponent(animeQuery)}`);
+              const res = await fetch(`https://feed.animetosho.org/json?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(3000) });
               if (res.ok) {
                 const items = await res.json();
                 if (Array.isArray(items)) {
@@ -597,10 +597,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             } catch (e) {}
           })(),
 
-          // 2. Nyaa RSS Engine
+          // 2. Nyaa RSS Engine via High-Speed CorsProxy
           (async () => {
             try {
-              const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`)}`);
+              const targetUrl = `https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`;
+              const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(3000) });
               if (res.ok) {
                 const xmlText = await res.text();
                 const parser = new DOMParser();
@@ -628,7 +629,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             try {
               const type = (currentSeason && currentEpisode && currentSeason > 0) ? 'series' : 'movie';
               const query = type === 'series' ? `${imdbId}:${currentSeason}:${currentEpisode}` : imdbId;
-              const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`);
+              const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`, { signal: AbortSignal.timeout(3000) });
               if (res.ok) {
                 const data = await res.json();
                 if (data?.streams) {

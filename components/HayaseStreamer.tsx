@@ -117,7 +117,8 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
         if (isAnime || (title && (title.includes('Anime') || !imdbId))) {
           try {
             const animeQuery = `${title || ''} ${episode ? `E${episode.toString().padStart(2, '0')}` : ''}`.trim();
-            const nyaaRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`)}`);
+            const targetUrl = `https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`;
+            const nyaaRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(3000) });
             if (nyaaRes.ok) {
               const xmlText = await nyaaRes.text();
               const parser = new DOMParser();
