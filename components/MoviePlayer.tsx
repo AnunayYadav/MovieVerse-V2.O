@@ -4645,37 +4645,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {/* Premium Top Bar Overlay */}
-        <div 
-          className={`absolute top-0 left-0 right-0 z-50 w-full pt-8 pb-8 px-8 flex items-center justify-between transition-all duration-300 ease-out ${
-            useCustomControls 
-              ? (showControls || isDrawerOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none') 
-              : 'opacity-100 translate-y-0'
-          }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button 
-            onClick={onClose}
-            className="pointer-events-auto flex items-center justify-center p-2 text-white/80 hover:text-white transition-all active:scale-90 hover:scale-110"
-            title="Back to Details"
+        {/* Top Header Overlay (empty/minimal container if needed) */}
+        {isFullscreen && (
+          <div 
+            className="absolute top-4 left-4 z-50 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <ArrowLeft size={30} strokeWidth={1.5} />
-          </button>
-
-          <div className="relative pointer-events-auto mr-4">
             <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsServerModalOpen(true);
-              }}
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-black/80 hover:bg-zinc-900/90 text-white font-semibold text-xs rounded-xl transition-all border border-white/15 active:scale-95 shadow-xl cursor-pointer backdrop-blur-md"
-              title="Select Server / Provider"
+              onClick={toggleFullscreen}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 hover:bg-black/90 text-white font-medium text-xs rounded-xl backdrop-blur-md border border-white/10 transition-all"
             >
-              <ServerIcon size={14} />
-              <span className="text-white text-[12px] font-bold leading-none">Servers</span>
+              <X size={14} /> <span>Exit Fullscreen</span>
             </button>
           </div>
-        </div>
+        )}
 
         {/* Server Selector Modal for Application Providers */}
         {isServerModalOpen && (
@@ -5466,35 +5449,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
 
           {/* Under-Player Action Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-3 px-1 text-xs font-semibold text-zinc-300">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-3 px-1 text-xs font-normal text-zinc-300">
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={toggleFullscreen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm">
-                <Maximize size={14} /> <span>Expand</span>
+              <button onClick={toggleFullscreen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 hover:text-white transition-all active:scale-95 text-xs font-medium">
+                <Maximize size={13} /> <span>Expand</span>
               </button>
-              <button onClick={() => setAutoPlayState(!autoPlayState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${autoPlayState ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
-                <Zap size={14} /> <span>Auto Play</span>
+              <button onClick={() => setAutoPlayState(!autoPlayState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${autoPlayState ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'}`}>
+                <Zap size={13} /> <span>Auto Play</span>
               </button>
-              <button onClick={() => setAutoNextState(!autoNextState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${autoNextState ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
-                <SkipForward size={14} /> <span>Auto Next</span>
+              <button onClick={() => setAutoNextState(!autoNextState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${autoNextState ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'}`}>
+                <SkipForward size={13} /> <span>Auto Next</span>
               </button>
-              <button onClick={() => setAutoSkipState(!autoSkipState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${autoSkipState ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
-                <RotateCcw size={14} /> <span>Auto Skip</span>
+              <button onClick={() => setAutoSkipState(!autoSkipState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${autoSkipState ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'}`}>
+                <RotateCcw size={13} /> <span>Auto Skip</span>
               </button>
             </div>
 
             <div className="flex items-center gap-2">
               {isTvShow && (
                 <>
-                  <button disabled={currentEpisode <= 1} onClick={handlePrevEpisode} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none border border-white/10 text-zinc-300 transition-all active:scale-95">
-                    <ChevronLeft size={16} /> <span>Prev</span>
+                  <button disabled={currentEpisode <= 1} onClick={handlePrevEpisode} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-white/5 text-zinc-300 text-xs font-medium transition-all active:scale-95">
+                    <ChevronLeft size={15} /> <span>Prev</span>
                   </button>
-                  <button onClick={handleNextEpisode} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 transition-all active:scale-95">
-                    <span>Next</span> <ChevronRight size={16} />
+                  <button onClick={handleNextEpisode} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 text-xs font-medium transition-all active:scale-95">
+                    <span>Next</span> <ChevronRight size={15} />
                   </button>
                 </>
               )}
               {onToggleWatchlist && (
-                <button onClick={onToggleWatchlist} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${isWatchlisted ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'}`}>
+                <button onClick={onToggleWatchlist} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${isWatchlisted ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-300'}`}>
                   <span>{isWatchlisted ? '❤️ Watchlisted' : '♡ Add to List'}</span>
                 </button>
               )}
@@ -5502,14 +5485,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
 
           {/* SERVER & SUB/DUB SELECTOR PANEL */}
-          <div className="flex flex-col sm:flex-row gap-4 mt-4 bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl">
+          <div className="flex flex-col sm:flex-row gap-4 mt-4 bg-[#0e0e11]/80 border border-white/5 rounded-2xl p-4 shadow-xl backdrop-blur-md">
             {/* Compact Red Highlight Badge */}
-            <div className="w-full sm:w-48 shrink-0 bg-red-950/30 border border-red-500/20 p-3 rounded-xl flex flex-col justify-center text-center select-none">
-              <span className="text-[10px] font-bold text-red-400 uppercase tracking-wide">You are watching</span>
-              <h4 className="text-sm font-bold text-white my-0.5">
+            <div className="w-full sm:w-48 shrink-0 bg-red-950/20 border border-red-500/10 p-3 rounded-xl flex flex-col justify-center text-center select-none">
+              <span className="text-[10px] font-medium text-red-400 uppercase tracking-wide">You are watching</span>
+              <h4 className="text-sm font-semibold text-white my-0.5">
                 {isTvShow ? `Episode ${currentEpisode}` : `Movie Stream`}
               </h4>
-              <p className="text-[9px] font-medium text-zinc-400 leading-tight mt-0.5">
+              <p className="text-[9px] font-normal text-zinc-400 leading-tight mt-0.5">
                 If current server fails, try another beside
               </p>
             </div>
@@ -5520,7 +5503,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 <>
                   {/* SUB ROW */}
                   <div className="flex items-center gap-3">
-                    <div className="w-14 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                    <div className="w-14 shrink-0 text-xs font-medium text-zinc-400 flex items-center gap-1.5">
                       <span>💬</span> <span>SUB</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 relative">
@@ -5534,10 +5517,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               setSelectedProviderId(prov.id);
                               onProviderChange?.(prov.id);
                             }}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                               isActive
-                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
-                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                                : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
                             }`}
                           >
                             {prov.name}
@@ -5548,16 +5531,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <div className="relative">
                           <button
                             onClick={() => setIsSubOthersOpen(!isSubOthersOpen)}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1 ${
                               animeLanguage === 'sub' && otherAnimeProviders.some(p => p.id === selectedProviderId)
-                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
-                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                                : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
                             }`}
                           >
-                            <span>Others</span> <ChevronDown size={14} className={`transition-transform ${isSubOthersOpen ? 'rotate-180' : ''}`} />
+                            <span>Others</span> <ChevronDown size={13} className={`transition-transform ${isSubOthersOpen ? 'rotate-180' : ''}`} />
                           </button>
                           {isSubOthersOpen && (
-                            <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
+                            <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#141417] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
                               {otherAnimeProviders.map((prov) => (
                                 <button
                                   key={`sub-other-${prov.id}`}
@@ -5567,7 +5550,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     onProviderChange?.(prov.id);
                                     setIsSubOthersOpen(false);
                                   }}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10 flex items-center justify-between"
+                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-zinc-300 hover:bg-white/10 flex items-center justify-between"
                                 >
                                   <span>{prov.name}</span>
                                   {animeLanguage === 'sub' && selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
@@ -5582,7 +5565,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                   {/* DUB ROW */}
                   <div className="flex items-center gap-3">
-                    <div className="w-14 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                    <div className="w-14 shrink-0 text-xs font-medium text-zinc-400 flex items-center gap-1.5">
                       <span>🎙️</span> <span>DUB</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 relative">
@@ -5596,10 +5579,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               setSelectedProviderId(prov.id);
                               onProviderChange?.(prov.id);
                             }}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                               isActive
-                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
-                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                                : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
                             }`}
                           >
                             {prov.name}
@@ -5610,13 +5593,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <div className="relative">
                           <button
                             onClick={() => setIsDubOthersOpen(!isDubOthersOpen)}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1 ${
                               animeLanguage === 'dub' && otherAnimeProviders.some(p => p.id === selectedProviderId)
-                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
-                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                                : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
                             }`}
                           >
-                            <span>Others</span> <ChevronDown size={14} className={`transition-transform ${isDubOthersOpen ? 'rotate-180' : ''}`} />
+                            <span>Others</span> <ChevronDown size={13} className={`transition-transform ${isDubOthersOpen ? 'rotate-180' : ''}`} />
                           </button>
                           {isDubOthersOpen && (
                             <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
