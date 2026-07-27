@@ -249,6 +249,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   tmdbId, onClose, mediaType, isAnime, isAnimeDirect, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey, episodes: initialEpisodes, details, onToggleWatchlist, isWatchlisted
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const playerVideoFrameRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const lastFetchedAnimeRef = useRef<string | null>(null);
   const [embedUrl, setEmbedUrl] = useState('');
@@ -268,6 +269,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [autoPlayState, setAutoPlayState] = useState(true);
   const [autoNextState, setAutoNextState] = useState(true);
   const [autoSkipState, setAutoSkipState] = useState(false);
+  const [isSubOthersOpen, setIsSubOthersOpen] = useState(false);
+  const [isDubOthersOpen, setIsDubOthersOpen] = useState(false);
 
   const handlePrevEpisode = () => {
     if (currentEpisode > 1) {
@@ -2136,7 +2139,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const toggleFullscreen = useCallback(() => {
-    const container = containerRef.current;
+    const container = playerVideoFrameRef.current || containerRef.current;
     const video = videoRef.current;
     if (!container) return;
 
@@ -5419,13 +5422,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     </div>
   );
 
+  const mainAnimeProviders = animeProvidersList.filter(p => p.id === 'vidnest_animepahe' || p.id === 'megaplay');
+  const otherAnimeProviders = animeProvidersList.filter(p => p.id !== 'vidnest_animepahe' && p.id !== 'megaplay');
+
   if (isFullscreen) {
     return renderVideoPlayerCore();
   }
 
   return (
     <div className="w-full h-full bg-[#08080a] text-white select-none overflow-y-auto custom-scrollbar font-sans">
-      {/* Top Watch Header */}
+      {/* Top Watch Header Bar */}
       <div className="sticky top-0 z-40 bg-[#0c0c0e]/95 backdrop-blur-xl border-b border-white/5 px-4 md:px-8 py-3.5 flex items-center justify-between shadow-2xl">
         <div className="flex items-center gap-3.5">
           <button 
@@ -5435,9 +5441,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             <ArrowLeft size={16} /> <span>Back to Details</span>
           </button>
           <div className="flex flex-col">
-            <h2 className="text-sm md:text-base font-extrabold text-white line-clamp-1">{displayTitle}</h2>
+            <h2 className="text-sm md:text-base font-bold text-white line-clamp-1">{displayTitle}</h2>
             {isTvShow && (
-              <span className="text-[11px] font-extrabold text-[#80ee20] tracking-wider uppercase">
+              <span className="text-[11px] font-bold text-red-500 tracking-wide uppercase">
                 Season {currentSeason} • Episode {currentEpisode}
               </span>
             )}
@@ -5451,13 +5457,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         {/* LEFT COLUMN: LIST OF EPISODES (Only for TV Shows & Anime) */}
         {isTvShow && (
           <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-xs font-black tracking-widest text-zinc-400 uppercase">
-                LIST OF EPISODES:
+            <div className="flex items-center justify-between mb-2.5 px-1">
+              <h3 className="text-xs font-bold tracking-wider text-zinc-400 uppercase">
+                List of Episodes
               </h3>
-              <span className="text-[10px] text-zinc-500 font-bold">{episodeList.length} Total</span>
+              <span className="text-[10px] text-zinc-500 font-semibold">{episodeList.length} Total</span>
             </div>
-            <div className="bg-[#121214] border border-white/5 rounded-2xl p-2.5 max-h-[580px] overflow-y-auto custom-scrollbar space-y-1.5 shadow-xl">
+            <div className="bg-[#121214] border border-white/5 rounded-2xl p-2 max-h-[580px] overflow-y-auto custom-scrollbar space-y-1 shadow-xl">
               {episodeList.map((ep: any, idx: number) => {
                 const epNum = ep.episode_number || ep.number || (idx + 1);
                 const epTitle = ep.name || ep.title || `Episode ${epNum}`;
@@ -5466,19 +5472,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <button
                     key={`ep-${epNum}-${idx}`}
                     onClick={() => handleEpisodeClick(epNum)}
-                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-bold transition-all text-left group ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all text-left group ${
                       isActive
-                        ? 'bg-[#80ee20]/15 text-[#80ee20] border border-[#80ee20]/40 shadow-md shadow-[#80ee20]/10 font-black'
-                        : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-transparent'
+                        ? 'bg-red-600/15 text-red-500 border border-red-500/30 font-bold'
+                        : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-transparent font-medium'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      <span className={`text-[11px] font-mono shrink-0 ${isActive ? 'text-[#80ee20]' : 'text-zinc-500'}`}>
+                      <span className={`text-[11px] font-mono shrink-0 ${isActive ? 'text-red-500 font-bold' : 'text-zinc-500'}`}>
                         {String(epNum).padStart(2, '0')}
                       </span>
                       <span className="truncate">{epTitle}</span>
                     </div>
-                    {isActive && <Play size={13} fill="currentColor" className="text-[#80ee20] shrink-0" />}
+                    {isActive && <Play size={12} fill="currentColor" className="text-red-500 shrink-0" />}
                   </button>
                 );
               })}
@@ -5490,23 +5496,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         <div className="flex-1 flex flex-col min-w-0">
           
           {/* Video Player Frame Container */}
-          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 shrink-0">
+          <div ref={playerVideoFrameRef} className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 shrink-0">
             {renderVideoPlayerCore()}
           </div>
 
           {/* Under-Player Action Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-3.5 px-1 text-xs font-bold text-zinc-300">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-3 px-1 text-xs font-semibold text-zinc-300">
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={toggleFullscreen} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all active:scale-95 shadow-md">
+              <button onClick={toggleFullscreen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm">
                 <Maximize size={14} /> <span>Expand</span>
               </button>
-              <button onClick={() => setAutoPlayState(!autoPlayState)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border transition-all active:scale-95 shadow-md ${autoPlayState ? 'bg-[#80ee20]/20 border-[#80ee20]/50 text-[#80ee20]' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
+              <button onClick={() => setAutoPlayState(!autoPlayState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${autoPlayState ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
                 <Zap size={14} /> <span>Auto Play</span>
               </button>
-              <button onClick={() => setAutoNextState(!autoNextState)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border transition-all active:scale-95 shadow-md ${autoNextState ? 'bg-[#80ee20]/20 border-[#80ee20]/50 text-[#80ee20]' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
+              <button onClick={() => setAutoNextState(!autoNextState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${autoNextState ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
                 <SkipForward size={14} /> <span>Auto Next</span>
               </button>
-              <button onClick={() => setAutoSkipState(!autoSkipState)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border transition-all active:scale-95 shadow-md ${autoSkipState ? 'bg-[#80ee20]/20 border-[#80ee20]/50 text-[#80ee20]' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
+              <button onClick={() => setAutoSkipState(!autoSkipState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${autoSkipState ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-400'}`}>
                 <RotateCcw size={14} /> <span>Auto Skip</span>
               </button>
             </div>
@@ -5523,7 +5529,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </>
               )}
               {onToggleWatchlist && (
-                <button onClick={onToggleWatchlist} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border transition-all active:scale-95 shadow-md ${isWatchlisted ? 'bg-red-600/20 border-red-500/40 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'}`}>
+                <button onClick={onToggleWatchlist} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 shadow-sm ${isWatchlisted ? 'bg-red-600/20 border-red-500/40 text-red-400 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'}`}>
                   <span>{isWatchlisted ? '❤️ Watchlisted' : '♡ Add to List'}</span>
                 </button>
               )}
@@ -5531,29 +5537,29 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
 
           {/* SERVER & SUB/DUB SELECTOR PANEL */}
-          <div className="flex flex-col sm:flex-row gap-4 mt-5 bg-[#121214] border border-white/5 rounded-2xl p-4 sm:p-5 shadow-xl">
-            {/* Left Lime Green Highlight Card */}
-            <div className="w-full sm:w-60 shrink-0 bg-[#80ee20] text-black p-4 rounded-xl flex flex-col justify-center text-center font-sans shadow-lg shadow-[#80ee20]/20 select-none">
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-80">YOU ARE WATCHING</span>
-              <h4 className="text-base sm:text-lg font-black tracking-tight my-0.5">
+          <div className="flex flex-col sm:flex-row gap-4 mt-4 bg-[#121214] border border-white/5 rounded-2xl p-4 shadow-xl">
+            {/* Compact Red Highlight Badge */}
+            <div className="w-full sm:w-48 shrink-0 bg-red-950/30 border border-red-500/20 p-3 rounded-xl flex flex-col justify-center text-center select-none">
+              <span className="text-[10px] font-bold text-red-400 uppercase tracking-wide">You are watching</span>
+              <h4 className="text-sm font-bold text-white my-0.5">
                 {isTvShow ? `Episode ${currentEpisode}` : `Movie Stream`}
               </h4>
-              <p className="text-[9px] font-extrabold tracking-tight uppercase leading-tight mt-1 opacity-80">
-                IF CURRENT SERVERS DOESN'T WORK, PLEASE TRY OTHER SERVERS BESIDE.
+              <p className="text-[9px] font-medium text-zinc-400 leading-tight mt-0.5">
+                If current server fails, try another beside
               </p>
             </div>
 
             {/* Right Provider Selection Grid */}
-            <div className="flex-1 flex flex-col justify-center gap-3.5 pl-0 sm:pl-2">
+            <div className="flex-1 flex flex-col justify-center gap-3 pl-0 sm:pl-2">
               {(isAnime || isTvShow) ? (
                 <>
                   {/* SUB ROW */}
                   <div className="flex items-center gap-3">
-                    <div className="w-16 shrink-0 text-xs font-black tracking-wider text-zinc-300 flex items-center gap-1.5">
+                    <div className="w-14 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                       <span>💬</span> <span>SUB</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {animeProvidersList.map((prov, idx) => {
+                    <div className="flex flex-wrap items-center gap-2 relative">
+                      {mainAnimeProviders.map((prov) => {
                         const isActive = animeLanguage === 'sub' && selectedProviderId === prov.id;
                         return (
                           <button
@@ -5563,26 +5569,59 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               setSelectedProviderId(prov.id);
                               onProviderChange?.(prov.id);
                             }}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all border ${
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                               isActive
-                                ? 'bg-[#80ee20] text-black border-[#80ee20] shadow-md shadow-[#80ee20]/20 scale-105'
+                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
                                 : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
                             }`}
                           >
-                            HD-{idx + 1}
+                            {prov.name}
                           </button>
                         );
                       })}
+                      {otherAnimeProviders.length > 0 && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setIsSubOthersOpen(!isSubOthersOpen)}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${
+                              animeLanguage === 'sub' && otherAnimeProviders.some(p => p.id === selectedProviderId)
+                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
+                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                            }`}
+                          >
+                            <span>Others</span> <ChevronDown size={14} className={`transition-transform ${isSubOthersOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isSubOthersOpen && (
+                            <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
+                              {otherAnimeProviders.map((prov) => (
+                                <button
+                                  key={`sub-other-${prov.id}`}
+                                  onClick={() => {
+                                    setAnimeLanguage('sub');
+                                    setSelectedProviderId(prov.id);
+                                    onProviderChange?.(prov.id);
+                                    setIsSubOthersOpen(false);
+                                  }}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10 flex items-center justify-between"
+                                >
+                                  <span>{prov.name}</span>
+                                  {animeLanguage === 'sub' && selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* DUB ROW */}
                   <div className="flex items-center gap-3">
-                    <div className="w-16 shrink-0 text-xs font-black tracking-wider text-zinc-300 flex items-center gap-1.5">
+                    <div className="w-14 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                       <span>🎙️</span> <span>DUB</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {animeProvidersList.map((prov, idx) => {
+                    <div className="flex flex-wrap items-center gap-2 relative">
+                      {mainAnimeProviders.map((prov) => {
                         const isActive = animeLanguage === 'dub' && selectedProviderId === prov.id;
                         return (
                           <button
@@ -5592,29 +5631,61 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               setSelectedProviderId(prov.id);
                               onProviderChange?.(prov.id);
                             }}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all border ${
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                               isActive
-                                ? 'bg-[#80ee20] text-black border-[#80ee20] shadow-md shadow-[#80ee20]/20 scale-105'
+                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
                                 : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
                             }`}
                           >
-                            HD-{idx + 1}
+                            {prov.name}
                           </button>
                         );
                       })}
+                      {otherAnimeProviders.length > 0 && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setIsDubOthersOpen(!isDubOthersOpen)}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 ${
+                              animeLanguage === 'dub' && otherAnimeProviders.some(p => p.id === selectedProviderId)
+                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
+                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                            }`}
+                          >
+                            <span>Others</span> <ChevronDown size={14} className={`transition-transform ${isDubOthersOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isDubOthersOpen && (
+                            <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
+                              {otherAnimeProviders.map((prov) => (
+                                <button
+                                  key={`dub-other-${prov.id}`}
+                                  onClick={() => {
+                                    setAnimeLanguage('dub');
+                                    setSelectedProviderId(prov.id);
+                                    onProviderChange?.(prov.id);
+                                    setIsDubOthersOpen(false);
+                                  }}
+                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10 flex items-center justify-between"
+                                >
+                                  <span>{prov.name}</span>
+                                  {animeLanguage === 'dub' && selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
               ) : (
                 /* MOVIE ONLY PROVIDER ROW */
                 <div className="flex items-center gap-3">
-                  <div className="w-20 shrink-0 text-xs font-black tracking-wider text-zinc-300 flex items-center gap-1.5">
+                  <div className="w-20 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                     <span>⚙️</span> <span>SERVERS</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {movieProvidersList.map((prov, idx) => {
+                    {movieProvidersList.map((prov) => {
                       const isActive = selectedProviderId === prov.id;
-                      const label = prov.id === 'auto' ? 'Auto' : `HD-${idx}`;
                       return (
                         <button
                           key={`movie-prov-${prov.id}`}
@@ -5622,13 +5693,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             setSelectedProviderId(prov.id);
                             onProviderChange?.(prov.id);
                           }}
-                          className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all border ${
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                             isActive
-                              ? 'bg-[#80ee20] text-black border-[#80ee20] shadow-md shadow-[#80ee20]/20 scale-105'
+                              ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
                               : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
                           }`}
                         >
-                          {label} ({prov.name})
+                          {prov.name}
                         </button>
                       );
                     })}
@@ -5640,30 +5711,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           {/* BOTTOM SHOW SUMMARY CARD */}
           {details && (
-            <div className="mt-5 bg-[#121214] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-5 items-start shadow-xl">
+            <div className="mt-4 bg-[#121214] border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start shadow-xl">
               <img
                 src={details.poster_path ? (details.poster_path.startsWith('http') ? details.poster_path : `${TMDB_IMAGE_BASE}${details.poster_path}`) : "https://placehold.co/150x225"}
                 alt={displayTitle}
                 className="w-24 sm:w-28 rounded-xl object-cover shadow-lg border border-white/10 shrink-0"
               />
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">{displayTitle}</h3>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/10 text-zinc-300">
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">{displayTitle}</h3>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/10 text-zinc-300">
                     {isTvShow ? 'TV Series' : 'Movie'}
                   </span>
                   {details.vote_average > 0 && (
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
                       ★ {details.vote_average.toFixed(1)}
                     </span>
                   )}
                 </div>
                 {details.overview && (
-                  <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3 mt-2 font-medium">
+                  <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3 mt-1.5 font-normal">
                     {details.overview}
                   </p>
                 )}
-                <button onClick={onClose} className="text-xs font-black text-[#80ee20] hover:underline flex items-center gap-1 mt-3">
+                <button onClick={onClose} className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline flex items-center gap-1 mt-2.5">
                   <span>View detail</span> <ChevronRight size={14} />
                 </button>
               </div>
