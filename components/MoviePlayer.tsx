@@ -4645,20 +4645,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {/* Top Header Overlay (empty/minimal container if needed) */}
-        {isFullscreen && (
-          <div 
-            className="absolute top-4 left-4 z-50 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button 
-              onClick={toggleFullscreen}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 hover:bg-black/90 text-white font-medium text-xs rounded-xl backdrop-blur-md border border-white/10 transition-all"
-            >
-              <X size={14} /> <span>Exit Fullscreen</span>
-            </button>
-          </div>
-        )}
+        {/* Top Header Overlay (empty container) */}
 
         {/* Server Selector Modal for Application Providers */}
         {isServerModalOpen && (
@@ -5410,28 +5397,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   return (
     <div className="w-full h-full bg-[#08080a] text-white select-none overflow-y-auto custom-scrollbar font-sans">
-      {/* Top Watch Header Bar */}
-      <div className="sticky top-0 z-40 bg-[#0c0c0e]/95 backdrop-blur-xl border-b border-white/5 px-4 md:px-8 py-3.5 flex items-center justify-between shadow-2xl">
-        <div className="flex items-center gap-3.5">
-          <button 
-            onClick={onClose} 
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-zinc-300 hover:text-white border border-white/10 transition-all active:scale-95 shadow-md"
-          >
-            <ArrowLeft size={16} /> <span>Back to Details</span>
-          </button>
-          <div className="flex flex-col">
-            <h2 className="text-sm md:text-base font-bold text-white line-clamp-1">{displayTitle}</h2>
-            {isTvShow && (
-              <span className="text-[11px] font-bold text-red-500 tracking-wide uppercase">
-                Season {currentSeason} • Episode {currentEpisode}
-              </span>
-            )}
-          </div>
-        </div>
+      {/* Dedicated Clean Top Back Button (non-overlapping) */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 pb-0 flex items-center justify-between">
+        <button 
+          onClick={onClose} 
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95 shadow-sm"
+        >
+          <ArrowLeft size={15} /> <span>Back to Details</span>
+        </button>
       </div>
 
       {/* Main Layout Container */}
-      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 md:p-8 flex flex-col lg:flex-row gap-6">
+      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 md:p-8 pt-3 flex flex-col lg:flex-row gap-6">
         
         {/* LEFT / MAIN STREAMING CONTENT PANEL */}
         <div className="flex-1 flex flex-col min-w-0">
