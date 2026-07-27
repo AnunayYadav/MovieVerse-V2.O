@@ -287,7 +287,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (!preferred || preferred === 'auto_select') {
         preferred = defaultProvider;
       }
-      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai' || preferred === 'megaplay')) {
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'megaplay')) {
         preferred = 'auto';
       }
       if (preferred === 'encdec_animekai') {
@@ -334,7 +334,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [anilistLoading, setAnilistLoading] = useState(false);
 
   const getEffectiveTmdbId = useCallback((provId: string) => {
-    const isNativeAnime = provId === 'megaplay' || provId === 'anikai' || provId === 'vidnest_animepahe' || provId === 'vidnest';
+    const isNativeAnime = provId === 'megaplay' || provId === 'vidnest_animepahe' || provId === 'vidnest';
     if (isNativeAnime) {
       return anilistId || tmdbId;
     }
@@ -632,9 +632,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       console.warn("Auto probe exception:", e);
     }
 
-    const fallbackId = 'cinesrc';
+    const fallbackId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'cinesrc';
     setSelectedProviderId(fallbackId);
-    setAutoProbeStatus('Selected default server: CineSrc');
+    setAutoProbeStatus(`Selected default server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'AnimePahe'}`);
     setTimeout(() => setIsAutoProbing(false), 800);
   }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, isWatchParty, isAnimeDirect, verifiedPlaybackServers]);
 
@@ -2330,20 +2330,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       ? provider.getTvUrl(targetTmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
       : provider.getMovieUrl(targetTmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
-    if (providerId === 'anikai' && title) {
-      url += `&title=${encodeURIComponent(title)}`;
-      // When we have the anime season map, send the true absolute episode number to bypass TMDB absolute episode calculation
-      if (isAnime && animeSeasonMap.length > 0) {
-        let sum = 0;
-        for (let i = 0; i < currentSeason - 1; i++) {
-          if (animeSeasonMap[i]) {
-            sum += animeSeasonMap[i].episodes || 0;
-          }
-        }
-        const absEp = sum + currentEpisode;
-        url += `&mappedEpisode=${absEp}`;
-      }
-    }
     return url;
   };
 

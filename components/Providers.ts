@@ -38,8 +38,22 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'auto',
     name: 'Auto (Fastest Server)',
-    getMovieUrl: (tmdbId, color, progress) => '',
-    getTvUrl: (tmdbId, season, episode, color, progress) => '',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
+      if (isAnime || !!anilistId) {
+        return `https://vidnest.fun/animepahe/${anilistId || tmdbId}/1/${animeLanguage}`;
+      }
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      return `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
+      if (isAnime || !!anilistId) {
+        return `https://vidnest.fun/animepahe/${anilistId || tmdbId}/${episode}/${animeLanguage}`;
+      }
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
+    },
     supportsPostMessage: true
   },
   {
@@ -70,19 +84,7 @@ export const PROVIDERS: Provider[] = [
     },
     supportsPostMessage: true
   },
-  {
-    id: 'anikai',
-    name: 'Anikai',
-    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language) => {
-      const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
-      return `/api/anime?provider=anikai&tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
-    },
-    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language) => {
-      const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
-      return `/api/anime?provider=anikai&tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
-    },
-    supportsPostMessage: false
-  },
+
   {
     id: 'cinesrc',
     name: 'CineSrc',
@@ -184,7 +186,7 @@ export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = f
   let list = PROVIDERS.filter(p => {
     if (isWatchParty && !p.supportsPostMessage) return false;
     if (!isAnime && !isAnimeDirect) {
-      return p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'megaplay';
+      return p.id !== 'vidnest_animepahe' && p.id !== 'megaplay';
     }
     return true;
   });
@@ -192,11 +194,10 @@ export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = f
   if (isAnime || isAnimeDirect) {
     list = [...list].sort((a, b) => {
       const getPriority = (id: string) => {
-        if (id === 'auto') return 100;
-        if (id === 'megaplay') return 90;
-        if (id === 'anikai') return 80;
-        if (id === 'vidnest_animepahe') return 70;
-        if (id === 'vidnest') return 60;
+        if (id === 'auto') return 1000;
+        if (id === 'vidnest_animepahe') return 950;
+        if (id === 'megaplay') return 900;
+        if (id === 'vidnest') return 800;
         return 0;
       };
       return getPriority(b.id) - getPriority(a.id);

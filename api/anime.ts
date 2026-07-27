@@ -528,7 +528,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // If mappedEpisode is provided, the client already did the AniList mapping — use it directly
   let absoluteEpisode = mappedEpisode ? parseInt(String(mappedEpisode), 10) : (episode ? parseInt(String(episode), 10) : 1);
 
-  const isAnimeRequest = provider === 'anikai' || !!anilistId || action === 'mal-episodes' || action === 'episodes';
+  const isAnimeRequest = !!anilistId || action === 'mal-episodes' || action === 'episodes';
 
   if (tmdbId && !isAnimeRequest) {
     try {
@@ -680,29 +680,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // 1. Route to Anikai Scraper
-  if (provider === 'anikai') {
-    if (!cleanTitle) {
-      return res.status(400).send("Could not resolve anime title.");
-    }
-    try {
-      const embedUrl = await resolveAnikai(
-        cleanTitle,
-        season,
-        episode,
-        lang,
-        seasonName,
-        seasonEpisodeCount,
-        absoluteEpisode,
-        prequelEpisodes
-      );
-      res.writeHead(302, { Location: embedUrl });
-      return res.end();
-    } catch (e: any) {
-      console.error("Anikai redirect error:", e);
-      return res.status(502).send(`Anikai extraction error: ${e.message}`);
-    }
-  }
+
 
   // 2. Route to MAL Episodes (Jikan + Kitsu merge)
   if (action === 'mal-episodes') {
