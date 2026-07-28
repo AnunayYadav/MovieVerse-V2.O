@@ -117,7 +117,7 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
         if (isAnime || (title && (title.includes('Anime') || !imdbId))) {
           try {
             const animeQuery = `${title || ''} ${episode ? `E${episode.toString().padStart(2, '0')}` : ''}`.trim();
-            const nyaaRes = await fetch(`https://movieverse-v2-o.onrender.com/nyaa?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(4000) });
+            const nyaaRes = await fetch(`/api/nyaa?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(4000) });
             if (nyaaRes.ok) {
               const xmlText = await nyaaRes.text();
               const parser = new DOMParser();

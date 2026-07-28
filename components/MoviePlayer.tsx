@@ -597,10 +597,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             } catch (e) {}
           })(),
 
-          // 2. Nyaa RSS Engine via Our Own Backend Proxy Server
+          // 2. Nyaa RSS Engine via Vercel Serverless Function (/api/nyaa)
           (async () => {
             try {
-              const res = await fetch(`https://movieverse-v2-o.onrender.com/nyaa?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(4000) });
+              const res = await fetch(`/api/nyaa?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(4000) });
               if (res.ok) {
                 const xmlText = await res.text();
                 const parser = new DOMParser();
