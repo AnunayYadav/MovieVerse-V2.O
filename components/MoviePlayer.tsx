@@ -254,7 +254,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const playerVideoFrameRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const lastFetchedAnimeRef = useRef<string | null>(null);
+
+  // Anivexa & Native Stream states
+  const [anivexaEpisodes, setAnivexaEpisodes] = useState<any[] | null>(null);
+  const [anivexaStreamUrl, setAnivexaStreamUrl] = useState<string>('');
+  const [anivexaSubtitles, setAnivexaSubtitles] = useState<any[]>([]);
+  const [anivexaLoading, setAnivexaLoading] = useState(false);
+  const [anivexaError, setAnivexaError] = useState<string | null>(null);
+
   const [embedUrl, setEmbedUrl] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings' | 'subtitles'>('sources');
@@ -700,6 +710,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode, details, title, isAnime]);
 
+  // Native video source loader for MP4/MKV/HLS streams (including Hayase Proxy Stream)
+  useEffect(() => {
+    if (!anivexaStreamUrl || !videoRef.current) return;
+    const video = videoRef.current;
+
+    if (anivexaStreamUrl.includes('.m3u8')) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true });
+        hls.loadSource(anivexaStreamUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(e => console.warn('Native video play notice:', e));
+        });
+        return () => { hls.destroy(); };
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = anivexaStreamUrl;
+        video.play().catch(e => console.warn('Native video play notice:', e));
+      }
+    } else {
+      video.src = anivexaStreamUrl;
+      video.play().catch(e => console.warn('Native video play notice:', e));
+    }
+  }, [anivexaStreamUrl]);
+
   const runAutoServerProbe = useCallback(async () => {
     setIsAutoProbing(true);
     setAutoProbeStatus('Testing real video playback across candidate streaming servers...');
@@ -896,12 +930,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const lastFallbackToNativeVideasyRef = useRef(false);
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
 
-  // Anivexa states
-  const [anivexaEpisodes, setAnivexaEpisodes] = useState<any[] | null>(null);
-  const [anivexaStreamUrl, setAnivexaStreamUrl] = useState<string>('');
-  const [anivexaSubtitles, setAnivexaSubtitles] = useState<any[]>([]);
-  const [anivexaLoading, setAnivexaLoading] = useState(false);
-  const [anivexaError, setAnivexaError] = useState<string | null>(null);
 
   // Custom player improved options states
   const [customQualities, setCustomQualities] = useState<any[]>([]);
@@ -1227,8 +1255,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextCountdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
 
   // Removed old anivexa local meta fetching hooks. We now use AnimeKai from EncDec via api/encdec.ts.
 
@@ -3315,6 +3341,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               {anivexaStreamUrl && (
                 <video
                   ref={videoRef}
+                  src={anivexaStreamUrl}
+                  autoPlay
+                  controls
                   className="w-full h-full transition-all duration-300"
                   style={{
                     objectFit: aspectRatio
