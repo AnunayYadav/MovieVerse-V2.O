@@ -264,7 +264,7 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
 
     setIsResolvingCloud(true);
     setIsDownloading(true);
-    setStatusText("Connecting to Hayase Render Proxy (Waking up server ~15s if asleep)...");
+    setStatusText("Connecting to Torrent Swarm Proxy (Waking up server if asleep)...");
 
     try {
       const res = await resolveHayaseProxyStream(targetMagnet, hayaseProxyUrl);
@@ -273,7 +273,7 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
         videoRef.current.src = res.streamUrl;
         
         videoRef.current.play().then(() => {
-          setStatusText(`Playing Nyaa Torrent via Hayase Proxy: ${res.fileName}`);
+          setStatusText(`Playing Nyaa Torrent via Swarm Proxy: ${res.fileName}`);
         }).catch((err) => {
           console.warn('Proxy Autoplay Notice:', err);
           setStatusText(`Proxy Stream Ready — Click Play`);
@@ -644,11 +644,11 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <div className="p-2 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
-              <Zap className="w-6 h-6 text-white animate-pulse" />
+              <Radio className="w-6 h-6 text-white animate-pulse" />
             </div>
             <div>
               <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300">
-                Hayase Web Engine
+                Torrent Swarm Web Engine
               </h2>
               <p className="text-xs text-slate-400">
                 Sequential In-Browser Torrent Streamer & Continuous Buffer Eviction
@@ -777,7 +777,7 @@ export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({
                     : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
-                <Server className="w-3.5 h-3.5 text-indigo-400" /> Hayase Cloud Proxy
+                <Server className="w-3.5 h-3.5 text-indigo-400" /> Torrent Swarm Proxy
               </button>
 
               <button

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -581,19 +581,27 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       try {
         const candidateStreams: Array<{ magnet: string; seeders: number; source: string }> = [];
         const imdbId = details?.external_ids?.imdb_id;
-        const displayTitle = details?.title || details?.name || title;
-        const animeQuery = `${displayTitle || ''} ${currentEpisode ? `e${currentEpisode.toString().padStart(2, '0')}` : ''}`.trim();
+        const displayTitle = details?.title || details?.name || title || '';
+        const cleanTitle = displayTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+        const epNum = currentEpisode ? currentEpisode.toString().padStart(2, '0') : '01';
 
-        // Run AnimeTosho, Nyaa, and Torrentio concurrently in parallel
+        const searchQueries = Array.from(new Set([
+          `${cleanTitle} - ${epNum}`,
+          `${cleanTitle} ${epNum}`,
+          `${cleanTitle} ${currentEpisode}`,
+          cleanTitle
+        ])).filter(Boolean);
+
+        // Run AnimeTosho, Nyaa, and Torrentio concurrently across query variants
         await Promise.allSettled([
-          // 1. AnimeTosho API (From Hayase-Extensions)
-          (async () => {
+          // 1. AnimeTosho API
+          ...searchQueries.slice(0, 2).map(q => (async () => {
             try {
-              const res = await fetch(`https://feed.animetosho.org/json?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(3000) });
+              const res = await fetch(`https://feed.animetosho.org/json?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(3000) });
               if (res.ok) {
                 const items = await res.json();
                 if (Array.isArray(items)) {
-                  items.slice(0, 5).forEach(item => {
+                  items.slice(0, 4).forEach(item => {
                     if (item.magnet_uri) {
                       candidateStreams.push({
                         magnet: item.magnet_uri,
@@ -605,17 +613,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 }
               }
             } catch (e) {}
-          })(),
+          })()),
 
-          // 2. Nyaa RSS Engine via Vercel Serverless Function (/api/nyaa)
-          (async () => {
+          // 2. Nyaa RSS Engine via Serverless API (/api/nyaa)
+          ...searchQueries.slice(0, 2).map(q => (async () => {
             try {
-              const res = await fetch(`/api/nyaa?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(4000) });
+              const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(3500) });
               if (res.ok) {
                 const xmlText = await res.text();
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 5);
+                const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 4);
                 items.forEach(item => {
                   const link = item.querySelector('link')?.textContent;
                   const seedersNode = item.getElementsByTagName('nyaa:seeders')[0] || item.querySelector('seeders');
@@ -630,9 +638,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 });
               }
             } catch (e) {}
-          })(),
+          })()),
 
-          // 3. Torrentio P2P Swarm
+          // 3. Torrentio P2P Swarm (IMDB query)
           (async () => {
             if (!imdbId) return;
             try {
@@ -647,7 +655,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       const matchSeeders = typeof s.title === 'string' ? s.title.match(/👤\s*(\d+)/) : null;
                       const seeds = matchSeeders ? parseInt(matchSeeders[1], 10) : (s.seeders || 0);
                       candidateStreams.push({
-                        magnet: `magnet:?xt=urn:btih:${s.infoHash}&dn=${encodeURIComponent(displayTitle || 'Video')}`,
+                        magnet: `magnet:?xt=urn:btih:${s.infoHash}&dn=${encodeURIComponent(cleanTitle || 'Video')}`,
                         seeders: seeds,
                         source: 'Torrentio'
                       });
@@ -659,17 +667,25 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           })()
         ]);
 
-        // Sort all candidate streams by SEEDERS (Highest peers first!)
-        candidateStreams.sort((a, b) => b.seeders - a.seeders);
+        if (candidateStreams.length === 0) {
+          throw new Error(`No active torrent seeders found for "${cleanTitle} Episode ${currentEpisode}". Try switching to Embed server.`);
+        }
 
-        let bestStream = candidateStreams[0];
-        let magnetUrl = bestStream?.magnet || "magnet:?xt=urn:btih:9234a7ab9e2a4b7efe61f64da3b5b02b0219c40c";
-        realSeeds = bestStream?.seeders || 24;
+        // Deduplicate and sort by SEEDERS (Highest peers first!)
+        const uniqueCandidates = candidateStreams.filter((item, idx, self) => 
+          self.findIndex(t => t.magnet === item.magnet) === idx
+        );
+        uniqueCandidates.sort((a, b) => b.seeders - a.seeders);
+
+        let bestStream = uniqueCandidates[0];
+        let magnetUrl = bestStream.magnet;
+        realSeeds = bestStream.seeders || 50;
 
         const proxyRes = await resolveHayaseProxyStream(magnetUrl);
         if (isMounted && proxyRes?.streamUrl) {
           setAnivexaStreamUrl(proxyRes.streamUrl);
           setAnivexaLoading(false);
+          setIsPlaying(true);
           setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: 'Proxy P2P' });
 
           // Real Live Download Speed Telemetry Interval
@@ -696,7 +712,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       } catch (e: any) {
         if (isMounted) {
-          setAnivexaError(`Hayase Torrent Error: ${e.message || 'Failed to resolve torrent'}`);
+          setAnivexaError(`Torrent Swarm Error: ${e.message || 'Failed to resolve torrent'}`);
           setAnivexaLoading(false);
         }
       }
@@ -710,10 +726,22 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode, details, title, isAnime]);
 
-  // Native video source loader for MP4/MKV/HLS streams (including Hayase Proxy Stream)
+  // Native video source loader for MP4/MKV/HLS streams (including Torrent Swarm Stream)
   useEffect(() => {
     if (!anivexaStreamUrl || !videoRef.current) return;
     const video = videoRef.current;
+    video.autoplay = true;
+
+    const startPlayback = () => {
+      video.play().then(() => {
+        setIsPlaying(true);
+      }).catch(e => {
+        console.warn('Native video play fallback notice:', e);
+        // Fallback: try muted autoplay if unmuted was blocked by browser
+        video.muted = true;
+        video.play().then(() => setIsPlaying(true)).catch(() => {});
+      });
+    };
 
     if (anivexaStreamUrl.includes('.m3u8')) {
       if (Hls.isSupported()) {
@@ -721,16 +749,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         hls.loadSource(anivexaStreamUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(e => console.warn('Native video play notice:', e));
+          startPlayback();
         });
         return () => { hls.destroy(); };
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = anivexaStreamUrl;
-        video.play().catch(e => console.warn('Native video play notice:', e));
+        startPlayback();
       }
     } else {
       video.src = anivexaStreamUrl;
-      video.play().catch(e => console.warn('Native video play notice:', e));
+      startPlayback();
     }
   }, [anivexaStreamUrl]);
 
@@ -3290,11 +3318,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {(selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'hayase_torrent') && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
-              {/* Torrent Telemetry Overlay Pill for Hayase Engine */}
+              {/* Torrent Telemetry Overlay Pill for Swarm Engine */}
               {selectedProviderId === 'hayase_torrent' && hayaseTelemetry && (
                 <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-zinc-950/85 backdrop-blur-xl border border-red-500/30 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-2xl animate-in fade-in">
-                  <Zap className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-                  <span>Hayase Torrent</span>
+                  <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                  <span>Torrent Swarm</span>
                   <span className="text-zinc-600">|</span>
                   <span className="text-emerald-400 font-mono">{hayaseTelemetry.speed}</span>
                   <span className="text-zinc-600">|</span>
@@ -3306,7 +3334,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black z-30 animate-in fade-in duration-250">
                   <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
                   {selectedProviderId === 'hayase_torrent' && (
-                    <p className="text-xs text-zinc-400 font-medium">Connecting to Hayase Torrent Swarm...</p>
+                    <p className="text-xs text-zinc-400 font-medium">Connecting to Torrent Swarm...</p>
                   )}
                 </div>
               )}
