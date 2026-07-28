@@ -2680,7 +2680,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 }} 
                                 mediaType={isTv ? 'tv' : 'movie'} 
                                 isAnime={isAnime || false} 
-                                isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect} 
+                                isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || (isAnime && !isTmdbSource)} 
                                 apiKey={apiKey} 
                                 onProgress={handlePlayerProgress} 
                                 initialSeason={playParams.season}

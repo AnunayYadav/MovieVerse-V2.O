@@ -1653,7 +1653,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
 
     let active = true;
-    const cacheKey = `movieverse_anilist_seasonmap_${tmdbId}`;
+    const targetAnilistId = (details as any)?.anilistId || (details as any)?.id || (isAnimeDirect || !isTmdbSource ? tmdbId : null);
+    const cacheKey = `movieverse_anilist_seasonmap_${targetAnilistId || tmdbId}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -1662,8 +1663,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           setAnimeSeasonMap(parsed);
 
           let idx = Math.min(currentSeason - 1, parsed.length - 1);
-          if (isAnimeDirect) {
-            const foundIdx = parsed.findIndex(e => e.anilistId === tmdbId);
+          if (targetAnilistId) {
+            const foundIdx = parsed.findIndex(e => e.anilistId === targetAnilistId);
             if (foundIdx !== -1) {
               idx = foundIdx;
               setCurrentSeason(foundIdx + 1);
@@ -1764,7 +1765,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     let rootMedia: any = null;
 
     const buildSeasonMap = async (): Promise<AnimeSeasonEntry[]> => {
-      const root = isAnimeDirect ? await fetchMediaFull(tmdbId, null) : await fetchMediaFull(null, cleanTitle);
+      // Direct AniList ID lookup FIRST if targetAnilistId is available
+      let root: any = null;
+      if (targetAnilistId) {
+        root = await fetchMediaFull(targetAnilistId, null);
+      }
+      if (!root && cleanTitle) {
+        root = await fetchMediaFull(null, cleanTitle);
+      }
       if (!root) return [];
       rootMedia = root;
 
@@ -1785,12 +1793,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         } else break;
       }
 
-      // Now walk SEQUEL chain from the first entry, collecting TV/TV_SHORT entries
+      // Now walk SEQUEL chain from the first entry, collecting TV/TV_SHORT/MOVIE/OVA/ONA entries
       const seasonEntries: AnimeSeasonEntry[] = [];
-      const isTvFormat = (f: string) => f === 'TV' || f === 'TV_SHORT';
+      const isAnimFormat = (f: string) => f === 'TV' || f === 'TV_SHORT' || f === 'MOVIE' || f === 'OVA' || f === 'ONA';
 
       const addEntry = (media: any) => {
-        if (media && isTvFormat(media.format)) {
+        if (media && isAnimFormat(media.format)) {
           seasonEntries.push({
             anilistId: media.id,
             malId: media.idMal || null,
@@ -1819,6 +1827,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         current = next;
       }
 
+      // Ensure rootMedia is included in seasonEntries if for some reason it wasn't caught in prequel/sequel chain
+      if (rootMedia && !seasonEntries.some(e => e.anilistId === rootMedia.id)) {
+        seasonEntries.unshift({
+          anilistId: rootMedia.id,
+          malId: rootMedia.idMal || null,
+          episodes: rootMedia.episodes || 0,
+          title: rootMedia.title?.english || rootMedia.title?.romaji || title || 'Anime',
+          format: rootMedia.format || 'TV',
+        });
+      }
+
       return seasonEntries;
     };
 
@@ -1828,38 +1847,39 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         setAnimeSeasonMap(entries);
         localStorage.setItem(cacheKey, JSON.stringify(entries));
 
-        let idx = Math.min(currentSeason - 1, entries.length - 1);
-        if (isAnimeDirect) {
-          const foundIdx = entries.findIndex(e => e.anilistId === tmdbId);
-          if (foundIdx !== -1) {
-            idx = foundIdx;
-            setCurrentSeason(foundIdx + 1);
-            if (onEpisodeChange) {
-              onEpisodeChange(foundIdx + 1, currentEpisode);
-            }
+        let idx = 0;
+        const matchId = targetAnilistId || tmdbId;
+        const foundIdx = entries.findIndex(e => e.anilistId === matchId);
+        if (foundIdx !== -1) {
+          idx = foundIdx;
+          setCurrentSeason(foundIdx + 1);
+          if (onEpisodeChange) {
+            onEpisodeChange(foundIdx + 1, currentEpisode);
           }
+        } else {
+          idx = Math.min(currentSeason - 1, entries.length - 1);
         }
         setAnilistId(entries[idx].anilistId);
       } else {
-        // Fallback: single entry from search
-        console.warn(`Could not build season map for ${cleanTitle}`);
-        if (isAnimeDirect && rootMedia) {
+        // Fallback: single entry directly from targetAnilistId or rootMedia
+        if (rootMedia || targetAnilistId) {
+          const idToUse = targetAnilistId || (rootMedia ? rootMedia.id : tmdbId);
           const singleEntry = [{
-            anilistId: tmdbId,
-            malId: rootMedia.idMal || null,
-            episodes: rootMedia.episodes || 0,
+            anilistId: idToUse,
+            malId: rootMedia?.idMal || null,
+            episodes: rootMedia?.episodes || 0,
             title: title || 'Anime',
-            format: rootMedia.format || 'TV',
+            format: rootMedia?.format || 'TV',
           }];
           setAnimeSeasonMap(singleEntry);
-          setAnilistId(tmdbId);
+          setAnilistId(idToUse);
         }
       }
       setAnilistLoading(false);
     });
 
     return () => { active = false; };
-  }, [tmdbId, isAnime, title]);
+  }, [tmdbId, isAnime, title, details, isAnimeDirect, isTmdbSource]);
 
   useEffect(() => {
     setCurrentSeason(initialSeason);
