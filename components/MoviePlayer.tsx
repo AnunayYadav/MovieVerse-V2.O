@@ -922,7 +922,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isVidFastCustom = selectedProviderId === 'vidfast';
 
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !fallbackToIframe;
+  const isNativeStreamUrl = !!anivexaStreamUrl;
+  const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls || selectedProviderId === 'hayase_torrent' || isNativeStreamUrl) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -3343,8 +3344,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   ref={videoRef}
                   src={anivexaStreamUrl}
                   autoPlay
-                  controls
-                  className="w-full h-full transition-all duration-300"
+                  controls={!useCustomControls}
+                  preload="auto"
+                  className="w-full h-full transition-all duration-300 pointer-events-auto"
                   style={{
                     objectFit: aspectRatio
                   }}

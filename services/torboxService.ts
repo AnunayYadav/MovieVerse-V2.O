@@ -26,7 +26,21 @@ export async function resolveHayaseProxyStream(magnetUri: string, customProxyUrl
   streamUrl: string;
   fileName: string;
 } | null> {
-  const proxyBase = (customProxyUrl || localStorage.getItem('hayase_proxy_url') || 'https://movieverse-v2-o.onrender.com').replace(/\/$/, '');
+  let proxyBase = (customProxyUrl || localStorage.getItem('hayase_proxy_url') || '').replace(/\/$/, '');
+
+  if (!proxyBase) {
+    try {
+      const ping = await fetch('http://localhost:4000/health', { method: 'GET', signal: AbortSignal.timeout(600) });
+      if (ping.ok) {
+        proxyBase = 'http://localhost:4000';
+      }
+    } catch (e) {}
+  }
+
+  if (!proxyBase) {
+    proxyBase = 'https://movieverse-v2-o.onrender.com';
+  }
+
   const encodedMagnet = encodeURIComponent(magnetUri);
 
   return {

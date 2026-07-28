@@ -1,6 +1,6 @@
 /**
- * Hayase Torrent Proxy Backend (100% Free Node.js Server for Render / Railway / VPS)
- * Allows deployed web apps (Vercel/Netlify) to stream ANY Nyaa or TCP/UDP Torrent.
+ * Hayase Torrent Proxy Backend (100% Free High-Speed Swarm Engine)
+ * Allows deployed web apps to stream ANY Nyaa or TCP/UDP Torrent with instant buffering.
  */
 
 import express from 'express';
@@ -12,8 +12,97 @@ app.use(cors());
 
 const PORT = process.env.PORT || 4000;
 
+// High-speed public trackers list for rapid swarm connections (Nyaa + Anime + P2P)
+const HIGH_SPEED_TRACKERS = [
+  'http://nyaa.tracker.wf:7777/announce',
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://open.stealth.si:80/announce',
+  'udp://exodus.desync.com:6969/announce',
+  'udp://tracker.torrent.eu.org:451/announce',
+  'udp://tracker.tiny-vps.com:6969/announce',
+  'udp://open.demonii.com:1337/announce',
+  'udp://tracker.openbittorrent.com:6969/announce',
+  'udp://opentracker.i2p.rocks:6969/announce',
+  'udp://tracker.coppersurfer.tk:6969/announce',
+  'udp://tracker.cyberia.is:6969/announce',
+  'udp://tracker.moeking.me:6969/announce',
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.btorrent.xyz'
+];
+
+// Active Engine Cache to reuse swarm connections across HTTP Range requests
+const engineCache = new Map();
+
+function getOrCreateEngine(magnet) {
+  const match = magnet.match(/urn:btih:([a-fA-F0-9]{40})/i) || magnet.match(/^[a-fA-F0-9]{40}$/);
+  const infoHash = match ? match[1].toLowerCase() : magnet;
+
+  if (engineCache.has(infoHash)) {
+    const cached = engineCache.get(infoHash);
+    cached.lastAccess = Date.now();
+    return cached.promise;
+  }
+
+  const enginePromise = new Promise((resolve, reject) => {
+    console.log('[Hayase Swarm] Initializing torrent engine for hash:', infoHash);
+    
+    const engine = torrentStream(magnet, {
+      connections: 350,
+      uploads: 0,
+      verify: false, // Skip slow initial hash verification for instant playback!
+      trackers: HIGH_SPEED_TRACKERS
+    });
+
+    const timeout = setTimeout(() => {
+      engine.destroy();
+      engineCache.delete(infoHash);
+      reject(new Error('Swarm connection timeout'));
+    }, 15000);
+
+    engine.on('ready', () => {
+      clearTimeout(timeout);
+      const file = engine.files.find(f => f.name.match(/\.(mp4|mkv|webm|avi|mov)$/i)) || engine.files[0];
+      if (!file) {
+        engine.destroy();
+        engineCache.delete(infoHash);
+        return reject(new Error('No streamable video file in torrent'));
+      }
+      
+      // Select file for piece downloading & prioritize initial chunks
+      file.select();
+      
+      console.log('[Hayase Swarm] Ready! Selected file:', file.name, 'Size:', file.length);
+      resolve({ engine, file });
+    });
+
+    engine.on('error', (err) => {
+      clearTimeout(timeout);
+      engine.destroy();
+      engineCache.delete(infoHash);
+      reject(err);
+    });
+  });
+
+  engineCache.set(infoHash, { promise: enginePromise, lastAccess: Date.now() });
+  return enginePromise;
+}
+
+// Clean up inactive torrent engines every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [hash, entry] of engineCache.entries()) {
+    if (now - entry.lastAccess > 10 * 60 * 1000) { // 10 mins inactive
+      entry.promise.then(({ engine }) => {
+        try { engine.destroy(); } catch (e) {}
+      }).catch(() => {});
+      engineCache.delete(hash);
+      console.log('[Hayase Swarm] Cleaned up inactive torrent engine:', hash);
+    }
+  }
+}, 5 * 60 * 1000);
+
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Hayase Torrent Proxy Engine' });
+  res.json({ status: 'ok', service: 'Hayase Torrent Proxy Engine', activeEngines: engineCache.size });
 });
 
 app.get('/nyaa', async (req, res) => {
@@ -29,41 +118,22 @@ app.get('/nyaa', async (req, res) => {
   }
 });
 
-app.get('/stream', (req, res) => {
+app.get('/stream', async (req, res) => {
   const magnet = req.query.magnet;
   if (!magnet) {
     return res.status(400).send('Missing magnet parameter');
   }
 
-  console.log('[Hayase Proxy] Fetching torrent from Nyaa/Swarm:', String(magnet).substring(0, 60));
-
-  const engine = torrentStream(magnet, {
-    trackers: [
-      'http://nyaa.tracker.wf:7777/announce',
-      'udp://tracker.opentrackr.org:1337/announce',
-      'udp://open.stealth.si:80/announce',
-      'udp://exodus.desync.com:6969/announce',
-      'wss://tracker.openwebtorrent.com'
-    ]
-  });
-
-  engine.on('ready', () => {
-    // Find primary video file (.mp4, .mkv, .webm)
-    const file = engine.files.find(f => f.name.match(/\.(mp4|mkv|webm|avi|mov)$/i)) || engine.files[0];
-
-    if (!file) {
-      engine.destroy();
-      return res.status(404).send('No video file found in torrent');
-    }
-
-    console.log('[Hayase Proxy] Streaming file:', file.name, 'Size:', file.length);
+  try {
+    const { file } = await getOrCreateEngine(magnet);
 
     const range = req.headers.range;
     if (!range) {
       res.writeHead(200, {
         'Content-Length': file.length,
         'Content-Type': 'video/mp4',
-        'Accept-Ranges': 'bytes'
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'no-cache'
       });
       const stream = file.createReadStream();
       stream.pipe(res);
@@ -79,7 +149,8 @@ app.get('/stream', (req, res) => {
       'Content-Range': `bytes ${start}-${end}/${file.length}`,
       'Content-Length': chunksize,
       'Content-Type': 'video/mp4',
-      'Accept-Ranges': 'bytes'
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'no-cache'
     });
 
     const stream = file.createReadStream({ start, end });
@@ -88,16 +159,14 @@ app.get('/stream', (req, res) => {
     req.on('close', () => {
       stream.destroy();
     });
-  });
-
-  engine.on('error', (err) => {
-    console.error('[Hayase Proxy Error]:', err);
+  } catch (err) {
+    console.error('[Hayase Proxy Error]:', err.message);
     if (!res.headersSent) {
       res.status(500).send('Torrent Error: ' + err.message);
     }
-  });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Hayase Torrent Proxy running on port ${PORT}`);
+  console.log(`🚀 Hayase High-Speed Torrent Proxy running on port ${PORT}`);
 });
