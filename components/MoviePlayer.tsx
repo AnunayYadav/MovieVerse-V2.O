@@ -6,8 +6,8 @@ import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
 import { HayaseStreamer } from './HayaseStreamer';
-import { resolveHayaseProxyStream } from '../services/torboxService';
-import { findBestMagnetStream } from '../services/magnetFinder';
+import { resolveHayaseProxyStream, extractInfoHash } from '../services/torboxService';
+import { findBestMagnetStream, buildMagnetLink } from '../services/magnetFinder';
 
 
 
@@ -567,6 +567,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [autoProbeBadges, setAutoProbeBadges] = useState<Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }>>({});
   const [hayaseTelemetry, setHayaseTelemetry] = useState<{ speed: string; peers: number; engine: string } | null>(null);
 
+  // ── CUSTOM NYAA / MAGNET STREAM TESTER STATES ──────────
+  const [customNyaaInput, setCustomNyaaInput] = useState<string>('');
+  const [activeCustomMagnet, setActiveCustomMagnet] = useState<string | null>(null);
+  const [isCustomNyaaOpen, setIsCustomNyaaOpen] = useState<boolean>(false);
+
+  const handlePlayCustomNyaa = (input?: string) => {
+    const raw = (input !== undefined ? input : customNyaaInput).trim();
+    if (!raw) return;
+
+    let magnet = raw;
+    const hashMatch = extractInfoHash(raw);
+    if (hashMatch) {
+      magnet = buildMagnetLink(hashMatch, `Custom Nyaa Stream (${hashMatch.substring(0, 8)})`);
+    } else if (!raw.startsWith('magnet:')) {
+      const matchInLink = raw.match(/([a-fA-F0-9]{40})/);
+      if (matchInLink) {
+        magnet = buildMagnetLink(matchInLink[1], 'Custom Nyaa Link Stream');
+      }
+    }
+
+    setActiveCustomMagnet(magnet);
+    setSelectedProviderId('hayase_torrent');
+  };
+
+  const handleResetCustomNyaa = () => {
+    setActiveCustomMagnet(null);
+    setCustomNyaaInput('');
+  };
+
   useEffect(() => {
     if (selectedProviderId !== 'hayase_torrent') return;
 
@@ -580,31 +609,37 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     const resolveHayaseStream = async () => {
       try {
-        const candidates = await findBestMagnetStream({
-          title,
-          tmdbId,
-          anilistId,
-          imdbId: details?.external_ids?.imdb_id,
-          mediaType,
-          season: currentSeason,
-          episode: currentEpisode,
-          isAnime
-        });
+        let magnetUrl = activeCustomMagnet;
+        let streamEngine = 'Custom Nyaa P2P';
 
-        if (candidates.length === 0) {
-          throw new Error(`No active torrent seeders found for "${title} S${currentSeason}E${currentEpisode}". Try switching to Embed server.`);
+        if (!magnetUrl) {
+          const candidates = await findBestMagnetStream({
+            title,
+            tmdbId,
+            anilistId,
+            imdbId: details?.external_ids?.imdb_id,
+            mediaType,
+            season: currentSeason,
+            episode: currentEpisode,
+            isAnime
+          });
+
+          if (candidates.length === 0) {
+            throw new Error(`No active torrent seeders found for "${title} S${currentSeason}E${currentEpisode}". Try switching to Embed server.`);
+          }
+
+          const bestStream = candidates[0];
+          magnetUrl = bestStream.magnet;
+          streamEngine = `${bestStream.source} P2P`;
+          realSeeds = typeof bestStream.seeders === 'number' ? bestStream.seeders : 0;
         }
-
-        const bestStream = candidates[0];
-        const magnetUrl = bestStream.magnet;
-        realSeeds = bestStream.seeders || 50;
 
         const proxyRes = await resolveHayaseProxyStream(magnetUrl);
         if (isMounted && proxyRes?.streamUrl) {
           setAnivexaStreamUrl(proxyRes.streamUrl);
           setAnivexaLoading(false);
           setIsPlaying(true);
-          setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: `${bestStream.source} P2P` });
+          setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: streamEngine });
 
           // High-Frequency Live Speed & Peer Telemetry (500ms interval)
           telemetryInterval = setInterval(() => {
@@ -631,7 +666,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             setHayaseTelemetry({
               speed: speedStr,
               peers: realSeeds,
-              engine: `${bestStream.source} P2P`
+              engine: streamEngine
             });
           }, 500);
         }
@@ -652,7 +687,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       isMounted = false;
       if (telemetryInterval) clearInterval(telemetryInterval);
     };
-  }, [selectedProviderId, tmdbId, currentSeason, currentEpisode, details, title, isAnime]);
+  }, [selectedProviderId, tmdbId, currentSeason, currentEpisode, details, title, isAnime, activeCustomMagnet]);
 
   // Native video source loader for MP4/MKV/HLS streams (including Torrent Swarm Stream)
   useEffect(() => {
@@ -5750,6 +5785,75 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* CUSTOM NYAA / MAGNET LINK TESTER BAR */}
+              <div className="mt-2 border-t border-white/5 pt-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
+                    <Zap size={13} className="text-red-500" />
+                    <span>Custom Nyaa / Magnet Tester</span>
+                    {activeCustomMagnet && (
+                      <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full font-mono">
+                        Custom Magnet Active
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setIsCustomNyaaOpen(!isCustomNyaaOpen)}
+                    className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg transition-all"
+                  >
+                    <span>{isCustomNyaaOpen ? 'Hide Custom Input' : '⚡ Test Custom Magnet'}</span>
+                    <ChevronDown size={12} className={`transition-transform ${isCustomNyaaOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {(isCustomNyaaOpen || activeCustomMagnet) && (
+                  <div className="bg-zinc-900/90 border border-white/10 rounded-xl p-3 flex flex-col gap-2 animate-in fade-in duration-200">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={customNyaaInput}
+                        onChange={(e) => setCustomNyaaInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handlePlayCustomNyaa();
+                        }}
+                        placeholder="Paste Nyaa magnet:?xt=... or 40-char infoHash or Nyaa URL..."
+                        className="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 transition-all font-mono"
+                      />
+                      <button
+                        onClick={() => handlePlayCustomNyaa()}
+                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md shadow-red-600/30 active:scale-95 shrink-0 cursor-pointer"
+                      >
+                        <Play size={12} />
+                        <span>Test Stream</span>
+                      </button>
+                      {activeCustomMagnet && (
+                        <button
+                          onClick={handleResetCustomNyaa}
+                          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold px-3 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer"
+                          title="Reset to automatic torrent search"
+                        >
+                          <RotateCcw size={12} />
+                        </button>
+                      )}
+                    </div>
+                    {activeCustomMagnet && (
+                      <div className="text-[10px] font-mono text-zinc-400 truncate bg-black/40 px-2.5 py-1 rounded border border-white/5 flex items-center justify-between gap-2">
+                        <span className="truncate">Active: {activeCustomMagnet}</span>
+                        <button
+                          onClick={() => {
+                            const proxyUrl = `https://movieverse-v2-o.onrender.com/stream?magnet=${encodeURIComponent(activeCustomMagnet)}`;
+                            window.open(proxyUrl, '_blank');
+                          }}
+                          className="text-red-400 hover:underline shrink-0 font-sans text-[10px] cursor-pointer"
+                        >
+                          Test Proxy URL in New Tab ↗
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
