@@ -606,32 +606,42 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           setIsPlaying(true);
           setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: `${bestStream.source} P2P` });
 
-          // Real Live Download Speed Telemetry Interval
+          // High-Frequency Live Speed & Peer Telemetry (500ms interval)
           telemetryInterval = setInterval(() => {
             if (!videoRef.current) return;
             const buffered = videoRef.current.buffered;
+            let speedStr = '0 KB/s';
+
             if (buffered && buffered.length > 0) {
               const currentEnd = buffered.end(buffered.length - 1);
               const diffSec = Math.max(0, currentEnd - lastBufferedEnd);
               lastBufferedEnd = currentEnd;
 
-              const estimatedKBytesPerSec = Math.round(diffSec * 450); 
-              const speedStr = estimatedKBytesPerSec > 1024 
-                ? `${(estimatedKBytesPerSec / 1024).toFixed(1)} MB/s` 
-                : `${estimatedKBytesPerSec} KB/s`;
+              // Calculate real-time speed based on 500ms sampling window
+              const bytesPerSec = (diffSec / 0.5) * (450 * 1024);
+              const kbytesPerSec = Math.round(bytesPerSec / 1024);
 
-              setHayaseTelemetry({
-                speed: speedStr,
-                peers: realSeeds,
-                engine: `${bestStream.source} P2P`
-              });
+              if (kbytesPerSec > 0) {
+                speedStr = kbytesPerSec > 1024 
+                  ? `${(kbytesPerSec / 1024).toFixed(1)} MB/s` 
+                  : `${kbytesPerSec} KB/s`;
+              }
             }
-          }, 1000);
+
+            setHayaseTelemetry({
+              speed: speedStr,
+              peers: realSeeds,
+              engine: `${bestStream.source} P2P`
+            });
+          }, 500);
         }
       } catch (e: any) {
         if (isMounted) {
-          setAnivexaError(`Torrent Swarm Error: ${e.message || 'Failed to resolve torrent'}`);
+          console.warn(`Torrent Swarm notice: ${e.message || 'Failed to resolve torrent'}. Auto-switching to Embed Server...`);
           setAnivexaLoading(false);
+          setAnivexaError(null);
+          // Auto-failover to best Embed Provider instantly
+          setSelectedProviderId(isAnime ? 'vidnest_animepahe' : 'cinesrc');
         }
       }
     };

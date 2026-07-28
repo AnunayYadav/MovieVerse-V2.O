@@ -54,19 +54,27 @@ export function buildMagnetLink(infoHash: string, displayName: string): string {
 export async function findBestMagnetStream(options: MagnetSearchOptions): Promise<MagnetCandidate[]> {
   const { title, tmdbId, anilistId, imdbId, mediaType = 'movie', season = 1, episode = 1, isAnime = false } = options;
 
-  const cleanTitle = (title || '')
+  const rawTitle = title || '';
+  const sanitizedTitle = rawTitle
+    .replace(/[:\-–—!?,.'"]/g, ' ')
     .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
+    .replace(/\s+/g, ' ')
     .trim();
+  const cleanTitle = sanitizedTitle;
+
   const epNum = episode ? episode.toString().padStart(2, '0') : '01';
+  const seasonNum = season ? season.toString().padStart(2, '0') : '01';
 
   const candidates: MagnetCandidate[] = [];
 
-  // Query variations for anime / TV releases
+  // Robust search query variations for Anime / TV / Movie releases
   const searchQueries = Array.from(new Set([
-    `${cleanTitle} - ${epNum}`,
-    `${cleanTitle} ${epNum}`,
-    `${cleanTitle} S${season.toString().padStart(2, '0')}E${epNum}`,
-    cleanTitle
+    `${sanitizedTitle} S${seasonNum}E${epNum}`,
+    `${sanitizedTitle} S${season}E${episode}`,
+    `${sanitizedTitle} - ${epNum}`,
+    `${sanitizedTitle} ${epNum}`,
+    `${sanitizedTitle} ${episode}`,
+    sanitizedTitle
   ])).filter(Boolean);
 
   const fetchPromises: Array<Promise<void>> = [];
@@ -201,44 +209,37 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
     })());
   });
 
-  // ── 5. Nyaa RSS Scraper API (~250ms response) ───────────────────────────
-  if (isAnime || mediaType === 'tv') {
-    searchQueries.slice(0, 2).forEach(q => {
-      fetchPromises.push((async () => {
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 2200);
-          const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`, { signal: controller.signal });
-          clearTimeout(tid);
-          if (res.ok) {
-            const xmlText = await res.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-            const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 4);
-            items.forEach(item => {
-              const link = item.querySelector('link')?.textContent;
-              const titleNode = item.querySelector('title')?.textContent;
-              const seedersNode = item.getElementsByTagName('nyaa:seeders')[0] || item.querySelector('seeders');
-              const seeds = seedersNode ? parseInt(seedersNode.textContent || '0', 10) : 0;
+  // ── 5. Nyaa Finder Engine (Same endpoint & logic as Download section in MovieDetails.tsx) ──
+  searchQueries.slice(0, 3).forEach(q => {
+    fetchPromises.push((async () => {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 2500);
+        const res = await fetch(`/api/anime?action=nyaa&q=${encodeURIComponent(q)}`, { signal: controller.signal });
+        clearTimeout(tid);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            data.slice(0, 8).forEach((item: any) => {
+              const hash = item.infoHash ? item.infoHash.toLowerCase() : extractInfoHash(item.magnet || '');
+              const seeds = parseInt(item.seeders || '0', 10);
+              const magnet = item.magnet || (hash ? buildMagnetLink(hash, item.title || sanitizedTitle) : null);
               
-              if (link && link.startsWith('magnet:')) {
-                const hash = extractInfoHash(link);
-                if (hash) {
-                  candidates.push({
-                    magnet: link,
-                    infoHash: hash,
-                    title: titleNode || cleanTitle,
-                    seeders: seeds,
-                    source: 'Nyaa'
-                  });
-                }
+              if (magnet && hash) {
+                candidates.push({
+                  magnet: magnet,
+                  infoHash: hash,
+                  title: item.title || sanitizedTitle,
+                  seeders: isNaN(seeds) ? 0 : seeds,
+                  source: 'Nyaa'
+                });
               }
             });
           }
-        } catch (e) {}
-      })());
-    });
-  }
+        }
+      } catch (e) {}
+    })());
+  });
 
   // Execute all engines concurrently in parallel
   await Promise.allSettled(fetchPromises);
@@ -252,7 +253,31 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
   });
 
   const sortedCandidates = Array.from(uniqueMap.values());
-  sortedCandidates.sort((a, b) => b.seeders - a.seeders);
+
+  // Exact MovieDetails.tsx Season/Episode matching & sorting algorithm
+  const seasonStr = season < 10 ? `0${season}` : `${season}`;
+  const episodeStr = episode < 10 ? `0${episode}` : `${episode}`;
+  const sFormat = `s${seasonStr}e${episodeStr}`;
+
+  sortedCandidates.sort((a, b) => {
+    const titleA = a.title.toLowerCase();
+    const titleB = b.title.toLowerCase();
+
+    const matchA_S = titleA.includes(sFormat);
+    const matchB_S = titleB.includes(sFormat);
+
+    if (matchA_S && !matchB_S) return -1;
+    if (!matchA_S && matchB_S) return 1;
+
+    if (season === 1) {
+      const hasOtherSeasonA = /s0[2-9]|s[1-9]\d|season\s*[2-9]/i.test(titleA);
+      const hasOtherSeasonB = /s0[2-9]|s[1-9]\d|season\s*[2-9]/i.test(titleB);
+      if (!hasOtherSeasonA && hasOtherSeasonB) return -1;
+      if (hasOtherSeasonA && !hasOtherSeasonB) return 1;
+    }
+
+    return b.seeders - a.seeders;
+  });
 
   return sortedCandidates;
 }

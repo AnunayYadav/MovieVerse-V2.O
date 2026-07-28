@@ -21,17 +21,17 @@
     "@omss/framework": "^1.1.19",
     "@supabase/supabase-js": "2.45.1",
     "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
     "crypto": "^1.0.1",
     "crypto-js": "^4.2.0",
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "torrent-stream": "^1.2.1",
+    "express": "^4.22.2",
     "hls.js": "^1.6.15",
     "https-proxy-agent": "^9.1.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.556.0",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "torrent-stream": "^1.2.1"
   },
   "devDependencies": {
     "@types/jszip": "^3.4.0",
