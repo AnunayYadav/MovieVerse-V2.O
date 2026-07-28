@@ -597,11 +597,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             } catch (e) {}
           })(),
 
-          // 2. Nyaa RSS Engine via High-Speed CorsProxy
+          // 2. Nyaa RSS Engine via Our Own Backend Proxy Server
           (async () => {
             try {
-              const targetUrl = `https://nyaa.si/?page=rss&q=${encodeURIComponent(animeQuery)}`;
-              const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, { signal: AbortSignal.timeout(3000) });
+              const res = await fetch(`https://movieverse-v2-o.onrender.com/nyaa?q=${encodeURIComponent(animeQuery)}`, { signal: AbortSignal.timeout(4000) });
               if (res.ok) {
                 const xmlText = await res.text();
                 const parser = new DOMParser();

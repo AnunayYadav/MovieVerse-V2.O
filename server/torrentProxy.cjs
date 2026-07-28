@@ -15,6 +15,19 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'Hayase Torrent Proxy Engine' });
 });
 
+app.get('/nyaa', async (req, res) => {
+  const query = req.query.q || '';
+  try {
+    const fetchRes = await fetch(`https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}`);
+    const xml = await fetchRes.text();
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(xml);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/stream', (req, res) => {
   const magnet = req.query.magnet;
   if (!magnet) {
