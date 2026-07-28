@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "proxy": "node server/torrentProxy.js",
     "build": "vite build",
     "preview": "vite preview",
     "cap-sync": "node scripts/cap-sync.cjs"

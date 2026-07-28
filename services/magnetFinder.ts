@@ -4,6 +4,8 @@
  * Returns top-ranked magnet streams sorted by live seeder count.
  */
 
+import { prewarmRenderServer } from './torboxService';
+
 export interface MagnetCandidate {
   magnet: string;
   infoHash: string;
@@ -25,6 +27,8 @@ export interface MagnetSearchOptions {
 }
 
 const HIGH_SPEED_TRACKERS = [
+  'http://nyaa.tracker.wf:7777/announce',
+  'udp://tracker.nyaa.uk:6969/announce',
   'udp://tracker.opentrackr.org:1337/announce',
   'udp://open.stealth.si:80/announce',
   'udp://exodus.desync.com:6969/announce',
@@ -33,6 +37,8 @@ const HIGH_SPEED_TRACKERS = [
   'udp://open.demonii.com:1337/announce',
   'udp://tracker.openbittorrent.com:6969/announce',
   'udp://opentracker.i2p.rocks:6969/announce',
+  'udp://explodie.org:6969/announce',
+  'udp://mgtracker.org:6969/announce',
   'wss://tracker.openwebtorrent.com',
   'wss://tracker.btorrent.xyz'
 ].map(t => `&tr=${encodeURIComponent(t)}`).join('');
@@ -52,6 +58,7 @@ export function buildMagnetLink(infoHash: string, displayName: string): string {
  * Hyper-Fast Parallel Search for Magnet Links
  */
 export async function findBestMagnetStream(options: MagnetSearchOptions): Promise<MagnetCandidate[]> {
+  prewarmRenderServer();
   const { title, tmdbId, anilistId, imdbId, mediaType = 'movie', season = 1, episode = 1, isAnime = false } = options;
 
   const rawTitle = title || '';
@@ -108,7 +115,7 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     })());
   }
 
@@ -140,7 +147,7 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     })());
   }
 
@@ -174,7 +181,7 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     })());
   }
 
@@ -205,7 +212,7 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     })());
   });
 
@@ -224,7 +231,7 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
               const hash = item.infoHash ? item.infoHash.toLowerCase() : extractInfoHash(item.magnet || '');
               const seeds = parseInt(item.seeders || '0', 10);
               const magnet = item.magnet || (hash ? buildMagnetLink(hash, item.title || sanitizedTitle) : null);
-              
+
               if (magnet && hash) {
                 candidates.push({
                   magnet: magnet,
@@ -237,7 +244,7 @@ export async function findBestMagnetStream(options: MagnetSearchOptions): Promis
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     })());
   });
 

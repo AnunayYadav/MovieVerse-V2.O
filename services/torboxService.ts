@@ -19,6 +19,11 @@ export function extractInfoHash(magnetOrHash: string): string | null {
   return match ? match[1].toLowerCase() : null;
 }
 
+export function prewarmRenderServer(): void {
+  const proxyBase = localStorage.getItem('hayase_proxy_url') || 'https://movieverse-v2-o.onrender.com';
+  fetch(`${proxyBase.replace(/\/$/, '')}/health`, { method: 'GET' }).catch(() => {});
+}
+
 /**
  * Stream any Nyaa or BitTorrent Magnet via Hayase Free Proxy Engine
  */
