@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio, Download, Users } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -7,6 +7,7 @@ import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
 import { HayaseStreamer } from './HayaseStreamer';
 import { resolveHayaseProxyStream } from '../services/torboxService';
+import { findBestMagnetStream } from '../services/magnetFinder';
 
 
 
@@ -579,106 +580,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     const resolveHayaseStream = async () => {
       try {
-        const candidateStreams: Array<{ magnet: string; seeders: number; source: string }> = [];
-        const imdbId = details?.external_ids?.imdb_id;
-        const displayTitle = details?.title || details?.name || title || '';
-        const cleanTitle = displayTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-        const epNum = currentEpisode ? currentEpisode.toString().padStart(2, '0') : '01';
+        const candidates = await findBestMagnetStream({
+          title,
+          tmdbId,
+          anilistId,
+          imdbId: details?.external_ids?.imdb_id,
+          mediaType,
+          season: currentSeason,
+          episode: currentEpisode,
+          isAnime
+        });
 
-        const searchQueries = Array.from(new Set([
-          `${cleanTitle} - ${epNum}`,
-          `${cleanTitle} ${epNum}`,
-          `${cleanTitle} ${currentEpisode}`,
-          cleanTitle
-        ])).filter(Boolean);
-
-        // Run AnimeTosho, Nyaa, and Torrentio concurrently across query variants
-        await Promise.allSettled([
-          // 1. AnimeTosho API
-          ...searchQueries.slice(0, 2).map(q => (async () => {
-            try {
-              const res = await fetch(`https://feed.animetosho.org/json?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(3000) });
-              if (res.ok) {
-                const items = await res.json();
-                if (Array.isArray(items)) {
-                  items.slice(0, 4).forEach(item => {
-                    if (item.magnet_uri) {
-                      candidateStreams.push({
-                        magnet: item.magnet_uri,
-                        seeders: item.seeders || 0,
-                        source: 'AnimeTosho'
-                      });
-                    }
-                  });
-                }
-              }
-            } catch (e) {}
-          })()),
-
-          // 2. Nyaa RSS Engine via Serverless API (/api/nyaa)
-          ...searchQueries.slice(0, 2).map(q => (async () => {
-            try {
-              const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(3500) });
-              if (res.ok) {
-                const xmlText = await res.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                const items = Array.from(xmlDoc.querySelectorAll('item')).slice(0, 4);
-                items.forEach(item => {
-                  const link = item.querySelector('link')?.textContent;
-                  const seedersNode = item.getElementsByTagName('nyaa:seeders')[0] || item.querySelector('seeders');
-                  const seeds = seedersNode ? parseInt(seedersNode.textContent || '0', 10) : 0;
-                  if (link && link.startsWith('magnet:')) {
-                    candidateStreams.push({
-                      magnet: link,
-                      seeders: seeds,
-                      source: 'Nyaa'
-                    });
-                  }
-                });
-              }
-            } catch (e) {}
-          })()),
-
-          // 3. Torrentio P2P Swarm (IMDB query)
-          (async () => {
-            if (!imdbId) return;
-            try {
-              const type = (currentSeason && currentEpisode && currentSeason > 0) ? 'series' : 'movie';
-              const query = type === 'series' ? `${imdbId}:${currentSeason}:${currentEpisode}` : imdbId;
-              const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`, { signal: AbortSignal.timeout(3000) });
-              if (res.ok) {
-                const data = await res.json();
-                if (data?.streams) {
-                  data.streams.slice(0, 5).forEach((s: any) => {
-                    if (s.infoHash) {
-                      const matchSeeders = typeof s.title === 'string' ? s.title.match(/👤\s*(\d+)/) : null;
-                      const seeds = matchSeeders ? parseInt(matchSeeders[1], 10) : (s.seeders || 0);
-                      candidateStreams.push({
-                        magnet: `magnet:?xt=urn:btih:${s.infoHash}&dn=${encodeURIComponent(cleanTitle || 'Video')}`,
-                        seeders: seeds,
-                        source: 'Torrentio'
-                      });
-                    }
-                  });
-                }
-              }
-            } catch (e) {}
-          })()
-        ]);
-
-        if (candidateStreams.length === 0) {
-          throw new Error(`No active torrent seeders found for "${cleanTitle} Episode ${currentEpisode}". Try switching to Embed server.`);
+        if (candidates.length === 0) {
+          throw new Error(`No active torrent seeders found for "${title} S${currentSeason}E${currentEpisode}". Try switching to Embed server.`);
         }
 
-        // Deduplicate and sort by SEEDERS (Highest peers first!)
-        const uniqueCandidates = candidateStreams.filter((item, idx, self) => 
-          self.findIndex(t => t.magnet === item.magnet) === idx
-        );
-        uniqueCandidates.sort((a, b) => b.seeders - a.seeders);
-
-        let bestStream = uniqueCandidates[0];
-        let magnetUrl = bestStream.magnet;
+        const bestStream = candidates[0];
+        const magnetUrl = bestStream.magnet;
         realSeeds = bestStream.seeders || 50;
 
         const proxyRes = await resolveHayaseProxyStream(magnetUrl);
@@ -686,7 +604,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           setAnivexaStreamUrl(proxyRes.streamUrl);
           setAnivexaLoading(false);
           setIsPlaying(true);
-          setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: 'Proxy P2P' });
+          setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: `${bestStream.source} P2P` });
 
           // Real Live Download Speed Telemetry Interval
           telemetryInterval = setInterval(() => {
@@ -705,7 +623,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               setHayaseTelemetry({
                 speed: speedStr,
                 peers: realSeeds,
-                engine: 'Proxy P2P'
+                engine: `${bestStream.source} P2P`
               });
             }
           }, 1000);
@@ -3318,21 +3236,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {(selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'hayase_torrent') && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
-              {/* Torrent Telemetry Overlay Pill for Swarm Engine */}
+              {/* Torrent Telemetry Overlay: Centered, Clean, Floating without background or borders */}
               {selectedProviderId === 'hayase_torrent' && hayaseTelemetry && (
-                <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-zinc-950/85 backdrop-blur-xl border border-red-500/30 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-2xl animate-in fade-in">
-                  <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-                  <span>Torrent Swarm</span>
-                  <span className="text-zinc-600">|</span>
-                  <span className="text-emerald-400 font-mono">{hayaseTelemetry.speed}</span>
-                  <span className="text-zinc-600">|</span>
-                  <span className="text-cyan-400 font-mono">{hayaseTelemetry.peers} Peers</span>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 text-xs font-medium tracking-wide pointer-events-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-in fade-in">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-mono font-semibold">
+                    <Download size={13} className="text-emerald-400" />
+                    {hayaseTelemetry.speed}
+                  </span>
+                  <span className="text-white/40 font-bold">•</span>
+                  <span className="flex items-center gap-1.5 text-cyan-400 font-mono font-semibold">
+                    <Users size={13} className="text-cyan-400" />
+                    {hayaseTelemetry.peers} Peers
+                  </span>
                 </div>
               )}
 
               {anivexaLoading && !anivexaStreamUrl && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black z-30 animate-in fade-in duration-250">
-                  <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
+                  <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent border-r-transparent rounded-full animate-spin [filter:drop-shadow(0_0_10px_#E50914)]" />
                   {selectedProviderId === 'hayase_torrent' && (
                     <p className="text-xs text-zinc-400 font-medium">Connecting to Torrent Swarm...</p>
                   )}
@@ -3398,7 +3319,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               <div className="w-full h-full absolute inset-0 bg-black z-0 overflow-hidden">
                 {iframeLoading && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-30 animate-in fade-in duration-200">
-                    <div className="w-10 h-10 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
+                    <div className="w-10 h-10 border-[3px] border-[#E50914] border-t-transparent border-r-transparent rounded-full animate-spin [filter:drop-shadow(0_0_10px_#E50914)]" />
                     <span className="text-zinc-500 text-[10px] mt-3 tracking-widest font-semibold uppercase animate-pulse select-none">Loading Server...</span>
                   </div>
                 )}
@@ -3502,7 +3423,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {/* Buffering Indicator */}
             {isBuffering && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-30 pointer-events-none">
-                <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
+                <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent border-r-transparent rounded-full animate-spin [filter:drop-shadow(0_0_10px_#E50914)]" />
               </div>
             )}
 
