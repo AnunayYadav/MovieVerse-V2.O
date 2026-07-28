@@ -5,9 +5,7 @@ import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
-import { HayaseStreamer } from './HayaseStreamer';
-import { resolveHayaseProxyStream, extractInfoHash } from '../services/torboxService';
-import { findBestMagnetStream, buildMagnetLink } from '../services/magnetFinder';
+
 
 
 
@@ -565,129 +563,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isAutoProbing, setIsAutoProbing] = useState<boolean>(false);
   const [autoProbeStatus, setAutoProbeStatus] = useState<string>('Probing 8 streaming servers in parallel...');
   const [autoProbeBadges, setAutoProbeBadges] = useState<Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }>>({});
-  const [hayaseTelemetry, setHayaseTelemetry] = useState<{ speed: string; peers: number; engine: string } | null>(null);
 
-  // ── CUSTOM NYAA / MAGNET STREAM TESTER STATES ──────────
-  const [customNyaaInput, setCustomNyaaInput] = useState<string>('');
-  const [activeCustomMagnet, setActiveCustomMagnet] = useState<string | null>(null);
-  const [isCustomNyaaOpen, setIsCustomNyaaOpen] = useState<boolean>(false);
-
-  const handlePlayCustomNyaa = (input?: string) => {
-    const raw = (input !== undefined ? input : customNyaaInput).trim();
-    if (!raw) return;
-
-    let magnet = raw;
-    const hashMatch = extractInfoHash(raw);
-    if (hashMatch) {
-      magnet = buildMagnetLink(hashMatch, `Custom Nyaa Stream (${hashMatch.substring(0, 8)})`);
-    } else if (!raw.startsWith('magnet:')) {
-      const matchInLink = raw.match(/([a-fA-F0-9]{40})/);
-      if (matchInLink) {
-        magnet = buildMagnetLink(matchInLink[1], 'Custom Nyaa Link Stream');
-      }
-    }
-
-    setActiveCustomMagnet(magnet);
-    setSelectedProviderId('hayase_torrent');
-  };
-
-  const handleResetCustomNyaa = () => {
-    setActiveCustomMagnet(null);
-    setCustomNyaaInput('');
-  };
-
-  useEffect(() => {
-    if (selectedProviderId !== 'hayase_torrent') return;
-
-    let isMounted = true;
-    setAnivexaLoading(true);
-    setAnivexaError(null);
-
-    let realSeeds = 0;
-    let lastBufferedEnd = 0;
-    let telemetryInterval: any = null;
-
-    const resolveHayaseStream = async () => {
-      try {
-        let magnetUrl = activeCustomMagnet;
-        let streamEngine = 'Custom Nyaa P2P';
-
-        if (!magnetUrl) {
-          const candidates = await findBestMagnetStream({
-            title,
-            tmdbId,
-            anilistId,
-            imdbId: details?.external_ids?.imdb_id,
-            mediaType,
-            season: currentSeason,
-            episode: currentEpisode,
-            isAnime
-          });
-
-          if (candidates.length === 0) {
-            throw new Error(`No active torrent seeders found for "${title} S${currentSeason}E${currentEpisode}". Try switching to Embed server.`);
-          }
-
-          const bestStream = candidates[0];
-          magnetUrl = bestStream.magnet;
-          streamEngine = `${bestStream.source} P2P`;
-          realSeeds = typeof bestStream.seeders === 'number' ? bestStream.seeders : 0;
-        }
-
-        const proxyRes = await resolveHayaseProxyStream(magnetUrl);
-        if (isMounted && proxyRes?.streamUrl) {
-          setAnivexaStreamUrl(proxyRes.streamUrl);
-          setAnivexaLoading(false);
-          setIsPlaying(true);
-          setHayaseTelemetry({ speed: '0 KB/s', peers: realSeeds, engine: streamEngine });
-
-          // High-Frequency Live Speed & Peer Telemetry (500ms interval)
-          telemetryInterval = setInterval(() => {
-            if (!videoRef.current) return;
-            const buffered = videoRef.current.buffered;
-            let speedStr = '0 KB/s';
-
-            if (buffered && buffered.length > 0) {
-              const currentEnd = buffered.end(buffered.length - 1);
-              const diffSec = Math.max(0, currentEnd - lastBufferedEnd);
-              lastBufferedEnd = currentEnd;
-
-              // Calculate real-time speed based on 500ms sampling window
-              const bytesPerSec = (diffSec / 0.5) * (450 * 1024);
-              const kbytesPerSec = Math.round(bytesPerSec / 1024);
-
-              if (kbytesPerSec > 0) {
-                speedStr = kbytesPerSec > 1024
-                  ? `${(kbytesPerSec / 1024).toFixed(1)} MB/s`
-                  : `${kbytesPerSec} KB/s`;
-              }
-            }
-
-            setHayaseTelemetry({
-              speed: speedStr,
-              peers: realSeeds,
-              engine: streamEngine
-            });
-          }, 500);
-        }
-      } catch (e: any) {
-        if (isMounted) {
-          console.warn(`Torrent Swarm notice: ${e.message || 'Failed to resolve torrent'}. Auto-switching to Embed Server...`);
-          setAnivexaLoading(false);
-          setAnivexaError(null);
-          // Auto-failover to best Embed Provider instantly
-          setSelectedProviderId(isAnime ? 'vidnest_animepahe' : 'cinesrc');
-        }
-      }
-    };
-
-    resolveHayaseStream();
-
-    return () => {
-      isMounted = false;
-      if (telemetryInterval) clearInterval(telemetryInterval);
-    };
-  }, [selectedProviderId, tmdbId, currentSeason, currentEpisode, details, title, isAnime, activeCustomMagnet]);
 
   // Native video source loader for MP4/MKV/HLS streams (including Torrent Swarm Stream)
   useEffect(() => {
@@ -914,7 +790,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
   const isNativeStreamUrl = !!anivexaStreamUrl;
-  const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls || selectedProviderId === 'hayase_torrent' || isNativeStreamUrl) && !fallbackToIframe;
+  const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls || isNativeStreamUrl) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -3272,29 +3148,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {(selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'hayase_torrent') && !fallbackToIframe ? (
+        {(selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
-            {/* Torrent Telemetry Overlay: Centered, Clean, Floating without background or borders */}
-            {selectedProviderId === 'hayase_torrent' && hayaseTelemetry && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 text-xs font-medium tracking-wide pointer-events-none select-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-in fade-in">
-                <span className="flex items-center gap-1.5 text-emerald-400 font-mono font-semibold">
-                  <Download size={13} className="text-emerald-400" />
-                  {hayaseTelemetry.speed}
-                </span>
-                <span className="text-white/40 font-bold">•</span>
-                <span className="flex items-center gap-1.5 text-cyan-400 font-mono font-semibold">
-                  <Users size={13} className="text-cyan-400" />
-                  {hayaseTelemetry.peers} Peers
-                </span>
-              </div>
-            )}
-
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black z-30 animate-in fade-in duration-250">
                 <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent border-r-transparent rounded-full animate-spin [filter:drop-shadow(0_0_10px_#E50914)]" />
-                {selectedProviderId === 'hayase_torrent' && (
-                  <p className="text-xs text-zinc-400 font-medium">Connecting to Torrent Swarm...</p>
-                )}
               </div>
             )}
             {anivexaError && (
@@ -5785,75 +5643,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                 </div>
               )}
-
-              {/* CUSTOM NYAA / MAGNET LINK TESTER BAR */}
-              <div className="mt-2 border-t border-white/5 pt-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
-                    <Zap size={13} className="text-red-500" />
-                    <span>Custom Nyaa / Magnet Tester</span>
-                    {activeCustomMagnet && (
-                      <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full font-mono">
-                        Custom Magnet Active
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setIsCustomNyaaOpen(!isCustomNyaaOpen)}
-                    className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg transition-all"
-                  >
-                    <span>{isCustomNyaaOpen ? 'Hide Custom Input' : '⚡ Test Custom Magnet'}</span>
-                    <ChevronDown size={12} className={`transition-transform ${isCustomNyaaOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {(isCustomNyaaOpen || activeCustomMagnet) && (
-                  <div className="bg-zinc-900/90 border border-white/10 rounded-xl p-3 flex flex-col gap-2 animate-in fade-in duration-200">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={customNyaaInput}
-                        onChange={(e) => setCustomNyaaInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handlePlayCustomNyaa();
-                        }}
-                        placeholder="Paste Nyaa magnet:?xt=... or 40-char infoHash or Nyaa URL..."
-                        className="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 transition-all font-mono"
-                      />
-                      <button
-                        onClick={() => handlePlayCustomNyaa()}
-                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-md shadow-red-600/30 active:scale-95 shrink-0 cursor-pointer"
-                      >
-                        <Play size={12} />
-                        <span>Test Stream</span>
-                      </button>
-                      {activeCustomMagnet && (
-                        <button
-                          onClick={handleResetCustomNyaa}
-                          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold px-3 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer"
-                          title="Reset to automatic torrent search"
-                        >
-                          <RotateCcw size={12} />
-                        </button>
-                      )}
-                    </div>
-                    {activeCustomMagnet && (
-                      <div className="text-[10px] font-mono text-zinc-400 truncate bg-black/40 px-2.5 py-1 rounded border border-white/5 flex items-center justify-between gap-2">
-                        <span className="truncate">Active: {activeCustomMagnet}</span>
-                        <button
-                          onClick={() => {
-                            const proxyUrl = `https://movieverse-v2-o.onrender.com/stream?magnet=${encodeURIComponent(activeCustomMagnet)}`;
-                            window.open(proxyUrl, '_blank');
-                          }}
-                          className="text-red-400 hover:underline shrink-0 font-sans text-[10px] cursor-pointer"
-                        >
-                          Test Proxy URL in New Tab ↗
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
