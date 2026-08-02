@@ -4,6 +4,7 @@
   getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
   getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
   supportsPostMessage: boolean;
+  supportsLanguage?: boolean;
 }
 
 export const getAudioCode = (lang: string, format: 'name' | 'iso') => {
@@ -54,7 +55,8 @@ export const PROVIDERS: Provider[] = [
       const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
       return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
     },
-    supportsPostMessage: true
+    supportsPostMessage: true,
+    supportsLanguage: true
   },
   {
     id: 'videasy_adfree',
@@ -69,7 +71,8 @@ export const PROVIDERS: Provider[] = [
       const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
       return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
     },
-    supportsPostMessage: false
+    supportsPostMessage: false,
+    supportsLanguage: true
   },
   {
     id: 'megaplay',
@@ -104,10 +107,11 @@ export const PROVIDERS: Provider[] = [
     id: 'vidfast',
     name: 'VidFast',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidfast.vc/movie/${tmdbId}?autoPlay=true&controls=false&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+      `https://vidfast.vc/movie/${tmdbId}?autoPlay=true&controls=true&theme=${color.replace('#', '')}${language ? `&lang=${getAudioCode(language, 'iso')}` : ''}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidfast.vc/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=false&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: true
+      `https://vidfast.vc/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${language ? `&lang=${getAudioCode(language, 'iso')}` : ''}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: true,
+    supportsLanguage: true
   },
   {
     id: 'vidnest',
@@ -148,7 +152,8 @@ export const PROVIDERS: Provider[] = [
       const subVal = subtitle === 'None' ? '' : (subtitle || 'English');
       return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${dubVal}&sub=${subVal}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    supportsPostMessage: false
+    supportsPostMessage: false,
+    supportsLanguage: true
   },
   {
     id: 'vaplayer',
@@ -170,7 +175,8 @@ export const PROVIDERS: Provider[] = [
       const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
       return `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    supportsPostMessage: true
+    supportsPostMessage: true,
+    supportsLanguage: true
   },
 
   {

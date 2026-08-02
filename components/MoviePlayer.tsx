@@ -786,9 +786,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
   const [fallbackToIframe, setFallbackToIframe] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
-  const isVidFastCustom = selectedProviderId === 'vidfast';
+  const isVidFastCustom = false;
 
-  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
+  const isIframeCustomControls = isCineSrcCustom;
   const isNativeStreamUrl = !!anivexaStreamUrl;
   const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls || isNativeStreamUrl) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
@@ -3711,7 +3711,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest block px-2 mb-1">Subtitles & Audio</span>
 
                                 {/* Audio Language Row */}
-                                {!isIframeCustomControls && (
+                                {(!isIframeCustomControls || currentProvider?.supportsLanguage) && (
                                   <button
                                     onClick={() => setSettingsView('language')}
                                     className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
@@ -5637,30 +5637,61 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </>
               ) : (
                 /* MOVIE ONLY PROVIDER ROW */
-                <div className="flex items-center gap-3">
-                  <div className="w-20 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                    <span>⚙️</span> <span>SERVERS</span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                      <span>⚙️</span> <span>SERVERS</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {movieProvidersList.map((prov) => {
+                        const isActive = selectedProviderId === prov.id;
+                        return (
+                          <button
+                            key={`movie-prov-${prov.id}`}
+                            onClick={() => {
+                              setSelectedProviderId(prov.id);
+                              onProviderChange?.(prov.id);
+                            }}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive
+                              ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
+                              : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
+                              }`}
+                          >
+                            {prov.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {movieProvidersList.map((prov) => {
-                      const isActive = selectedProviderId === prov.id;
-                      return (
-                        <button
-                          key={`movie-prov-${prov.id}`}
-                          onClick={() => {
-                            setSelectedProviderId(prov.id);
-                            onProviderChange?.(prov.id);
-                          }}
-                          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive
-                            ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
-                            : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
-                            }`}
-                        >
-                          {prov.name}
-                        </button>
-                      );
-                    })}
-                  </div>
+
+                  {/* MOVIE AUDIO LANGUAGE SELECTOR (For providers supporting movie language parsing in embed) */}
+                  {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto'].includes(selectedProviderId)) && (
+                    <div className="flex items-center gap-3 animate-in fade-in duration-200 pt-1 border-t border-white/5">
+                      <div className="w-20 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <span>🌐</span> <span>LANGUAGE</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map((lang) => {
+                          const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
+                          return (
+                            <button
+                              key={`movie-lang-${lang}`}
+                              onClick={() => {
+                                setAudioLanguage(lang);
+                                localStorage.setItem('movieverse_preferred_audio_language', lang);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive
+                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
+                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border-white/5'
+                                }`}
+                            >
+                              {lang}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
