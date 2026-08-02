@@ -2991,7 +2991,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           const pageData = await res.json();
           if (!isMounted) return;
 
-          const urls = pageData.map((p: any) => `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}`);
+          const workerUrl = (import.meta as any).env?.VITE_MANGA_WORKER_URL || (typeof process !== 'undefined' ? process.env?.VITE_MANGA_WORKER_URL : '') || '';
+          const urls = pageData.map((p: any) => {
+            const rawUrl = typeof p === 'string' ? p : (p.img || p.image || p.url);
+            if (workerUrl && (readingSource === 'comick' || readingSource === 'mangapill')) {
+              return `${workerUrl.replace(/\/$/, '')}?provider=${readingSource}&url=${encodeURIComponent(rawUrl)}`;
+            }
+            return `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(rawUrl)}`;
+          });
           setPages(urls);
           setChapterServerData({ provider: readingSource });
           return;
@@ -3445,7 +3452,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapterId)}`);
       if (!res.ok) throw new Error(`Failed to load ${readingSource} page list`);
       const pageData = await res.json();
-      return pageData.map((p: any) => ({ src: `/api/manga?action=proxy-image&provider=${readingSource}&download=true&url=${encodeURIComponent(p.img || p.image || p.url)}` }));
+      const workerUrl = (import.meta as any).env?.VITE_MANGA_WORKER_URL || (typeof process !== 'undefined' ? process.env?.VITE_MANGA_WORKER_URL : '') || '';
+      return pageData.map((p: any) => {
+        const rawUrl = typeof p === 'string' ? p : (p.img || p.image || p.url);
+        if (workerUrl && (readingSource === 'comick' || readingSource === 'mangapill')) {
+          return { src: `${workerUrl.replace(/\/$/, '')}?provider=${readingSource}&url=${encodeURIComponent(rawUrl)}` };
+        }
+        return { src: `/api/manga?action=proxy-image&provider=${readingSource}&download=true&url=${encodeURIComponent(rawUrl)}` };
+      });
     }
     const data = await fetchMangaDex(`/at-home/server/${chapterId}`);
     const base = data.baseUrl;
