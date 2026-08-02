@@ -116,13 +116,26 @@ export default defineConfig(({ mode }) => {
                     res.setHeader(name, value);
                     return mockRes;
                   },
+                  writeHead(code: number, headers?: Record<string, string>) {
+                    res.statusCode = code;
+                    if (headers) {
+                      for (const [k, v] of Object.entries(headers)) {
+                        res.setHeader(k, v);
+                      }
+                    }
+                    return mockRes;
+                  },
                   json(data: any) {
                     res.setHeader('Content-Type', 'application/json');
                     res.end(JSON.stringify(data));
                     return mockRes;
                   },
                   send(data: any) {
-                    res.end(typeof data === 'object' ? JSON.stringify(data) : data);
+                    if (Buffer.isBuffer(data)) {
+                      res.end(data);
+                    } else {
+                      res.end(typeof data === 'object' ? JSON.stringify(data) : data);
+                    }
                     return mockRes;
                   },
                   end(data?: any) {
