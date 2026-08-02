@@ -1638,27 +1638,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl = `${base}${imageUrl}`;
       }
 
-      // If downloading, fetch and stream the image bytes directly from the server to bypass CORS
-      if (req.query.download === 'true') {
-        try {
-          const fetchResponse = await fetch(imageUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': new URL(imageUrl).origin
+      const isComicK = providerKey === 'comick' || imageUrl.includes('comick') || imageUrl.includes('comicknew') || imageUrl.includes('comick.pictures');
+      const isMangaPill = providerKey === 'mangapill' || imageUrl.includes('mangapill') || imageUrl.includes('readdetectiveconan');
+      const isDownload = req.query.download === 'true';
+
+      // If downloading or provider is ComicK / MangaPill (which block 302 referers with 403), fetch and stream image bytes with proper Referer & Edge Cache
+      if (isDownload || isComicK || isMangaPill) {
+        let referers: string[] = [];
+        if (isComicK) {
+          referers = ['https://comick.live', 'https://comick.io', 'https://comick.cc', 'https://comick.app'];
+        } else if (isMangaPill) {
+          referers = ['https://mangapill.com/'];
+        } else {
+          try {
+            referers = [new URL(imageUrl).origin];
+          } catch {
+            referers = ['https://comick.live'];
+          }
+        }
+
+        let fetchResponse: any = null;
+        for (const ref of referers) {
+          try {
+            const resp = await fetch(imageUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Referer': ref,
+                'Origin': ref
+              }
+            });
+            if (resp.ok) {
+              fetchResponse = resp;
+              break;
             }
-          });
-          if (!fetchResponse.ok) throw new Error(`CDN returned status ${fetchResponse.status}`);
+          } catch (e) {
+            // try next referer
+          }
+        }
+
+        if (!fetchResponse || !fetchResponse.ok) {
+          try {
+            fetchResponse = await fetch(imageUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+              }
+            });
+          } catch (err: any) {
+            console.error("proxy-image fetch error:", err.message);
+          }
+        }
+
+        if (fetchResponse && fetchResponse.ok) {
           const buffer = await fetchResponse.arrayBuffer();
           res.setHeader('Content-Type', fetchResponse.headers.get('Content-Type') || 'image/jpeg');
-          res.setHeader('Cache-Control', 'public, max-age=86400');
+          res.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
           res.setHeader('Access-Control-Allow-Origin', '*');
           return res.status(200).send(Buffer.from(buffer));
-        } catch (err: any) {
-          console.error("Download proxy-image streaming error:", err.message);
         }
       }
 
-      // Redirect browser directly to CDN to save Vercel bandwidth and CPU usage
+      // Redirect browser directly to CDN for open providers to save Vercel bandwidth
       res.writeHead(302, { 'Location': imageUrl });
       return res.end();
     }
