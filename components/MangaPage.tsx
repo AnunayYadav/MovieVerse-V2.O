@@ -167,15 +167,16 @@ export const translateAniListToManga = (aniMedia: any): MangaDexManga => {
 
 const parseChapterNumber = (ch: any): number => {
   if (!ch) return NaN;
-  if (ch.chapter !== undefined && ch.chapter !== null && ch.chapter !== '') {
-    const num = parseFloat(ch.chapter);
+  const obj = ch.attributes || ch;
+  if (obj.chapter !== undefined && obj.chapter !== null && obj.chapter !== '') {
+    const num = parseFloat(obj.chapter);
     if (!isNaN(num)) return num;
   }
-  if (ch.number !== undefined && ch.number !== null && ch.number !== '') {
-    const num = parseFloat(ch.number);
+  if (obj.number !== undefined && obj.number !== null && obj.number !== '') {
+    const num = parseFloat(obj.number);
     if (!isNaN(num)) return num;
   }
-  const fieldsToSearch = [ch.title, ch.chapter, ch.number, ch.id].filter(Boolean);
+  const fieldsToSearch = [obj.title, obj.chapter, obj.number, obj.id, ch.title, ch.chapter, ch.id].filter(Boolean);
   for (const field of fieldsToSearch) {
     const match = String(field).match(/(\d+(?:\.\d+)?)/);
     if (match) {
@@ -2010,7 +2011,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       console.log(`[Auto-Detector] Starting search for "${title}"...`);
 
       // Helper to fetch with timeout
-      const fetchWithTimeout = async (url: string, ms = 3000) => {
+      const fetchWithTimeout = async (url: string, ms = 6000) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), ms);
         try {
@@ -2025,7 +2026,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
       const rangesMap: Record<string, { min: number; max: number }> = {};
 
-      // We will check: mangadex, weebcentral, comick, mangapill
       let maxDexChapter = 0;
       let minDexChapter = Infinity;
       try {
@@ -2034,11 +2034,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=${selectedLanguage}&order[chapter]=asc&limit=1`)
         ]);
         if (descRes && descRes.data && descRes.data[0]) {
-          const num = parseChapterNumber(descRes.data[0].attributes);
+          const num = parseChapterNumber(descRes.data[0]);
           if (!isNaN(num)) maxDexChapter = num;
         }
         if (ascRes && ascRes.data && ascRes.data[0]) {
-          const num = parseChapterNumber(ascRes.data[0].attributes);
+          const num = parseChapterNumber(ascRes.data[0]);
           if (!isNaN(num)) minDexChapter = num;
         }
         if (minDexChapter !== Infinity && maxDexChapter > 0) {
@@ -2050,23 +2050,27 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
       console.log(`[Auto-Detector] MangaDex chapter range: [${minDexChapter}, ${maxDexChapter}]`);
 
-      const providersToCheck = ['weebcentral', 'comick', 'mangapill'];
+      const providersToCheck = ['weebcentral', 'comick', 'mangapill', 'mangareader', 'mangakakalot', 'asurascans', 'mangahere'];
       let bestProvider = 'mangadex';
       let maxChapterNum = maxDexChapter;
       let resolvedChaptersMap: Record<string, any[]> = {};
       let resolvedMangaIdMap: Record<string, string> = {};
 
       const priority: Record<string, number> = {
-        'weebcentral': 4,
-        'comick': 3,
-        'mangapill': 2,
+        'weebcentral': 5,
+        'comick': 4,
+        'mangapill': 3,
+        'mangareader': 2,
+        'mangakakalot': 2,
+        'asurascans': 2,
+        'mangahere': 2,
         'mangadex': 1
       };
 
       const promises = providersToCheck.map(async (prov) => {
         try {
           console.log(`[Auto-Detector] Fetching search matches for ${prov}...`);
-          const searchRes = await fetchWithTimeout(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(title)}`, 3000);
+          const searchRes = await fetchWithTimeout(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(title)}`, 6000);
           if (!searchRes.ok) {
             console.warn(`[Auto-Detector] Search request failed for ${prov}: ${searchRes.statusText}`);
             return;
@@ -2080,7 +2084,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           const bestMatch = searchList[0];
           console.log(`[Auto-Detector] Found match for ${prov}: ${bestMatch.title || bestMatch.id}`);
 
-          const infoRes = await fetchWithTimeout(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(bestMatch.id)}`, 3000);
+          const infoRes = await fetchWithTimeout(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(bestMatch.id)}`, 6000);
           if (!infoRes.ok) {
             console.warn(`[Auto-Detector] Info request failed for ${prov}: ${infoRes.statusText}`);
             return;
