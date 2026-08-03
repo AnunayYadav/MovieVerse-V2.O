@@ -165,6 +165,27 @@ export const translateAniListToManga = (aniMedia: any): MangaDexManga => {
   } as any;
 };
 
+const parseChapterNumber = (ch: any): number => {
+  if (!ch) return NaN;
+  if (ch.chapter !== undefined && ch.chapter !== null && ch.chapter !== '') {
+    const num = parseFloat(ch.chapter);
+    if (!isNaN(num)) return num;
+  }
+  if (ch.number !== undefined && ch.number !== null && ch.number !== '') {
+    const num = parseFloat(ch.number);
+    if (!isNaN(num)) return num;
+  }
+  const fieldsToSearch = [ch.title, ch.chapter, ch.number, ch.id].filter(Boolean);
+  for (const field of fieldsToSearch) {
+    const match = String(field).match(/(\d+(?:\.\d+)?)/);
+    if (match) {
+      const num = parseFloat(match[1]);
+      if (!isNaN(num)) return num;
+    }
+  }
+  return NaN;
+};
+
 interface CustomSelectProps {
   value: string;
   onChange: (val: string) => void;
@@ -862,6 +883,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // MangaPill states (generalized for all Consumet providers)
   const [readingSource, setReadingSource] = useState<string>('weebcentral');
+  const [providerRanges, setProviderRanges] = useState<Record<string, { min: number; max: number }>>({});
   const [mangapillMangaId, setMangapillMangaId] = useState<string | null>(null);
   const [mangapillChapters, setMangapillChapters] = useState<any[]>([]);
   const [mangapillLoading, setMangapillLoading] = useState(false);
@@ -945,16 +967,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   }, [readerMode, pages]);
 
-  const sourceOptions = useMemo(() => [
-    { value: 'mangadex', label: 'MangaDex (Official)' },
-    { value: 'comick', label: 'ComicK (Recommended)' },
-    { value: 'mangapill', label: 'MangaPill (Mainstream)' },
-    { value: 'mangareader', label: 'MangaReader' },
-    { value: 'mangakakalot', label: 'MangaKakalot' },
-    { value: 'asurascans', label: 'AsuraScans' },
-    { value: 'weebcentral', label: 'WeebCentral' },
-    { value: 'mangahere', label: 'MangaHere' }
-  ], []);
+  const sourceOptions = useMemo(() => {
+    const defaultSources = [
+      { value: 'mangadex', label: 'MangaDex (Official)' },
+      { value: 'comick', label: 'ComicK (Recommended)' },
+      { value: 'mangapill', label: 'MangaPill (Mainstream)' },
+      { value: 'mangareader', label: 'MangaReader' },
+      { value: 'mangakakalot', label: 'MangaKakalot' },
+      { value: 'asurascans', label: 'AsuraScans' },
+      { value: 'weebcentral', label: 'WeebCentral' },
+      { value: 'mangahere', label: 'MangaHere' }
+    ];
+
+    return defaultSources.map(src => {
+      const range = providerRanges[src.value];
+      if (range && range.min !== undefined && range.max !== undefined && range.min !== Infinity && range.max !== -Infinity) {
+        const rangeStr = range.min === range.max ? `(${range.min})` : `(${range.min}-${range.max})`;
+        return {
+          ...src,
+          label: `${rangeStr} ${src.label}`
+        };
+      }
+      return src;
+    });
+  }, [providerRanges]);
 
   const languageOptions = useMemo(() => {
     return Object.entries(LANGUAGE_NAMES).map(([code, name]) => ({
@@ -1829,8 +1865,24 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       if (!infoRes.ok) throw new Error(`Failed to fetch chapters from ${provider}`);
       const infoData = await infoRes.json();
 
-      setMangapillChapters(infoData.chapters || []);
+      const chList = infoData.chapters || [];
+      setMangapillChapters(chList);
       setResolvedProvider(provider);
+
+      if (chList.length > 0) {
+        let minCh = Infinity;
+        let maxCh = -Infinity;
+        for (const ch of chList) {
+          const num = parseChapterNumber(ch);
+          if (!isNaN(num)) {
+            if (num < minCh) minCh = num;
+            if (num > maxCh) maxCh = num;
+          }
+        }
+        if (minCh !== Infinity && maxCh !== -Infinity) {
+          setProviderRanges(prev => ({ ...prev, [provider]: { min: minCh, max: maxCh } }));
+        }
+      }
     } catch (err: any) {
       console.error(`${provider} resolution error:`, err);
       setMangapillError(err.message || `Failed to resolve ${provider} source`);
@@ -1861,6 +1913,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setMangapillChapters([]);
       setResolvedProvider(null);
       setMangapillError(null);
+      setProviderRanges({});
       setUseNativeGigaViewer(false);
       setPastedGigaViewerUrl('');
       setResolvedGigaViewerUrl(null);
@@ -1970,18 +2023,32 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         }
       };
 
+      const rangesMap: Record<string, { min: number; max: number }> = {};
+
       // We will check: mangadex, weebcentral, comick, mangapill
       let maxDexChapter = 0;
+      let minDexChapter = Infinity;
       try {
-        const res = await fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=1`);
-        if (res && res.data && res.data[0]) {
-          maxDexChapter = parseFloat(res.data[0].attributes?.chapter) || 0;
+        const [descRes, ascRes] = await Promise.all([
+          fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=${selectedLanguage}&order[chapter]=desc&limit=1`),
+          fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=${selectedLanguage}&order[chapter]=asc&limit=1`)
+        ]);
+        if (descRes && descRes.data && descRes.data[0]) {
+          const num = parseChapterNumber(descRes.data[0].attributes);
+          if (!isNaN(num)) maxDexChapter = num;
+        }
+        if (ascRes && ascRes.data && ascRes.data[0]) {
+          const num = parseChapterNumber(ascRes.data[0].attributes);
+          if (!isNaN(num)) minDexChapter = num;
+        }
+        if (minDexChapter !== Infinity && maxDexChapter > 0) {
+          rangesMap['mangadex'] = { min: minDexChapter, max: maxDexChapter };
         }
       } catch (e) {
         console.warn("[Auto-Detector] Failed to fetch max MangaDex chapter:", e);
       }
 
-      console.log(`[Auto-Detector] MangaDex max chapter: ${maxDexChapter}`);
+      console.log(`[Auto-Detector] MangaDex chapter range: [${minDexChapter}, ${maxDexChapter}]`);
 
       const providersToCheck = ['weebcentral', 'comick', 'mangapill'];
       let bestProvider = 'mangadex';
@@ -1994,27 +2061,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         'comick': 3,
         'mangapill': 2,
         'mangadex': 1
-      };
-
-      const parseChapterNumber = (ch: any): number => {
-        if (!ch) return 0;
-        if (ch.chapter !== undefined && ch.chapter !== null) {
-          const num = parseFloat(ch.chapter);
-          if (!isNaN(num)) return num;
-        }
-        if (ch.number !== undefined && ch.number !== null) {
-          const num = parseFloat(ch.number);
-          if (!isNaN(num)) return num;
-        }
-        const fieldsToSearch = [ch.title, ch.chapter, ch.number, ch.id].filter(Boolean);
-        for (const field of fieldsToSearch) {
-          const match = String(field).match(/(\d+(?:\.\d+)?)/);
-          if (match) {
-            const num = parseFloat(match[1]);
-            if (!isNaN(num)) return num;
-          }
-        }
-        return 0;
       };
 
       const promises = providersToCheck.map(async (prov) => {
@@ -2050,17 +2096,26 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           resolvedChaptersMap[prov] = chList;
           resolvedMangaIdMap[prov] = bestMatch.id;
 
-          let maxCh = 0;
+          let minCh = Infinity;
+          let maxCh = -Infinity;
           for (const ch of chList) {
             const num = parseChapterNumber(ch);
-            if (num > maxCh) maxCh = num;
+            if (!isNaN(num)) {
+              if (num < minCh) minCh = num;
+              if (num > maxCh) maxCh = num;
+            }
           }
 
-          console.log(`[Auto-Detector] Provider ${prov} has ${chList.length} chapters, max chapter parsed: ${maxCh}`);
+          if (minCh !== Infinity && maxCh !== -Infinity) {
+            rangesMap[prov] = { min: minCh, max: maxCh };
+          }
+
+          const parsedMax = maxCh !== -Infinity ? maxCh : 0;
+          console.log(`[Auto-Detector] Provider ${prov} has ${chList.length} chapters, range: [${minCh}, ${maxCh}]`);
 
           if (resolvedMangaIdMap[prov] && chList.length > 0) {
-            if (maxCh > maxChapterNum || (maxCh === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
-              maxChapterNum = maxCh;
+            if (parsedMax > maxChapterNum || (parsedMax === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
+              maxChapterNum = parsedMax;
               bestProvider = prov;
               console.log(`[Auto-Detector] New best provider candidate: ${bestProvider} with chapter: ${maxChapterNum}`);
             }
@@ -2071,6 +2126,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       });
 
       await Promise.all(promises);
+
+      setProviderRanges(prev => ({ ...prev, ...rangesMap }));
 
       console.log(`[Auto-Detector] Final decision: ${bestProvider} with chapter ${maxChapterNum} (MangaDex had ${maxDexChapter})`);
 
@@ -2094,7 +2151,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } finally {
       setIsAutoResolving(false);
     }
-  }, [getMangaTitle, fetchMangaDex]);
+  }, [getMangaTitle, fetchMangaDex, selectedLanguage]);
 
   // Automatically select the best source provider when a manga is selected
   useEffect(() => {
@@ -2927,7 +2984,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           }
         }
 
-        if (isMounted) setChapters(unique);
+        if (isMounted) {
+          setChapters(unique);
+          if (unique.length > 0) {
+            let minCh = Infinity;
+            let maxCh = -Infinity;
+            for (const ch of unique) {
+              const num = parseChapterNumber(ch.attributes);
+              if (!isNaN(num)) {
+                if (num < minCh) minCh = num;
+                if (num > maxCh) maxCh = num;
+              }
+            }
+            if (minCh !== Infinity && maxCh !== -Infinity) {
+              setProviderRanges(prev => ({ ...prev, mangadex: { min: minCh, max: maxCh } }));
+            }
+          }
+        }
       } catch (e) {
         console.error("Failed to load chapters:", e);
       } finally {
