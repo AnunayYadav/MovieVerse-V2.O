@@ -2976,8 +2976,9 @@ export default function App() {
         setList(newList);
         localStorage.setItem(key, JSON.stringify(newList));
 
-        // Sync to AniList Planning status if added to watchlist and token is linked
-        if (!exists && key === 'movieverse_watchlist' && userProfile.anilistToken) {
+        // Sync to AniList Planning status if added to watchlist and token is linked (anime only)
+        const isMovieAnime = !!((movie as any).isAnimeDirect || ((movie.genre_ids?.includes(16) || movie.genres?.some((g: any) => g.id === 16 || g.name === 'Animation')) && (movie.original_language === 'ja' || (movie as any).original_language === 'ja')));
+        if (!exists && key === 'movieverse_watchlist' && userProfile.anilistToken && isMovieAnime) {
             const cachedId = localStorage.getItem(`movieverse_anilist_map_${movie.id}`) || localStorage.getItem(`movieverse_anilist_tmdb_match_${movie.id}`);
             if (cachedId) {
                 try {

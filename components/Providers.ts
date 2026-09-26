@@ -40,7 +40,7 @@ export const PROVIDERS: Provider[] = [
     id: 'auto',
     name: 'Auto (Fastest Server)',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
-      if (isAnime || !!anilistId) {
+      if (isAnime) {
         return `https://vidnest.fun/animepahe/${anilistId || tmdbId}/1/${animeLanguage}`;
       }
       const colorParam = color ? color.replace('#', '') : 'EF4444';
@@ -48,7 +48,7 @@ export const PROVIDERS: Provider[] = [
       return `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
-      if (isAnime || !!anilistId) {
+      if (isAnime) {
         return `https://vidnest.fun/animepahe/${anilistId || tmdbId}/${episode}/${animeLanguage}`;
       }
       const colorParam = color ? color.replace('#', '') : 'EF4444';

@@ -112,7 +112,9 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
     const isAnime = useMemo(() => {
         const genresList = movie.genres || [];
         const genreIds = movie.genre_ids || [];
-        return genresList.some((g: any) => g.name === 'Animation') || genreIds.includes(16);
+        const isAnimation = genresList.some((g: any) => g.name === 'Animation' || g.id === 16) || genreIds.includes(16);
+        const isJapanese = (movie.original_language || (movie as any).original_language) === 'ja';
+        return !!((movie as any).isAnimeDirect || (isAnimation && isJapanese));
     }, [movie]);
 
     const [details, setDetails] = useState<any | null>(null);

@@ -447,7 +447,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [isTmdbSource, setIsTmdbSource] = useState(false);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
 
-    const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
+    const hasAnimationGenre = (details?.genres || movie?.genres)?.some((g: any) => g.id === 16 || g.name === 'Animation') || (movie as any)?.genre_ids?.includes(16);
+    const isJapaneseLang = (details?.original_language || movie?.original_language || (movie as any)?.original_language) === 'ja';
+    const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || (hasAnimationGenre && isJapaneseLang));
 
     const isAnimeDirect = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect);
 

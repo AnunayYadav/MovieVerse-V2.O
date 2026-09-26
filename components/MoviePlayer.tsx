@@ -268,11 +268,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings' | 'subtitles'>('sources');
 
-  const [useTmdbMode, setUseTmdbMode] = useState<boolean>(!!isTmdbSource);
+  const [useTmdbMode, setUseTmdbMode] = useState<boolean>(!isAnime ? true : !!isTmdbSource);
 
   useEffect(() => {
-    setUseTmdbMode(!!isTmdbSource);
-  }, [isTmdbSource]);
+    if (!isAnime) {
+      setUseTmdbMode(true);
+    } else {
+      setUseTmdbMode(!!isTmdbSource);
+    }
+  }, [isAnime, isTmdbSource]);
 
   const [currentSeason, setCurrentSeason] = useState(initialSeason);
   const [currentEpisode, setCurrentEpisode] = useState(initialEpisode);
@@ -331,16 +335,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     const defaultProvider = 'auto';
+    let chosen = providerId;
+    if (!isAnime && (chosen === 'vidnest_animepahe' || chosen === 'megaplay' || chosen === 'encdec_animekai')) {
+      chosen = undefined;
+    }
     if (typeof window !== 'undefined') {
       const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-      let preferred = localStorage.getItem(key);
+      let preferred = chosen || localStorage.getItem(key);
       if (!preferred || preferred === 'auto_select') {
         preferred = defaultProvider;
       }
-      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'megaplay')) {
-        preferred = 'auto';
-      }
-      if (preferred === 'encdec_animekai') {
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'megaplay' || preferred === 'encdec_animekai')) {
         preferred = 'auto';
       }
       if (isWatchParty) {
@@ -349,9 +354,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           return 'vidfast'; // Fallback default for Watch Party
         }
       }
-      return providerId || preferred;
+      return preferred;
     }
-    return providerId || defaultProvider;
+    return chosen || defaultProvider;
   });
 
   const [resolvedTmdbId, setResolvedTmdbId] = useState<number | null>(() => {
@@ -551,13 +556,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   useEffect(() => {
     if (providerId) {
+      if (!isAnime && (providerId === 'vidnest_animepahe' || providerId === 'megaplay' || providerId === 'encdec_animekai')) {
+        return;
+      }
       const prov = PROVIDERS.find(p => p.id === providerId);
       if (isWatchParty && prov && !prov.supportsPostMessage) {
         return;
       }
       setSelectedProviderId(providerId);
     }
-  }, [providerId, isWatchParty]);
+  }, [providerId, isWatchParty, isAnime]);
+
+  // Ensure non-anime never stays on anime-only providers
+  useEffect(() => {
+    if (!isAnime && (selectedProviderId === 'vidnest_animepahe' || selectedProviderId === 'megaplay' || selectedProviderId === 'encdec_animekai')) {
+      setSelectedProviderId('auto');
+    }
+  }, [isAnime, selectedProviderId]);
 
   // ── AUTO SERVER PROBE & PLAY PROGRESS SELECTION STATES ──────────
   const [isAutoProbing, setIsAutoProbing] = useState<boolean>(false);
@@ -5513,7 +5528,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
             {/* Right Provider Selection Grid */}
             <div className="flex-1 flex flex-col justify-center gap-3 pl-0 sm:pl-2">
-              {(isAnime || isTvShow) ? (
+              {isAnime ? (
                 <>
                   {/* SUB ROW */}
                   <div className="flex items-center gap-3">
@@ -5765,9 +5780,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   className="w-full flex items-center justify-between px-3 py-2 bg-[#0c0c0e]/80 hover:bg-[#121216] border border-white/5 rounded-xl text-xs font-medium text-white transition-all shadow-md cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0 pr-2">
-                    <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider shrink-0">
-                      {useTmdbMode ? 'TMDB' : 'AniList'}
-                    </span>
+                    {isAnime ? (
+                      <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                        {useTmdbMode ? 'TMDB' : 'AniList'}
+                      </span>
+                    ) : (
+                      <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                        TMDB
+                      </span>
+                    )}
                     <span className="truncate">
                       {seasons.find(s => s.season_number === currentSeason)?.name || `Season ${currentSeason}`}
                     </span>
