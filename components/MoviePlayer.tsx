@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio, Download, Users } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio, Download, Users, ArrowLeftRight } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -5442,418 +5442,571 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     </div>
   );
 
-  const mainAnimeProviders = animeProvidersList.filter(p => p.id === 'vidnest_animepahe' || p.id === 'megaplay');
-  const otherAnimeProviders = animeProvidersList.filter(p => p.id !== 'vidnest_animepahe' && p.id !== 'megaplay');
+  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('movieverse_player_sidebar_pos_v2') as 'left' | 'right') || 'right';
+    }
+    return 'right';
+  });
 
-  const containerWidthClass = isTvShow ? 'max-w-7xl' : 'max-w-5xl';
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'episodes' | 'details'>(
+    isTvShow ? 'episodes' : 'details'
+  );
+
+  const formattedRuntime = details?.runtime ? `${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m` : null;
+  const releaseYear = (details?.release_date || details?.first_air_date || '')?.split('-')[0] || '';
+
+  const getServerBadge = (id: string, index: number) => {
+    if (id === 'auto') return { label: 'Fast', isFast: true };
+    if (id === 'cinesrc' || id === 'vidfast') return { label: 'Fast', isFast: true };
+    if (id === 'videasy_adfree' || id === 'vidsrc' || id === 'peachify') return { label: 'HD' };
+    if (id === 'vidnest_animepahe' || id === 'megaplay') return { label: 'Fast', isFast: true };
+    if (id === '2embed') return { label: 'Backup' };
+    return index % 2 === 0 ? { label: 'HD' } : { label: 'Fast', isFast: true };
+  };
+
+  const getEpisodeThumbnail = (ep: any) => {
+    if (ep.still_path) {
+      return ep.still_path.startsWith('http') ? ep.still_path : `${TMDB_IMAGE_BASE}${ep.still_path}`;
+    }
+    if (ep.image) {
+      return ep.image;
+    }
+    if (details?.backdrop_path) {
+      return details.backdrop_path.startsWith('http') ? details.backdrop_path : `${TMDB_IMAGE_BASE}${details.backdrop_path}`;
+    }
+    if (details?.poster_path) {
+      return details.poster_path.startsWith('http') ? details.poster_path : `${TMDB_IMAGE_BASE}${details.poster_path}`;
+    }
+    return null;
+  };
+
+  const getEpisodeDuration = (ep: any) => {
+    if (ep.runtime) return `${ep.runtime} min`;
+    if (details?.episode_run_time && details.episode_run_time[0]) return `${details.episode_run_time[0]} min`;
+    if (ep.air_date) return ep.air_date;
+    return '';
+  };
+
+  const displayProviders = isAnime ? animeProvidersList : movieProvidersList;
 
   return (
-    <div className="w-full h-full bg-[#08080a] text-white select-none overflow-y-auto custom-scrollbar font-sans">
-      {/* Dedicated Clean Top Back Button (non-overlapping) */}
-      <div className={`${containerWidthClass} mx-auto w-full px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 pb-0 flex items-center justify-between`}>
+    <div className="w-full h-full min-h-screen bg-[#07080b] text-zinc-100 select-none overflow-y-auto custom-scrollbar font-sans relative">
+      {/* Ambient background glow from backdrop */}
+      {details?.backdrop_path && (
+        <div
+          className="fixed inset-0 pointer-events-none opacity-10 blur-3xl -z-10 scale-110"
+          style={{
+            backgroundImage: `url(${details.backdrop_path.startsWith('http') ? details.backdrop_path : `${TMDB_IMAGE_BASE}${details.backdrop_path}`})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+      )}
+
+      {/* Top Navbar */}
+      <div className="w-full max-w-[1700px] mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between gap-3">
         <button
           onClick={onClose}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95 shadow-sm"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-normal text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95 shadow-sm"
         >
-          <ArrowLeft size={15} /> <span>Back to Details</span>
+          <ArrowLeft size={14} />
+          <span className="truncate max-w-[240px] sm:max-w-md">{displayTitle}</span>
         </button>
+
+        <div className="flex items-center gap-2">
+          {isWatchParty && (
+            <span className="px-2.5 py-1 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 text-xs font-normal flex items-center gap-1.5">
+              <Users size={12} /> Watch Party
+            </span>
+          )}
+
+          <button
+            onClick={() => setIsDrawerOpen(prev => !prev)}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95"
+            title="Settings & Audio/Subtitles"
+          >
+            <Settings size={15} strokeWidth={1.5} />
+          </button>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95"
+            title="Close"
+          >
+            <X size={15} strokeWidth={1.5} />
+          </button>
+        </div>
       </div>
 
-      {/* Main Layout Container */}
-      <div className={`${containerWidthClass} mx-auto w-full p-4 sm:p-6 md:p-8 pt-3 flex flex-col lg:flex-row gap-6 justify-center`}>
+      {/* Main Split Layout: Player on Left + Sidebar (Episodes, Details, Servers) on Right */}
+      <div className={`w-full max-w-[1700px] mx-auto p-3 sm:p-5 flex-1 flex flex-col ${sidebarPosition === 'right' ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-5 items-start justify-center`}>
 
-        {/* LEFT / MAIN STREAMING CONTENT PANEL */}
-        <div className="flex-1 flex flex-col min-w-0">
-
+        {/* LEFT PANEL: VIDEO STREAMING CONTENT & CONTROLS */}
+        <div className="flex-1 min-w-0 flex flex-col w-full space-y-3.5">
           {/* Video Player Frame Container */}
           <div
             ref={playerVideoFrameRef}
             className={
               isFullscreen
                 ? "fixed inset-0 z-[9999] w-screen h-screen bg-black flex items-center justify-center overflow-hidden"
-                : "relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/10 shrink-0"
+                : "relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl border border-white/[0.08] shrink-0"
             }
           >
             {renderVideoPlayerCore()}
           </div>
 
-          {/* Under-Player Action Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-3 px-1 text-xs font-normal text-zinc-300">
-            <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={toggleFullscreen} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 hover:text-white transition-all active:scale-95 text-xs font-medium">
-                <Maximize size={13} /> <span>Expand</span>
-              </button>
-              <button onClick={() => setAutoPlayState(!autoPlayState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${autoPlayState ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'}`}>
-                <Zap size={13} /> <span>Auto Play</span>
-              </button>
-              <button onClick={() => setAutoNextState(!autoNextState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${autoNextState ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'}`}>
-                <SkipForward size={13} /> <span>Auto Next</span>
-              </button>
-              <button onClick={() => setAutoSkipState(!autoSkipState)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${autoSkipState ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'}`}>
-                <RotateCcw size={13} /> <span>Auto Skip</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isTvShow && (
-                <>
-                  <button disabled={currentEpisode <= 1} onClick={handlePrevEpisode} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-white/5 text-zinc-300 text-xs font-medium transition-all active:scale-95">
-                    <ChevronLeft size={15} /> <span>Prev</span>
-                  </button>
-                  <button onClick={handleNextEpisode} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 text-xs font-medium transition-all active:scale-95">
-                    <span>Next</span> <ChevronRight size={15} />
-                  </button>
-                </>
-              )}
-              {onToggleWatchlist && (
-                <button onClick={onToggleWatchlist} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all active:scale-95 text-xs font-medium ${isWatchlisted ? 'bg-red-600/20 border-red-500/20 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-300'}`}>
-                  <span>{isWatchlisted ? '❤️ Watchlisted' : '♡ Add to List'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* SERVER & SUB/DUB SELECTOR PANEL */}
-          <div className="flex flex-col sm:flex-row gap-4 mt-4 bg-[#0e0e11]/80 border border-white/5 rounded-2xl p-4 shadow-xl backdrop-blur-md">
-            {/* Compact Red Highlight Badge */}
-            <div className="w-full sm:w-48 shrink-0 bg-red-950/20 border border-red-500/10 p-3 rounded-xl flex flex-col justify-center text-center select-none">
-              <span className="text-[10px] font-medium text-red-400 uppercase tracking-wide">You are watching</span>
-              <h4 className="text-sm font-semibold text-white my-0.5">
-                {isTvShow ? `Episode ${currentEpisode}` : `Movie Stream`}
-              </h4>
-              <p className="text-[9px] font-normal text-zinc-400 leading-tight mt-0.5">
-                If current server fails, try another beside
-              </p>
-            </div>
-
-            {/* Right Provider Selection Grid */}
-            <div className="flex-1 flex flex-col justify-center gap-3 pl-0 sm:pl-2">
-              {isAnime ? (
-                <>
-                  {/* SUB ROW */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 shrink-0 text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                      <span>💬</span> <span>SUB</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 relative">
-                      {mainAnimeProviders.map((prov) => {
-                        const isActive = animeLanguage === 'sub' && selectedProviderId === prov.id;
-                        return (
-                          <button
-                            key={`sub-${prov.id}`}
-                            onClick={() => {
-                              setAnimeLanguage('sub');
-                              setSelectedProviderId(prov.id);
-                              onProviderChange?.(prov.id);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${isActive
-                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
-                              : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
-                              }`}
-                          >
-                            {prov.name}
-                          </button>
-                        );
-                      })}
-                      {otherAnimeProviders.length > 0 && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setIsSubOthersOpen(!isSubOthersOpen)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1 ${animeLanguage === 'sub' && otherAnimeProviders.some(p => p.id === selectedProviderId)
-                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
-                              : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
-                              }`}
-                          >
-                            <span>Others</span> <ChevronDown size={13} className={`transition-transform ${isSubOthersOpen ? 'rotate-180' : ''}`} />
-                          </button>
-                          {isSubOthersOpen && (
-                            <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#141417] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
-                              {otherAnimeProviders.map((prov) => (
-                                <button
-                                  key={`sub-other-${prov.id}`}
-                                  onClick={() => {
-                                    setAnimeLanguage('sub');
-                                    setSelectedProviderId(prov.id);
-                                    onProviderChange?.(prov.id);
-                                    setIsSubOthersOpen(false);
-                                  }}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-zinc-300 hover:bg-white/10 flex items-center justify-between"
-                                >
-                                  <span>{prov.name}</span>
-                                  {animeLanguage === 'sub' && selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* DUB ROW */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 shrink-0 text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-                      <span>🎙️</span> <span>DUB</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 relative">
-                      {mainAnimeProviders.map((prov) => {
-                        const isActive = animeLanguage === 'dub' && selectedProviderId === prov.id;
-                        return (
-                          <button
-                            key={`dub-${prov.id}`}
-                            onClick={() => {
-                              setAnimeLanguage('dub');
-                              setSelectedProviderId(prov.id);
-                              onProviderChange?.(prov.id);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${isActive
-                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
-                              : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
-                              }`}
-                          >
-                            {prov.name}
-                          </button>
-                        );
-                      })}
-                      {otherAnimeProviders.length > 0 && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setIsDubOthersOpen(!isDubOthersOpen)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1 ${animeLanguage === 'dub' && otherAnimeProviders.some(p => p.id === selectedProviderId)
-                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
-                              : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/5'
-                              }`}
-                          >
-                            <span>Others</span> <ChevronDown size={13} className={`transition-transform ${isDubOthersOpen ? 'rotate-180' : ''}`} />
-                          </button>
-                          {isDubOthersOpen && (
-                            <div className="absolute left-0 top-full mt-1.5 w-44 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in duration-200">
-                              {otherAnimeProviders.map((prov) => (
-                                <button
-                                  key={`dub-other-${prov.id}`}
-                                  onClick={() => {
-                                    setAnimeLanguage('dub');
-                                    setSelectedProviderId(prov.id);
-                                    onProviderChange?.(prov.id);
-                                    setIsDubOthersOpen(false);
-                                  }}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-white/10 flex items-center justify-between"
-                                >
-                                  <span>{prov.name}</span>
-                                  {animeLanguage === 'dub' && selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                /* MOVIE ONLY PROVIDER ROW */
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-20 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <span>⚙️</span> <span>SERVERS</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {movieProvidersList.map((prov) => {
-                        const isActive = selectedProviderId === prov.id;
-                        return (
-                          <button
-                            key={`movie-prov-${prov.id}`}
-                            onClick={() => {
-                              setSelectedProviderId(prov.id);
-                              onProviderChange?.(prov.id);
-                            }}
-                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive
-                              ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
-                              : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border-white/5'
-                              }`}
-                          >
-                            {prov.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* MOVIE AUDIO LANGUAGE SELECTOR (For providers supporting movie language parsing in embed) */}
-                  {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto'].includes(selectedProviderId)) && (
-                    <div className="flex items-center gap-3 animate-in fade-in duration-200 pt-1 border-t border-white/5">
-                      <div className="w-20 shrink-0 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                        <span>🌐</span> <span>LANGUAGE</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map((lang) => {
-                          const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
-                          return (
-                            <button
-                              key={`movie-lang-${lang}`}
-                              onClick={() => {
-                                setAudioLanguage(lang);
-                                localStorage.setItem('movieverse_preferred_audio_language', lang);
-                              }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isActive
-                                ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30 scale-[1.02]'
-                                : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border-white/5'
-                                }`}
-                            >
-                              {lang}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* BOTTOM SHOW SUMMARY CARD */}
-          {details && (
-            <div className="mt-4 bg-[#121214] border border-white/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-start shadow-xl">
-              <img
-                src={details.poster_path ? (details.poster_path.startsWith('http') ? details.poster_path : `${TMDB_IMAGE_BASE}${details.poster_path}`) : "https://placehold.co/150x225"}
-                alt={displayTitle}
-                className="w-24 sm:w-28 rounded-xl object-cover shadow-lg border border-white/10 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">{displayTitle}</h3>
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/10 text-zinc-300">
-                    {isTvShow ? 'TV Series' : 'Movie'}
+          {/* Under-Player Metadata & Quick Controls Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 pt-1">
+            {/* Left: Title & Metadata Tags */}
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <h2 className="text-base sm:text-lg font-normal text-white tracking-tight truncate">
+                {displayTitle}
+              </h2>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-light text-zinc-400">
+                {releaseYear && (
+                  <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
+                    {releaseYear}
                   </span>
-                  {details.vote_average > 0 && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                      ★ {details.vote_average.toFixed(1)}
-                    </span>
+                )}
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
+                  {details?.adult ? '18+' : 'PG-13'}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
+                  {isTvShow ? `Season ${currentSeason} • Episode ${currentEpisode}` : formattedRuntime || 'Movie'}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
+                  4K
+                </span>
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
+                  HDR
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Quick Action Buttons */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setAutoPlayState(!autoPlayState)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-normal transition-all active:scale-95 flex items-center gap-1.5 ${
+                  autoPlayState ? 'bg-red-500/15 border-red-500/25 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'
+                }`}
+                title="Toggle Auto Play"
+              >
+                <Zap size={12} /> <span>Auto Play</span>
+              </button>
+
+              <button
+                onClick={() => setAutoNextState(!autoNextState)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-normal transition-all active:scale-95 flex items-center gap-1.5 ${
+                  autoNextState ? 'bg-red-500/15 border-red-500/25 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'
+                }`}
+                title="Toggle Auto Next"
+              >
+                <SkipForward size={12} /> <span>Auto Next</span>
+              </button>
+
+              <button
+                onClick={() => setAutoSkipState(!autoSkipState)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-normal transition-all active:scale-95 flex items-center gap-1.5 ${
+                  autoSkipState ? 'bg-red-500/15 border-red-500/25 text-red-400' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'
+                }`}
+                title="Toggle Auto Skip"
+              >
+                <RotateCcw size={12} /> <span>Auto Skip</span>
+              </button>
+
+              {isTvShow && (
+                <div className="flex items-center gap-1 pl-1 border-l border-white/10">
+                  <button
+                    disabled={currentEpisode <= 1}
+                    onClick={handlePrevEpisode}
+                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-white/5 text-zinc-300 text-xs font-normal transition-all active:scale-95"
+                    title="Previous Episode"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    onClick={handleNextEpisode}
+                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 text-xs font-normal transition-all active:scale-95"
+                    title="Next Episode"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={toggleFullscreen}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 hover:text-white transition-all active:scale-95 text-xs font-normal flex items-center gap-1"
+                title="Expand / Fullscreen"
+              >
+                <Maximize size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL: SIDEBAR (Episodes, Details, Server Selector) */}
+        <div className="w-full lg:w-80 xl:w-96 shrink-0 bg-[#0e0f14]/90 border border-white/[0.08] rounded-2xl flex flex-col overflow-hidden backdrop-blur-xl shadow-2xl lg:sticky lg:top-4">
+          {/* Top Tabs */}
+          <div className="flex items-center justify-between px-4 pt-3.5 border-b border-white/[0.06]">
+            <div className="flex items-center gap-5">
+              {isTvShow && (
+                <button
+                  onClick={() => setActiveSidebarTab('episodes')}
+                  className={`text-xs pb-3 transition-all relative font-normal tracking-wide ${
+                    activeSidebarTab === 'episodes'
+                      ? 'text-white'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  Episodes
+                  {activeSidebarTab === 'episodes' && (
+                    <div className="absolute bottom-0 inset-x-0 h-[2px] bg-white rounded-full" />
+                  )}
+                </button>
+              )}
+
+              <button
+                onClick={() => setActiveSidebarTab('details')}
+                className={`text-xs pb-3 transition-all relative font-normal tracking-wide ${
+                  activeSidebarTab === 'details'
+                    ? 'text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                Details
+                {activeSidebarTab === 'details' && (
+                  <div className="absolute bottom-0 inset-x-0 h-[2px] bg-white rounded-full" />
+                )}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 pb-2">
+              <button
+                onClick={() => {
+                  const nextPos = sidebarPosition === 'right' ? 'left' : 'right';
+                  setSidebarPosition(nextPos);
+                  localStorage.setItem('movieverse_player_sidebar_pos_v2', nextPos);
+                }}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-all text-xs flex items-center gap-1"
+                title={`Move sidebar to ${sidebarPosition === 'right' ? 'left' : 'right'}`}
+              >
+                <ArrowLeftRight size={13} strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
+
+          {/* Tab 1: EPISODES CONTENT */}
+          {activeSidebarTab === 'episodes' && isTvShow && (
+            <div className="flex-1 flex flex-col p-3.5 space-y-3.5 overflow-hidden">
+              {/* Season Dropdown */}
+              {seasons.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSidebarSeasonOpen(!isSidebarSeasonOpen)}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-xl text-xs font-normal text-zinc-200 transition-all shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      {isAnime ? (
+                        <span className="text-red-400 text-[10px] font-normal uppercase tracking-wider shrink-0">
+                          {useTmdbMode ? 'TMDB' : 'AniList'}
+                        </span>
+                      ) : null}
+                      <span className="truncate">
+                        {seasons.find(s => s.season_number === currentSeason)?.name || `Season ${currentSeason}`}
+                      </span>
+                    </div>
+                    <ChevronDown size={13} className={`text-zinc-400 shrink-0 transition-transform ${isSidebarSeasonOpen ? 'rotate-180 text-white' : ''}`} />
+                  </button>
+
+                  {isSidebarSeasonOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-[#14151b] border border-white/10 rounded-xl shadow-2xl p-1 z-50 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in duration-150">
+                      {seasons.map((s) => {
+                        const isSelected = s.season_number === currentSeason;
+                        return (
+                          <button
+                            key={s.id || s.season_number}
+                            onClick={() => {
+                              setCurrentSeason(s.season_number);
+                              onEpisodeChange?.(s.season_number, 1);
+                              setCurrentEpisode(1);
+                              setIsSidebarSeasonOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-normal rounded-lg transition-colors flex items-center justify-between ${
+                              isSelected ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-300 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <span className="truncate pr-2">{s.name}</span>
+                            {s.episode_count !== undefined && s.episode_count !== null && (
+                              <span className="text-[10px] text-zinc-500 font-light shrink-0">{s.episode_count} Ep</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-                {details.overview && (
-                  <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3 mt-1.5 font-normal">
-                    {details.overview}
-                  </p>
+              )}
+
+              {/* Episodes List Container */}
+              <div className="max-h-[300px] lg:max-h-[340px] overflow-y-auto custom-scrollbar space-y-1.5 pr-0.5">
+                {episodeList.map((ep: any, idx: number) => {
+                  const epNum = ep.episode_number || ep.number || (idx + 1);
+                  const epTitle = ep.name || ep.title || `Episode ${epNum}`;
+                  const isActive = epNum === currentEpisode;
+                  const thumb = getEpisodeThumbnail(ep);
+                  const duration = getEpisodeDuration(ep);
+
+                  return (
+                    <div
+                      key={`ep-${epNum}-${idx}`}
+                      onClick={() => handleEpisodeClick(epNum)}
+                      className={`p-2 rounded-xl transition-all flex items-center gap-3 border cursor-pointer group ${
+                        isActive
+                          ? 'bg-white/[0.05] border-blue-500/50 shadow-[0_0_12px_rgba(59,130,246,0.12)]'
+                          : 'bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.05] hover:border-white/[0.08]'
+                      }`}
+                    >
+                      <div className="w-18 h-11 rounded-lg bg-zinc-900 border border-white/5 overflow-hidden shrink-0 relative flex items-center justify-center">
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={epTitle}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="text-[9px] text-zinc-600 font-light">No Img</div>
+                        )}
+                        <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${isActive ? 'bg-black/40 opacity-100' : 'bg-black/20 opacity-0 group-hover:opacity-100'}`}>
+                          <Play size={11} fill="white" className="text-white" />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0 pr-1">
+                        <p className={`text-xs font-normal truncate ${isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>
+                          {epNum}. {epTitle}
+                        </p>
+                        {duration && (
+                          <p className="text-[10px] font-light text-zinc-500 mt-0.5">
+                            {duration}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="shrink-0 p-1 text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                        <Download size={13} strokeWidth={1.5} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* SERVERS SECTION (Below episodes) */}
+              <div className="pt-3 border-t border-white/[0.06] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-normal text-zinc-300 tracking-wide">Servers</span>
+                  {selectedProviderId === 'auto' && (
+                    <span className="text-[10px] font-normal text-zinc-500">Auto</span>
+                  )}
+                </div>
+
+                {isAnime && (
+                  <div className="flex items-center gap-1.5 pb-1">
+                    <button
+                      onClick={() => setAnimeLanguage('sub')}
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-normal transition-all ${
+                        animeLanguage === 'sub' ? 'bg-white/10 text-white border border-white/20' : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      SUB
+                    </button>
+                    <button
+                      onClick={() => setAnimeLanguage('dub')}
+                      className={`px-2.5 py-0.5 rounded-lg text-xs font-normal transition-all ${
+                        animeLanguage === 'dub' ? 'bg-white/10 text-white border border-white/20' : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      DUB
+                    </button>
+                  </div>
                 )}
-                <button onClick={onClose} className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline flex items-center gap-1 mt-2.5">
-                  <span>View detail</span> <ChevronRight size={14} />
-                </button>
+
+                <div className="space-y-1">
+                  {displayProviders.map((prov, idx) => {
+                    const isSelected = selectedProviderId === prov.id;
+                    const badge = getServerBadge(prov.id, idx);
+                    return (
+                      <button
+                        key={`side-server-${prov.id}-${idx}`}
+                        onClick={() => {
+                          setSelectedProviderId(prov.id);
+                          onProviderChange?.(prov.id);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left group border ${
+                          isSelected
+                            ? 'bg-white/[0.05] border-white/15 text-white'
+                            : 'bg-white/[0.01] hover:bg-white/[0.04] border-transparent text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                            isSelected ? 'border-blue-400 bg-blue-500/20' : 'border-white/25 group-hover:border-white/40'
+                          }`}>
+                            {isSelected && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                            )}
+                          </div>
+                          <span className="truncate font-normal">
+                            Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
+                          </span>
+                        </div>
+                        <div className="shrink-0 flex items-center">
+                          {badge.isFast ? (
+                            <span className="text-emerald-400 text-[10px] font-normal flex items-center gap-0.5">
+                              <Zap size={10} className="fill-emerald-400 text-emerald-400" /> Fast
+                            </span>
+                          ) : (
+                            <span className="text-zinc-500 text-[10px] font-normal uppercase tracking-wider">
+                              {badge.label}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Audio Language row if supported */}
+                {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto', 'vidfast'].includes(selectedProviderId)) && (
+                  <div className="pt-2 border-t border-white/[0.04] space-y-1.5">
+                    <span className="text-[10px] font-normal text-zinc-500 uppercase tracking-wider">Language</span>
+                    <div className="flex flex-wrap gap-1">
+                      {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German'].map((lang) => {
+                        const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
+                        return (
+                          <button
+                            key={`audio-lang-${lang}`}
+                            onClick={() => {
+                              setAudioLanguage(lang);
+                              localStorage.setItem('movieverse_preferred_audio_language', lang);
+                            }}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-normal transition-all border ${
+                              isActive
+                                ? 'bg-blue-600/20 text-blue-300 border-blue-500/30'
+                                : 'bg-white/5 hover:bg-white/10 text-zinc-400 border-white/5'
+                            }`}
+                          >
+                            {lang}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-        </div>
-
-        {/* RIGHT COLUMN: LIST OF EPISODES & SEASONS (Only for TV Shows & Anime) */}
-        {isTvShow && (
-          <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
-            {/* Header Bar */}
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-xs font-bold tracking-wider text-zinc-300 uppercase flex items-center gap-2">
-                <span>Episodes</span>
-                {isAnime && animeSeasonMap.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setUseTmdbMode(!useTmdbMode);
-                      setIsSidebarSeasonOpen(false);
-                    }}
-                    className={`text-[9px] font-medium px-2 py-0.5 rounded-full border transition-all cursor-pointer ${useTmdbMode
-                      ? 'bg-red-600/20 text-red-400 border-red-500/20'
-                      : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border-white/5'
-                      }`}
-                    title={useTmdbMode ? "Switch to AniList Seasons" : "Switch to TMDB Seasons"}
-                  >
-                    {useTmdbMode ? 'TMDB View' : 'AniList View'}
-                  </button>
-                )}
-              </h3>
-              <span className="text-[10px] text-zinc-500 font-semibold bg-white/5 px-2 py-0.5 rounded-full">{episodeList.length} Total</span>
-            </div>
-
-            {/* Season Selector Dropdown */}
-            {seasons.length > 0 && (
-              <div className="relative mb-3">
-                <button
-                  onClick={() => setIsSidebarSeasonOpen(!isSidebarSeasonOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-[#0c0c0e]/80 hover:bg-[#121216] border border-white/5 rounded-xl text-xs font-medium text-white transition-all shadow-md cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 min-w-0 pr-2">
-                    {isAnime ? (
-                      <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider shrink-0">
-                        {useTmdbMode ? 'TMDB' : 'AniList'}
-                      </span>
-                    ) : (
-                      <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider shrink-0">
-                        TMDB
-                      </span>
-                    )}
-                    <span className="truncate">
-                      {seasons.find(s => s.season_number === currentSeason)?.name || `Season ${currentSeason}`}
-                    </span>
+          {/* Tab 2: DETAILS CONTENT */}
+          {(activeSidebarTab === 'details' || !isTvShow) && (
+            <div className="p-3.5 space-y-3.5 overflow-y-auto custom-scrollbar max-h-[calc(100vh-8rem)] animate-in fade-in duration-200">
+              {details?.backdrop_path && (
+                <div className="w-full aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-white/10 relative shadow-md">
+                  <img
+                    src={details.backdrop_path.startsWith('http') ? details.backdrop_path : `${TMDB_IMAGE_BASE}${details.backdrop_path}`}
+                    alt={displayTitle}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-2 left-2.5 right-2.5">
+                    <p className="text-xs font-normal text-white truncate">{displayTitle}</p>
                   </div>
-                  <ChevronDown size={14} className={`text-zinc-400 shrink-0 transition-transform ${isSidebarSeasonOpen ? 'rotate-180 text-white' : ''}`} />
-                </button>
+                </div>
+              )}
 
-                {isSidebarSeasonOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#121216] border border-white/10 rounded-xl shadow-2xl p-1 z-50 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in duration-150">
-                    {seasons.map((s) => {
-                      const isSelected = s.season_number === currentSeason;
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-light text-zinc-400">
+                {releaseYear && <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5">{releaseYear}</span>}
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5">{details?.adult ? '18+' : 'PG-13'}</span>
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5">
+                  {isTvShow ? `${seasons.length || 1} Seasons` : formattedRuntime || 'Movie'}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5">4K</span>
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5">HDR</span>
+              </div>
+
+              {details?.overview && (
+                <p className="text-xs text-zinc-400 font-light leading-relaxed">
+                  {details.overview}
+                </p>
+              )}
+
+              {details?.genres && details.genres.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {details.genres.map((g: any) => (
+                    <span key={g.id || g.name} className="px-2 py-0.5 rounded-full text-[10px] font-light bg-white/5 text-zinc-400 border border-white/5">
+                      {g.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {onToggleWatchlist && (
+                <button
+                  onClick={onToggleWatchlist}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-normal transition-all flex items-center justify-center gap-1.5 ${
+                    isWatchlisted
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-200'
+                  }`}
+                >
+                  <span>{isWatchlisted ? '❤️ Watchlisted' : '+ Add to Watchlist'}</span>
+                </button>
+              )}
+
+              {/* If Movie: Show servers directly in details view */}
+              {!isTvShow && (
+                <div className="pt-3 border-t border-white/[0.06] space-y-2">
+                  <span className="text-xs font-normal text-zinc-300 tracking-wide">Servers</span>
+                  <div className="space-y-1">
+                    {displayProviders.map((prov, idx) => {
+                      const isSelected = selectedProviderId === prov.id;
+                      const badge = getServerBadge(prov.id, idx);
                       return (
                         <button
-                          key={s.id || s.season_number}
+                          key={`movie-side-srv-${prov.id}-${idx}`}
                           onClick={() => {
-                            setCurrentSeason(s.season_number);
-                            if (onEpisodeChange) {
-                              onEpisodeChange(s.season_number, 1);
-                            }
-                            setCurrentEpisode(1);
-                            setIsSidebarSeasonOpen(false);
+                            setSelectedProviderId(prov.id);
+                            onProviderChange?.(prov.id);
                           }}
-                          className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${isSelected ? 'bg-red-600 text-white shadow-sm' : 'text-zinc-300 hover:bg-white/5 hover:text-white'
-                            }`}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left border ${
+                            isSelected
+                              ? 'bg-white/[0.05] border-white/15 text-white'
+                              : 'bg-white/[0.01] hover:bg-white/[0.04] border-transparent text-zinc-300'
+                          }`}
                         >
-                          <span className="truncate pr-2">{s.name}</span>
-                          {s.episode_count !== undefined && s.episode_count !== null && (
-                            <span className="text-[10px] opacity-60 shrink-0">{s.episode_count} Ep</span>
-                          )}
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                              isSelected ? 'border-blue-400 bg-blue-500/20' : 'border-white/20'
+                            }`}>
+                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                            </div>
+                            <span className="truncate font-normal">
+                              Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 font-normal uppercase">{badge.label}</span>
                         </button>
                       );
                     })}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Episodes List Container */}
-            <div className="bg-[#0c0c0e]/80 rounded-2xl p-1.5 max-h-[580px] overflow-y-auto custom-scrollbar space-y-0.5 border border-white/5 shadow-2xl">
-              {episodeList.map((ep: any, idx: number) => {
-                const epNum = ep.episode_number || ep.number || (idx + 1);
-                const epTitle = ep.name || ep.title || `Episode ${epNum}`;
-                const isActive = epNum === currentEpisode;
-                return (
-                  <button
-                    key={`ep-${epNum}-${idx}`}
-                    onClick={() => handleEpisodeClick(epNum)}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all text-left group ${isActive
-                      ? 'bg-red-600/15 text-red-400 font-bold border-l-2 border-red-500 shadow-sm'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
-                      }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      <span className={`text-[11px] font-mono shrink-0 ${isActive ? 'text-red-400 font-bold' : 'text-zinc-500 group-hover:text-zinc-300'}`}>
-                        {String(epNum).padStart(2, '0')}
-                      </span>
-                      <span className="truncate">{epTitle}</span>
-                    </div>
-                    {isActive && <Play size={11} fill="currentColor" className="text-red-500 shrink-0 animate-pulse" />}
-                  </button>
-                );
-              })}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
     </div>
