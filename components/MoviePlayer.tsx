@@ -354,6 +354,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           return 'vidfast'; // Fallback default for Watch Party
         }
       }
+      if (!PROVIDERS.some(p => p.id === preferred)) {
+        return defaultProvider;
+      }
       return preferred;
     }
     return chosen || defaultProvider;
@@ -578,6 +581,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isAutoProbing, setIsAutoProbing] = useState<boolean>(false);
   const [autoProbeStatus, setAutoProbeStatus] = useState<string>('Probing 8 streaming servers in parallel...');
   const [autoProbeBadges, setAutoProbeBadges] = useState<Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }>>({});
+  const [autoPlayingServerId, setAutoPlayingServerId] = useState<string>(() => {
+    if (isAnime || isAnimeDirect) return 'vidnest_animepahe';
+    return 'videasy_adfree';
+  });
 
 
   // Native video source loader for MP4/MKV/HLS streams (including Torrent Swarm Stream)
@@ -678,7 +685,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           [hlsWinner]: { status: 'playing', latency: 85, label: PROVIDERS.find(p => p.id === hlsWinner)?.name || 'Direct Stream' }
         }));
         setAutoProbeStatus(`Selected fastest verified server: ${PROVIDERS.find(p => p.id === hlsWinner)?.name || 'Direct HLS'}`);
-        setSelectedProviderId(hlsWinner);
+        setAutoPlayingServerId(hlsWinner);
         setTimeout(() => setIsAutoProbing(false), 600);
         return;
       }
@@ -691,7 +698,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           [verifiedWinner]: { status: 'playing', latency: 90, label: PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner }
         }));
         setAutoProbeStatus(`Selected verified watchprogress server: ${PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner}`);
-        setSelectedProviderId(verifiedWinner);
+        setAutoPlayingServerId(verifiedWinner);
         setTimeout(() => setIsAutoProbing(false), 600);
         return;
       }
@@ -726,7 +733,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         });
 
         setAutoProbeStatus(`Auto-selected fastest server: ${PROVIDERS.find(p => p.id === winner.id)?.name} (${winner.latency}ms)`);
-        setSelectedProviderId(winner.id);
+        setAutoPlayingServerId(winner.id);
         setTimeout(() => setIsAutoProbing(false), 700);
         return;
       }
@@ -734,9 +741,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       console.warn("Auto probe exception:", e);
     }
 
-    const fallbackId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'cinesrc';
-    setSelectedProviderId(fallbackId);
-    setAutoProbeStatus(`Selected default server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'AnimePahe'}`);
+    const fallbackId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'videasy_adfree';
+    setAutoPlayingServerId(fallbackId);
+    setAutoProbeStatus(`Selected default server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'VidEasy'}`);
     setTimeout(() => setIsAutoProbing(false), 800);
   }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, isWatchParty, isAnimeDirect, verifiedPlaybackServers]);
 
@@ -2466,20 +2473,22 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     let shouldUpdateUrl = false;
 
+    const effectiveProvider = selectedProviderId === 'auto' ? autoPlayingServerId : selectedProviderId;
+
     if (lastEpisodeKeyRef.current !== episodeKey) {
       // Episode or movie changed -> reload and reset progress to forceProgress
       shouldUpdateUrl = true;
       lastEpisodeKeyRef.current = episodeKey;
-      lastProviderRef.current = selectedProviderId;
+      lastProviderRef.current = effectiveProvider;
       lastAnimeLanguageRef.current = animeLanguage;
       lastAnilistIdRef.current = anilistId;
       lastAudioLanguageRef.current = audioLanguage;
       lastSubtitleLanguageRef.current = subtitleLanguage;
       currentProgressRef.current = forceProgress || 0;
-    } else if (lastProviderRef.current !== selectedProviderId) {
+    } else if (lastProviderRef.current !== effectiveProvider) {
       // Only provider changed -> reload at the current playback position
       shouldUpdateUrl = true;
-      lastProviderRef.current = selectedProviderId;
+      lastProviderRef.current = effectiveProvider;
     } else if (lastAnimeLanguageRef.current !== animeLanguage) {
       shouldUpdateUrl = true;
       lastAnimeLanguageRef.current = animeLanguage;
@@ -2539,12 +2548,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (shouldUpdateUrl) {
       const startProgress = currentProgressRef.current;
       let newUrl = '';
-      if (selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) {
+      const activeProviderId = selectedProviderId === 'auto' ? autoPlayingServerId : selectedProviderId;
+      if (activeProviderId === 'videasy_adfree' && fallbackToNativeVideasy) {
         newUrl = isTvShow
           ? `https://player.videasy.net/tv/${tmdbId}/${currentSeason}/${currentEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`
           : `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`;
       } else {
-        newUrl = getEmbedUrlForProvider(selectedProviderId, startProgress);
+        newUrl = getEmbedUrlForProvider(activeProviderId, startProgress);
       }
 
       if (isIframeCustomControls) {
@@ -2553,7 +2563,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setIframeLoading(true);
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
+  }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, autoPlayingServerId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
 
   const checkServerStatus = async (url: string): Promise<boolean> => {
     try {
@@ -5581,6 +5591,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
                   HDR
                 </span>
+                <span className="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/25 text-red-300 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  Server: {selectedProviderId === 'auto' ? `Auto (${PROVIDERS.find(p => p.id === autoPlayingServerId)?.name || 'VidEasy'})` : (PROVIDERS.find(p => p.id === selectedProviderId)?.name || selectedProviderId)}
+                </span>
               </div>
             </div>
 
@@ -5663,7 +5677,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 >
                   Episodes
                   {activeSidebarTab === 'episodes' && (
-                    <div className="absolute bottom-0 inset-x-0 h-[2px] bg-white rounded-full" />
+                    <div className="absolute bottom-0 inset-x-0 h-[2px] bg-red-500 rounded-full" />
                   )}
                 </button>
               )}
@@ -5678,7 +5692,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               >
                 Details
                 {activeSidebarTab === 'details' && (
-                  <div className="absolute bottom-0 inset-x-0 h-[2px] bg-white rounded-full" />
+                  <div className="absolute bottom-0 inset-x-0 h-[2px] bg-red-500 rounded-full" />
                 )}
               </button>
             </div>
@@ -5765,7 +5779,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       onClick={() => handleEpisodeClick(epNum)}
                       className={`p-2 rounded-xl transition-all flex items-center gap-3 border cursor-pointer group ${
                         isActive
-                          ? 'bg-white/[0.05] border-blue-500/50 shadow-[0_0_12px_rgba(59,130,246,0.12)]'
+                          ? 'bg-red-500/10 border-red-500/40 text-white shadow-[0_0_12px_rgba(239,68,68,0.15)]'
                           : 'bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.05] hover:border-white/[0.08]'
                       }`}
                     >
@@ -5781,12 +5795,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           <div className="text-[9px] text-zinc-600 font-light">No Img</div>
                         )}
                         <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${isActive ? 'bg-black/40 opacity-100' : 'bg-black/20 opacity-0 group-hover:opacity-100'}`}>
-                          <Play size={11} fill="white" className="text-white" />
+                          <Play size={11} fill="white" className={isActive ? 'text-red-500' : 'text-white'} />
                         </div>
                       </div>
 
                       <div className="flex-1 min-w-0 pr-1">
-                        <p className={`text-xs font-normal truncate ${isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`}>
+                        <p className={`text-xs font-normal truncate ${isActive ? 'text-red-400 font-medium' : 'text-zinc-300 group-hover:text-white'}`}>
                           {epNum}. {epTitle}
                         </p>
                         {duration && (
@@ -5809,7 +5823,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-normal text-zinc-300 tracking-wide">Servers</span>
                   {selectedProviderId === 'auto' && (
-                    <span className="text-[10px] font-normal text-zinc-500">Auto</span>
+                    <span className="text-[10px] font-normal text-red-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      Auto-routed
+                    </span>
                   )}
                 </div>
 
@@ -5834,39 +5851,57 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                 )}
 
-                <div className="space-y-1">
+                <div className="space-y-1 max-h-56 overflow-y-auto custom-scrollbar pr-0.5">
                   {displayProviders.map((prov, idx) => {
                     const isSelected = selectedProviderId === prov.id;
+                    const isActuallyPlaying = (selectedProviderId === prov.id) || (selectedProviderId === 'auto' && prov.id === autoPlayingServerId);
                     const badge = getServerBadge(prov.id, idx);
                     return (
                       <button
                         key={`side-server-${prov.id}-${idx}`}
                         onClick={() => {
                           setSelectedProviderId(prov.id);
+                          if (typeof window !== 'undefined') {
+                            const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+                            localStorage.setItem(key, prov.id);
+                          }
                           onProviderChange?.(prov.id);
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left group border ${
                           isSelected
-                            ? 'bg-white/[0.05] border-white/15 text-white'
-                            : 'bg-white/[0.01] hover:bg-white/[0.04] border-transparent text-zinc-300'
+                            ? 'bg-red-500/10 border-red-500/40 text-white shadow-sm'
+                            : 'bg-white/[0.02] hover:bg-white/[0.05] border-white/5 text-zinc-300'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0 pr-2">
                           <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-                            isSelected ? 'border-blue-400 bg-blue-500/20' : 'border-white/25 group-hover:border-white/40'
+                            isSelected ? 'border-red-500 bg-red-500/20' : 'border-white/25 group-hover:border-white/40'
                           }`}>
                             {isSelected && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]" />
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
                             )}
                           </div>
-                          <span className="truncate font-normal">
-                            Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
-                          </span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate font-normal">
+                              Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
+                            </span>
+                            {prov.id === 'auto' && isSelected && (
+                              <span className="text-[10px] text-red-400 font-light flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-red-400 animate-ping inline-block" />
+                                Playing: {PROVIDERS.find(p => p.id === autoPlayingServerId)?.name || 'VidEasy'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="shrink-0 flex items-center">
+                        <div className="shrink-0 flex items-center gap-1.5">
+                          {isActuallyPlaying && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-normal border border-red-500/25">
+                              Playing
+                            </span>
+                          )}
                           {badge.isFast ? (
-                            <span className="text-emerald-400 text-[10px] font-normal flex items-center gap-0.5">
-                              <Zap size={10} className="fill-emerald-400 text-emerald-400" /> Fast
+                            <span className="text-zinc-300 text-[10px] font-normal flex items-center gap-0.5">
+                              <Zap size={10} className="fill-red-500 text-red-500" /> Fast
                             </span>
                           ) : (
                             <span className="text-zinc-500 text-[10px] font-normal uppercase tracking-wider">
@@ -5895,7 +5930,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             }}
                             className={`px-2 py-0.5 rounded-md text-[10px] font-normal transition-all border ${
                               isActive
-                                ? 'bg-blue-600/20 text-blue-300 border-blue-500/30'
+                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
                                 : 'bg-white/5 hover:bg-white/10 text-zinc-400 border-white/5'
                             }`}
                           >
@@ -5969,35 +6004,63 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               {/* If Movie: Show servers directly in details view */}
               {!isTvShow && (
                 <div className="pt-3 border-t border-white/[0.06] space-y-2">
-                  <span className="text-xs font-normal text-zinc-300 tracking-wide">Servers</span>
-                  <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-normal text-zinc-300 tracking-wide">Servers</span>
+                    {selectedProviderId === 'auto' && (
+                      <span className="text-[10px] font-normal text-red-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        Auto-routed
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 max-h-56 overflow-y-auto custom-scrollbar pr-0.5">
                     {displayProviders.map((prov, idx) => {
                       const isSelected = selectedProviderId === prov.id;
+                      const isActuallyPlaying = (selectedProviderId === prov.id) || (selectedProviderId === 'auto' && prov.id === autoPlayingServerId);
                       const badge = getServerBadge(prov.id, idx);
                       return (
                         <button
                           key={`movie-side-srv-${prov.id}-${idx}`}
                           onClick={() => {
                             setSelectedProviderId(prov.id);
+                            if (typeof window !== 'undefined') {
+                              const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+                              localStorage.setItem(key, prov.id);
+                            }
                             onProviderChange?.(prov.id);
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left border ${
                             isSelected
-                              ? 'bg-white/[0.05] border-white/15 text-white'
-                              : 'bg-white/[0.01] hover:bg-white/[0.04] border-transparent text-zinc-300'
+                              ? 'bg-red-500/10 border-red-500/40 text-white shadow-sm'
+                              : 'bg-white/[0.02] hover:bg-white/[0.05] border-white/5 text-zinc-300'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                              isSelected ? 'border-blue-400 bg-blue-500/20' : 'border-white/20'
+                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'border-red-500 bg-red-500/20' : 'border-white/20'
                             }`}>
-                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />}
                             </div>
-                            <span className="truncate font-normal">
-                              Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
-                            </span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate font-normal">
+                                Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
+                              </span>
+                              {prov.id === 'auto' && isSelected && (
+                                <span className="text-[10px] text-red-400 font-light flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-red-400 animate-ping inline-block" />
+                                  Playing: {PROVIDERS.find(p => p.id === autoPlayingServerId)?.name || 'VidEasy'}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[10px] text-zinc-500 font-normal uppercase">{badge.label}</span>
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            {isActuallyPlaying && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-normal border border-red-500/25">
+                                Playing
+                              </span>
+                            )}
+                            <span className="text-[10px] text-zinc-500 font-normal uppercase">{badge.label}</span>
+                          </div>
                         </button>
                       );
                     })}
