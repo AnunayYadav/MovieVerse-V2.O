@@ -5,6 +5,7 @@ import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
+import { useScreenWakeLock } from '../utils/screenWakeLock';
 
 
 
@@ -842,6 +843,22 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [detectedAudioLanguages, setDetectedAudioLanguages] = useState<string[]>([]);
   const [hlsManifestLoaded, setHlsManifestLoaded] = useState(false);
 
+  // Screen Wake Lock & Active State:
+  // Keeps display awake, inhibits screen timeout, and prevents sleep/dimming while movie is playing
+  const isPlaybackActive = useCustomControls
+    ? (isPlaying || isBuffering)
+    : (isPlaying || (!iframeLoading && !!embedUrl));
+
+  useScreenWakeLock({
+    isActive: isPlaybackActive,
+    title: title || details?.title || details?.name,
+    season: mediaType === 'tv' ? currentSeason : undefined,
+    episode: mediaType === 'tv' ? currentEpisode : undefined,
+    artworkUrl: details?.poster_path
+      ? (details.poster_path.startsWith('http') ? details.poster_path : `${TMDB_IMAGE_BASE}${details.poster_path}`)
+      : undefined
+  });
+
   // Subtitle Customization states
   const [subSize, setSubSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>(() => {
     if (typeof window !== 'undefined') {
@@ -1155,6 +1172,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
     const onTimeUpdate = () => {
       if (!isSeeking) {
         setPlayerCurrentTime(video.currentTime);
@@ -1170,6 +1188,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const onPlayingEvent = () => setIsBuffering(false);
     const onSeeked = () => setIsBuffering(false);
     const onSeeking = () => setIsBuffering(true);
+
+    // Keep reference on global window to prevent tab discarding by browser memory savers
+    if (typeof window !== 'undefined') {
+      (window as any)._movieverseActiveVideo = video;
+    }
 
     const updateNativeAudioTracks = () => {
       const nativeTracks = (video as any).audioTracks;
@@ -1200,6 +1223,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('ended', onEnded);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('durationchange', onDurationChange);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -1216,8 +1240,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
 
     return () => {
+      if (typeof window !== 'undefined' && (window as any)._movieverseActiveVideo === video) {
+        (window as any)._movieverseActiveVideo = null;
+      }
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('ended', onEnded);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('durationchange', onDurationChange);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
@@ -2402,8 +2430,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     sendPlayState(playState);
     setTimeout(() => sendPlayState(playState), 1000);
     setTimeout(() => sendPlayState(playState), 2000);
+    setIsPlaying(true);
     if (useCustomControls) {
-      setIsPlaying(true);
       setShowControls(true);
       if (selectedProviderId !== 'cinesrc') {
         setTimeout(() => sendPlayerCommand('getStatus'), 500);

@@ -4,6 +4,7 @@ import { LiveChannel } from '../types';
 import { getCurrentProgram, generateEPG } from '../utils/epgGenerator';
 import { getDynamicChannelDetails, ChannelDetails, StreamServer } from '../utils/channelMetadata';
 import { useCasting } from '../utils/castManager';
+import { useScreenWakeLock } from '../utils/screenWakeLock';
 
 interface LiveTVPlayerProps {
     channel: LiveChannel;
@@ -26,6 +27,13 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Keep screen awake while Live TV is playing
+    useScreenWakeLock({
+        isActive: isPlaying && !error,
+        title: channel?.name ? `${channel.name} (Live TV)` : 'MovieVerse Live TV',
+        artworkUrl: channel?.logo
+    });
 
     // Next/Prev Playlist Navigation
     const currentIndex = playlist.findIndex(c => c.id === channel.id);
@@ -619,6 +627,8 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                     playsInline
                     autoPlay
                     muted={isMuted}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
                 />
 
                 {isCasting && (

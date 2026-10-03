@@ -18,6 +18,7 @@ const isTV = typeof window !== 'undefined' && (
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 import { PROVIDERS, getFilteredProviders } from './Providers';
+import { useScreenWakeLock } from '../utils/screenWakeLock';
 
 const LANGUAGES_FULL_MAP: Record<string, string> = {
     en: "English",
@@ -442,6 +443,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [episodeSearch, setEpisodeSearch] = useState("");
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [viewingTrailerKey, setViewingTrailerKey] = useState<string | null>(null);
+
+    // Keep screen awake while viewing movie trailers
+    useScreenWakeLock({
+        isActive: !!viewingTrailerKey,
+        title: (details?.title || details?.name || movie?.title || movie?.name) ? `${details?.title || details?.name || movie?.title || movie?.name} (Trailer)` : 'Movie Trailer',
+        artworkUrl: (details?.poster_path || movie?.poster_path) ? `${TMDB_IMAGE_BASE}${details?.poster_path || movie?.poster_path}` : undefined
+    });
+
     const showPlayer = initialShowPlayer;
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [isTmdbSource, setIsTmdbSource] = useState(false);
