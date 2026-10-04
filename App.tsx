@@ -18,8 +18,7 @@ import { AnimePage } from './components/AnimePage';
 import { MangaPage } from './components/MangaPage';
 import { NovelPage } from './components/NovelPage';
 import { DramaPage } from './components/DramaPage';
-import { PodcastsPage } from './components/BooksPage';
-import { BookOpen, Drama, Mic } from 'lucide-react';
+import { BookOpen, Drama } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 import { syncWatchlistToAniList } from './services/anilistSync';
@@ -1437,8 +1436,6 @@ export default function App() {
                 category = "Novels";
             } else if (path === '/live-tv') {
                 category = "LiveTV";
-            } else if (path === '/podcasts' || path === '/browse/podcasts') {
-                category = "Podcasts";
             } else if (path === '/dramas' || path === '/browse/dramas') {
                 category = "Dramas";
             } else if (path.startsWith('/drama/')) {
@@ -1470,7 +1467,6 @@ export default function App() {
                 else if (sub === 'tv-shows') category = "TV Shows";
                 else if (sub === 'coming') category = "Coming";
                 else if (sub === 'franchise') category = "Franchise";
-                else if (sub === 'podcasts') category = "Podcasts";
             } else if (path.startsWith('/library/')) {
                 const sub = parts[2];
                 if (sub === 'watchlist') category = "Watchlist";
@@ -1802,8 +1798,6 @@ export default function App() {
             } else {
                 newPath = '/browse/dramas';
             }
-        } else if (selectedCategory === 'Podcasts') {
-            newPath = '/podcasts';
         } else if (selectedCategory === 'Collection' && currentCollection) {
             newPath = `/custom-collection/${currentCollection}`;
         }
@@ -1845,8 +1839,6 @@ export default function App() {
             pageTitle = 'Explore - MovieVerse AI';
         } else if (selectedCategory === 'LiveTV') {
             pageTitle = 'Live TV - MovieVerse AI';
-        } else if (selectedCategory === 'Podcasts') {
-            pageTitle = 'Podcasts & Audiobooks - MovieVerse AI';
         } else if (selectedCategory === 'Awards') {
             pageTitle = 'Awards - MovieVerse AI';
         } else if (selectedCategory === 'Anime') {
@@ -3893,8 +3885,7 @@ export default function App() {
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
-        { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } },
-        { id: "Podcasts", icon: Mic, label: "Podcasts", action: () => { resetFilters(); setSelectedCategory("Podcasts"); } }
+        { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -3978,9 +3969,6 @@ export default function App() {
                                 </button>
                                 <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
                                     <Radio size={17} /> <span>Live TV</span> <span className="ml-auto text-[9px] font-mono text-zinc-600 hidden lg:inline">Alt+T</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Podcasts"); }} className={getSidebarItemClass(selectedCategory === "Podcasts")}>
-                                    <Mic size={17} /> <span>Podcasts</span>
                                 </button>
                                 <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
                                     <Layers size={17} /> <span>Franchises</span>
@@ -4094,7 +4082,7 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels", "Podcasts"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -4477,12 +4465,6 @@ export default function App() {
                             onSearchClear={() => setSearchQuery('')}
                             isAiSearchActive={isAiSearchActive}
                             disableEntryAnimation={isNavigatingBack}
-                        />
-
-                    ) : selectedCategory === "Podcasts" ? (
-                        <PodcastsPage
-                            searchQuery={searchQuery}
-                            onSearchClear={() => setSearchQuery('')}
                         />
                     ) : selectedCategory === "Franchise" ? (
                         <div className="animate-in fade-in duration-750 min-h-screen pb-16 pt-2">
@@ -5235,7 +5217,7 @@ export default function App() {
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
                         { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                         { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "Podcasts", "WatchParty", "Dramas"].includes(selectedCategory) }
+                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "WatchParty", "Dramas"].includes(selectedCategory) }
                     ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;

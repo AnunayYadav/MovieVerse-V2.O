@@ -1198,114 +1198,84 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   return (
     <div className={`min-h-screen bg-[#030303] text-white pb-16 relative ${disableEntryAnimation ? 'disable-animations' : ''}`}>
       
-      {/* 1. Hero Spotlight Carousel */}
-      {!searchQuery && (featured || activeTab === 'community') && (
+      {/* 1. Hero Spotlight Carousel (Catalog Only) */}
+      {!searchQuery && activeTab === 'catalog' && featured && (
         <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group mb-10 border-b border-white/5 select-none bg-black">
           <div className="absolute inset-0">
-            {featured ? (
-              <img
-                src={featured.bannerImage || featured.coverImage.extraLarge || featured.coverImage.large}
-                alt={getAnimeTitle(featured)}
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="w-full h-full bg-[#070709] animate-pulse" />
-            )}
+            <img
+              src={featured.bannerImage || featured.coverImage.extraLarge || featured.coverImage.large}
+              alt={getAnimeTitle(featured)}
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              referrerPolicy="no-referrer"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
           </div>
 
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700 text-left font-sans">
-            {activeTab === 'catalog' ? (
-              <>
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 w-fit">
-                  <Sparkles size={12} fill="currentColor" /> Spotlight Anime
-                </span>
-                
-                {featured && (
-                  featuredLogoUrl ? (
-                    <img 
-                      src={featuredLogoUrl} 
-                      alt={getAnimeTitle(featured)} 
-                      className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
-                    />
-                  ) : (
-                    <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
-                      {getAnimeTitle(featured)}
-                    </h1>
-                  )
-                )}
-
-                {featured && (
-                  <div className="flex flex-wrap items-center gap-3.5 text-xs font-medium text-gray-300">
-                    {featured.averageScore && (
-                      <span className="text-green-400 font-bold">{featured.averageScore ? `${(featured.averageScore / 10).toFixed(1)} Score` : ''}</span>
-                    )}
-                    <span>•</span>
-                    <span>{featured.episodes ? `${featured.episodes} Episodes` : 'Ongoing'}</span>
-                    <span>•</span>
-                    <span className="uppercase">{featured.season} {featured.seasonYear}</span>
-                    <span>•</span>
-                    <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[9px] tracking-wider font-extrabold uppercase">
-                      {featured.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                )}
-
-                {featured && (
-                  <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
-                    {cleanDescription(featured.description) || "Step into this captivating anime world."}
-                  </p>
-                )}
-
-                {featured && (
-                  <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
-                    <TvFocusButton
-                      onClick={() => handleAnimeClick(featured)}
-                      className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
-                    >
-                      <Play size={18} fill="currentColor" /> Watch Now
-                    </TvFocusButton>
-                    {featured.trailer && featured.trailer.site === 'youtube' && (
-                      <a
-                        href={`https://www.youtube.com/watch?v=${featured.trailer.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
-                      >
-                        Trailer
-                      </a>
-                    )}
-                  </div>
-                )}
-              </>
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 w-fit">
+              <Sparkles size={12} fill="currentColor" /> Spotlight Anime
+            </span>
+            
+            {featuredLogoUrl ? (
+              <img 
+                src={featuredLogoUrl} 
+                alt={getAnimeTitle(featured)} 
+                className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300" 
+              />
             ) : (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans text-left">
-                <span className="px-3 py-1 rounded-full text-[9px] font-medium uppercase tracking-widest bg-white/10 border border-white/15 text-zinc-300 mb-3 inline-flex items-center gap-1.5 backdrop-blur-sm">
-                  <MessageSquare size={10} /> AniList Live Feed
-                </span>
-                <h1 className="text-3xl md:text-5xl font-light text-white tracking-tight drop-shadow-2xl text-left leading-tight">
-                  MovieVerse <span className="font-semibold">Discussion Forum</span>
-                </h1>
-                <p className="text-zinc-300 text-xs md:text-sm max-w-2xl leading-relaxed text-left font-normal drop-shadow-md mt-2 opacity-90">
-                  Connect with the pulse of the global anime community. Get live activity updates, critical fan reviews, and recommendation matchings.
-                </p>
-              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
+                {getAnimeTitle(featured)}
+              </h1>
             )}
+
+            <div className="flex flex-wrap items-center gap-3.5 text-xs font-medium text-gray-300">
+              {featured.averageScore && (
+                <span className="text-green-400 font-bold">{featured.averageScore ? `${(featured.averageScore / 10).toFixed(1)} Score` : ''}</span>
+              )}
+              <span>•</span>
+              <span>{featured.episodes ? `${featured.episodes} Episodes` : 'Ongoing'}</span>
+              <span>•</span>
+              <span className="uppercase">{featured.season} {featured.seasonYear}</span>
+              <span>•</span>
+              <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[9px] tracking-wider font-extrabold uppercase">
+                {featured.status.replace('_', ' ')}
+              </span>
+            </div>
+
+            <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
+              {cleanDescription(featured.description) || "Step into this captivating anime world."}
+            </p>
+
+            <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+              <TvFocusButton
+                onClick={() => handleAnimeClick(featured)}
+                className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+              >
+                <Play size={18} fill="currentColor" /> Watch Now
+              </TvFocusButton>
+              {featured.trailer && featured.trailer.site === 'youtube' && (
+                <a
+                  href={`https://www.youtube.com/watch?v=${featured.trailer.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
+                >
+                  Trailer
+                </a>
+              )}
+            </div>
           </div>
 
-          {featured && (
-            <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
-              {[...Array(Math.min(trending.length, 5))].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setHeroIndex(i)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
-                />
-              ))}
-            </div>
-          )}
+          <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
+            {[...Array(Math.min(trending.length, 5))].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setHeroIndex(i)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+              />
+            ))}
+          </div>
         </div>
       )}
 

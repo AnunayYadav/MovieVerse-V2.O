@@ -126,7 +126,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
             media: {
               id: 138474,
               title: { userPreferred: "Cyberpunk: Edgerunners", english: "Cyberpunk: Edgerunners" },
-              coverImage: { large: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx138474-0T1V2b8qZf8Z.jpg" }
+              coverImage: { large: "https://image.tmdb.org/t/p/w300/7jswAAVj73nO0tbSj8Ykdf7H5b2.jpg" }
             }
           },
           {
@@ -145,7 +145,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
             media: {
               id: 163132,
               title: { userPreferred: "Oshi no Ko Season 2", english: "Oshi no Ko Season 2" },
-              coverImage: { large: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx163132-V2p8r0b8Zf8Z.jpg" }
+              coverImage: { large: "https://image.tmdb.org/t/p/w300/4n7S9wXfXWJpZ7e4kHjG4w6v5vL.jpg" }
             }
           },
           {
@@ -1210,7 +1210,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
     );
   };
 
-  // Reusable cards rendering helpers
+  // Reusable cards rendering helpers (Compact, Minimal, Clean)
   const renderActivityCard = (act: any) => {
     const isText = act.type === 'TEXT';
     const hasMedia = act.media;
@@ -1218,47 +1218,52 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
     const isLiked = likedActivityIds.includes(act.id);
     
     return (
-      <div key={act.id} className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col justify-between h-full backdrop-blur-sm group/card text-left">
+      <div 
+        key={act.id} 
+        className="rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.06] p-4 transition-all duration-200 flex flex-col justify-between text-left"
+      >
         <div>
-          {/* User Avatar & Info Header */}
-          <div className="flex items-center gap-3.5 mb-3.5">
+          {/* Header */}
+          <div className="flex items-center gap-2.5 mb-2.5">
             <img 
               src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`} 
               alt={act.user?.name}
               onClick={(e) => { e.stopPropagation(); setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
-              className="w-10 h-10 rounded-xl object-cover border border-white/10 shadow-md cursor-pointer hover:scale-105 transition-transform shrink-0" 
+              className="w-7 h-7 rounded-full object-cover ring-1 ring-white/10 hover:ring-red-500 cursor-pointer transition-all shrink-0" 
             />
-            <div className="text-left min-w-0">
+            <div className="text-left min-w-0 flex-1 flex items-baseline gap-2">
               <h4 
                 onClick={(e) => { e.stopPropagation(); setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
-                className="font-medium text-xs sm:text-sm text-zinc-200 hover:text-red-500 transition-colors cursor-pointer truncate"
+                className="font-medium text-xs text-zinc-200 hover:text-red-400 transition-colors cursor-pointer truncate"
               >
                 {act.user?.name}
               </h4>
-              <p className="text-[10px] text-zinc-500 font-medium">{formatTimeAgo(act.createdAt)}</p>
+              <span className="text-[10px] text-zinc-500 font-normal shrink-0">{formatTimeAgo(act.createdAt)}</span>
             </div>
             {act.isLocal && (
-              <span className="ml-auto px-2 py-0.5 rounded text-[8px] bg-red-600/10 border border-red-500/20 text-red-500 uppercase font-semibold">Local Post</span>
+              <span className="px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 text-red-400 font-medium">
+                You
+              </span>
             )}
           </div>
 
-          {/* Card Body - Content & Poster Side-by-Side */}
-          <div className="flex flex-row gap-4 items-start flex-1 min-w-0 mb-4">
-            <div className="flex-1 min-w-0 text-left">
+          {/* Body */}
+          <div className="flex gap-3 items-start mb-3">
+            <div className="flex-1 min-w-0">
               {!isText ? (
-                <p className="text-zinc-300 text-xs sm:text-sm font-semibold leading-relaxed">
+                <p className="text-zinc-300 text-xs leading-relaxed">
                   <span className="text-zinc-400 capitalize">{actionText}</span>{' '}
                   {hasMedia && (
                     <span 
                       onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title); }}
-                      className="text-zinc-100 hover:text-red-500 transition-colors cursor-pointer font-medium"
+                      className="text-zinc-100 hover:text-red-400 transition-colors cursor-pointer font-medium"
                     >
                       {act.media.title.english || act.media.title.userPreferred}
                     </span>
                   )}
                 </p>
               ) : (
-                <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line break-words line-clamp-5">
+                <p className="text-zinc-300 text-xs leading-relaxed whitespace-pre-line break-words line-clamp-4 font-normal">
                   {act.text}
                 </p>
               )}
@@ -1267,33 +1272,34 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
             {hasMedia && (
               <div 
                 onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title); }}
-                className="shrink-0 w-16 h-24 rounded-2xl overflow-hidden border border-white/10 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                className="shrink-0 w-11 h-16 rounded-lg overflow-hidden border border-white/10 cursor-pointer hover:opacity-85 transition-opacity bg-zinc-900"
               >
                 <img 
                   src={act.media.coverImage?.large} 
-                  alt={act.media.title.userPreferred} 
+                  alt={act.media.title?.userPreferred || ''} 
                   className="w-full h-full object-cover" 
+                  onError={(e) => { (e.currentTarget.parentElement as HTMLElement)?.style.setProperty('display', 'none'); }}
                 />
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer Likes / Comments row */}
-        <div className="flex items-center gap-5 pt-3.5 border-t border-white/5 mt-auto">
+        {/* Footer */}
+        <div className="flex items-center gap-4 pt-2.5 border-t border-white/[0.04]">
           <button 
             onClick={(e) => { e.stopPropagation(); handleLikeToggle(act.id); }}
-            className={`flex items-center gap-1.5 transition-colors ${isLiked ? 'text-red-500 hover:text-red-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex items-center gap-1 transition-colors text-[11px] ${isLiked ? 'text-red-500' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
-            <Heart size={13} className={isLiked ? 'fill-current' : 'fill-none'} />
-            <span className="text-[11px] font-medium">{act.likeCount || 0}</span>
+            <Heart size={12} className={isLiked ? 'fill-current' : 'fill-none'} />
+            <span>{act.likeCount || 0}</span>
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); setSelectedActivity(act); fetchReplies(act.id); }} 
-            className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors ml-auto"
+            className="flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors ml-auto"
           >
-            <MessageCircle size={13} className="fill-none" />
-            <span className="text-[11px] font-medium">{act.replyCount || 0} Comments</span>
+            <MessageCircle size={12} className="fill-none" />
+            <span>{act.replyCount || 0}</span>
           </button>
         </div>
       </div>
@@ -1309,78 +1315,62 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
       <div 
         key={rev.id} 
         onClick={() => toggleReviewExpand(rev.id)} 
-        className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col md:flex-row justify-between items-start gap-6 backdrop-blur-sm cursor-pointer select-none text-left"
+        className="rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.06] p-4 transition-all duration-200 flex flex-col sm:flex-row gap-4 items-start cursor-pointer select-none text-left"
       >
-        {/* Review Content */}
-        <div className="flex-1 flex flex-col text-left min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <img 
-                src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
-                alt={rev.user?.name}
-                onClick={(e) => { e.stopPropagation(); setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
-                className="w-9 h-9 rounded-xl object-cover cursor-pointer hover:scale-105 transition-transform" 
-              />
-              <div>
-                <h4 
-                  onClick={(e) => { e.stopPropagation(); setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
-                  className="font-medium text-xs sm:text-sm text-white hover:text-red-500 transition-colors cursor-pointer"
-                >
-                  {rev.user?.name}
-                </h4>
-                <p className="text-[10px] text-zinc-500 font-normal uppercase">{new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg text-xs font-semibold">
-              <Star size={12} fill="currentColor"/> {formattedScore} Score
-            </div>
-          </div>
-
-          <h3 className="font-semibold text-white text-base md:text-lg mb-2 leading-tight">
-            {rev.summary}
-          </h3>
-
-          <p className={`text-zinc-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line font-normal mb-3 transition-all duration-300 ${isExpanded ? '' : 'line-clamp-4'}`}>
-            {rev.body}
-          </p>
-
-          {rev.body && rev.body.length > 300 && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); toggleReviewExpand(rev.id); }} 
-              className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors mb-4 self-start flex items-center gap-1 select-none"
-            >
-              {isExpanded ? 'Show Less' : 'Read Full Review'}
-              <ChevronDown size={14} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-            </button>
-          )}
-
-          <div className="mt-auto pt-4 border-t border-white/5 flex justify-between items-center">
-            <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">
-              Review for:{' '}
-              <span 
-                onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title); }}
-                className="text-zinc-300 hover:text-red-500 cursor-pointer font-semibold normal-case"
-              >
-                {rev.media.title.english || rev.media.title.userPreferred}
-              </span>
-            </span>
-            {rev.ratingAmount > 0 && (
-              <span className="text-[10px] text-zinc-500 font-normal">{rev.rating} of {rev.ratingAmount} found helpful</span>
-            )}
-          </div>
-        </div>
-
-        {/* Media Poster Column on the Right */}
+        {/* Poster */}
         <div 
           onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title); }}
-          className="shrink-0 w-24 md:w-28 aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 shadow-md cursor-pointer hover:scale-[1.03] transition-transform mx-auto md:mx-0 self-center md:self-start"
+          className="shrink-0 w-16 sm:w-20 aspect-[2/3] rounded-xl overflow-hidden border border-white/10 hover:opacity-85 transition-opacity mx-auto sm:mx-0"
         >
           <img 
             src={rev.media.coverImage?.large} 
             alt={rev.media.title.userPreferred} 
             className="w-full h-full object-cover" 
           />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <img 
+                src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
+                alt={rev.user?.name}
+                onClick={(e) => { e.stopPropagation(); setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
+                className="w-5 h-5 rounded-full object-cover ring-1 ring-white/10 shrink-0" 
+              />
+              <span 
+                onClick={(e) => { e.stopPropagation(); setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
+                className="text-xs font-medium text-zinc-300 hover:text-red-400 transition-colors truncate"
+              >
+                {rev.user?.name}
+              </span>
+              <span className="text-[10px] text-zinc-500 font-normal shrink-0">
+                {new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+
+            <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-[10px] font-semibold shrink-0">
+              ★ {formattedScore}
+            </span>
+          </div>
+
+          <div className="text-[10px] text-red-400 font-medium mb-1 truncate">
+            {rev.media.title.english || rev.media.title.userPreferred}
+          </div>
+
+          <h3 className="text-xs sm:text-sm font-semibold text-white mb-1.5 line-clamp-1">
+            {rev.summary}
+          </h3>
+
+          <p className={`text-zinc-400 text-xs leading-relaxed font-normal mb-2 ${isExpanded ? '' : 'line-clamp-2'}`}>
+            {rev.body}
+          </p>
+
+          <div className="mt-auto pt-2 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-zinc-500">
+            <span>{rev.ratingAmount > 0 ? `${rev.rating} of ${rev.ratingAmount} helpful` : 'Review'}</span>
+            <span className="text-zinc-400">{isExpanded ? 'Less' : 'More'}</span>
+          </div>
         </div>
       </div>
     );
@@ -1391,69 +1381,85 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
     const hasUserRating = userRating !== 0;
 
     return (
-      <div key={rec.id} className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 backdrop-blur-sm flex flex-col justify-between text-left">
+      <div 
+        key={rec.id} 
+        className="rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.06] p-3.5 sm:p-4 transition-all duration-200 flex flex-col justify-between text-left"
+      >
         <div>
-          <div className="flex items-center gap-2.5 mb-4">
-            <img 
-              src={rec.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.user?.name || 'User')}&background=333&color=fff`} 
-              alt={rec.user?.name}
+          {/* User info */}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div 
               onClick={(e) => { e.stopPropagation(); setSelectedUser(rec.user?.name); fetchUserProfile(rec.user?.name); }}
-              className="w-8 h-8 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform" 
-            />
-            <div>
-              <h4 
-                onClick={(e) => { e.stopPropagation(); setSelectedUser(rec.user?.name); fetchUserProfile(rec.user?.name); }}
-                className="font-normal text-xs sm:text-sm text-zinc-200 hover:text-red-500 transition-colors cursor-pointer"
-              >
+              className="flex items-center gap-2 cursor-pointer min-w-0"
+            >
+              <img 
+                src={rec.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.user?.name || 'User')}&background=333&color=fff`} 
+                alt={rec.user?.name}
+                className="w-5 h-5 rounded-full object-cover ring-1 ring-white/10 shrink-0" 
+              />
+              <span className="text-xs font-medium text-zinc-300 hover:text-red-400 truncate">
                 {rec.user?.name}
-              </h4>
-              <p className="text-[9px] text-zinc-500 font-medium uppercase">Fan recommendation</p>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 text-[11px] text-zinc-400">
+              <Heart size={11} className="text-red-500 fill-current" />
+              <span>{rec.rating || 0}</span>
             </div>
           </div>
 
-          <div className="flex flex-row items-center justify-between gap-4 p-4 bg-white/5 border border-white/[0.03] rounded-2xl mb-4">
-            {/* Left Media */}
+          {/* Compact Pairing Row */}
+          <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-2 sm:gap-3 py-1">
+            {/* Left */}
             <div 
               onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.media.id, rec.media.title); }}
-              className="flex items-center gap-3.5 min-w-0 cursor-pointer group/item flex-1"
+              className="cursor-pointer group/left flex flex-col items-center text-center min-w-0"
             >
-              <img src={rec.media.coverImage?.large} className="w-16 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md group-hover/item:scale-102 transition-transform" alt="" />
-              <div className="min-w-0 text-left flex flex-col gap-0.5">
-                <p className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">If you liked</p>
-                <h5 className="font-medium text-xs text-zinc-200 group-hover/item:text-red-500 line-clamp-3 leading-snug transition-colors">
-                  {rec.media.title.english || rec.media.title.userPreferred}
-                </h5>
+              <div className="relative w-14 sm:w-16 aspect-[2/3] rounded-lg overflow-hidden border border-white/10 group-hover/left:opacity-85 transition-opacity">
+                <img 
+                  src={rec.media.coverImage?.large} 
+                  className="w-full h-full object-cover" 
+                  alt="" 
+                />
+              </div>
+              <span className="mt-1 text-[9px] uppercase tracking-wider text-zinc-500 font-medium">If you liked</span>
+              <h5 className="text-[11px] font-medium text-zinc-200 group-hover/left:text-red-400 line-clamp-1 leading-snug w-full">
+                {rec.media.title.english || rec.media.title.userPreferred}
+              </h5>
+            </div>
+
+            {/* Connector */}
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-white/[0.05] border border-white/10 text-red-500 flex items-center justify-center">
+                <ChevronRight size={13} />
               </div>
             </div>
 
-            <div className="shrink-0 flex items-center justify-center text-red-500 bg-red-500/10 w-8 h-8 rounded-full">
-              <ChevronRight size={16} />
-            </div>
-
-            {/* Right Media */}
+            {/* Right */}
             <div 
               onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.mediaRecommendation.id, rec.mediaRecommendation.title); }}
-              className="flex items-center gap-3.5 min-w-0 cursor-pointer group/item flex-1"
+              className="cursor-pointer group/right flex flex-col items-center text-center min-w-0"
             >
-              <img src={rec.mediaRecommendation.coverImage?.large} className="w-16 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md group-hover/item:scale-102 transition-transform" alt="" />
-              <div className="min-w-0 text-left flex flex-col gap-0.5">
-                <p className="text-[9px] text-red-500/90 font-medium uppercase tracking-wider">Check out</p>
-                <h5 className="font-medium text-xs text-zinc-200 group-hover/item:text-red-500 line-clamp-3 leading-snug transition-colors">
-                  {rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.userPreferred}
-                </h5>
+              <div className="relative w-14 sm:w-16 aspect-[2/3] rounded-lg overflow-hidden border border-white/10 group-hover/right:opacity-85 transition-opacity">
+                <img 
+                  src={rec.mediaRecommendation.coverImage?.large} 
+                  className="w-full h-full object-cover" 
+                  alt="" 
+                />
               </div>
+              <span className="mt-1 text-[9px] uppercase tracking-wider text-red-400 font-medium">Try next</span>
+              <h5 className="text-[11px] font-medium text-zinc-200 group-hover/right:text-red-400 line-clamp-1 leading-snug w-full">
+                {rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.userPreferred}
+              </h5>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-          <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider flex items-center gap-1">
-            <Heart size={11} className="text-red-500 fill-current" /> Rating: {rec.rating || 0} likes
-          </span>
-          {hasUserRating && (
-            <span className="text-[9px] bg-white/5 border border-white/5 px-2 py-0.5 rounded text-zinc-400 font-medium uppercase">Your match: {userRating}</span>
-          )}
-        </div>
+        {hasUserRating && (
+          <div className="mt-2.5 pt-2 border-t border-white/[0.04] text-[10px] text-zinc-400 text-center">
+            {userRating}% match
+          </div>
+        )}
       </div>
     );
   };
@@ -1482,7 +1488,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
     );
 
     return (
-      <div className="max-w-7xl mx-auto px-4 md:px-12 animate-in fade-in duration-500 text-left">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 animate-in fade-in duration-500 text-left">
         <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -1589,94 +1595,95 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
 
   // --- DEFAULT FORUM RENDER VIEW ---
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-12 animate-in fade-in duration-500 text-left">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12 animate-in fade-in duration-300 text-left">
       
-      {/* Forum Content Grid */}
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
-        {/* Sidebar Navigation */}
-        <div className="w-full lg:w-64 shrink-0 flex lg:flex-col gap-2 p-1.5 rounded-2xl bg-[#0c0c0e]/30 border border-white/5 backdrop-blur-md overflow-x-auto hide-scrollbar">
+      {/* Minimal Apple-Style Header & Segmented Pill Nav */}
+      <div className="flex items-center justify-between gap-3 pb-4 mb-4 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">Forum</h2>
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        </div>
+
+        {/* Compact Segmented Control */}
+        <div className="flex items-center p-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] overflow-x-auto hide-scrollbar">
           <button 
             onClick={() => setForumSection('feed')} 
-            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'feed' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${forumSection === 'feed' ? 'bg-white/15 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            <Clock size={16} />
-            <span>Activity Feed</span>
+            Feed
           </button>
           <button 
             onClick={() => setForumSection('reviews')} 
-            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'reviews' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${forumSection === 'reviews' ? 'bg-white/15 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            <Star size={16} />
-            <span>Reviews Board</span>
+            Reviews
           </button>
           <button 
             onClick={() => setForumSection('recommendations')} 
-            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'recommendations' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${forumSection === 'recommendations' ? 'bg-white/15 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            <ThumbsUp size={16} />
-            <span>Recommendations</span>
+            Pairings
           </button>
           <button 
             onClick={() => setForumSection('users')} 
-            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'users' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${forumSection === 'users' ? 'bg-white/15 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            <Users size={16} />
-            <span>Users Directory</span>
+            Members
           </button>
         </div>
+      </div>
 
-        {/* Main Forum Panels */}
-        <div className="flex-1 w-full min-w-0">
-          
-          {/* Activity Feed Section */}
-          {forumSection === 'feed' && (
-            <div className="space-y-5 animate-in fade-in duration-300">
-              
-              {/* Create Post Input Card */}
-              <div className="bg-[#0d0d0f]/50 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-md mb-6">
-                <div className="flex gap-4">
-                  <img 
-                    src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=ef4444&color=fff`} 
-                    className="w-10 h-10 rounded-xl object-cover border border-white/10 shrink-0 shadow-md animate-pulse" 
-                    alt="" 
+      {/* Main Forum Panels */}
+      <div className="w-full">
+        
+        {/* Activity Feed Section */}
+        {forumSection === 'feed' && (
+          <div className="space-y-4">
+            
+            {/* Compact Post Composer */}
+            <div className="rounded-2xl bg-white/[0.02] border border-white/[0.06] p-3 sm:p-3.5 focus-within:border-white/15 transition-all">
+              <div className="flex gap-2.5 items-start">
+                <img 
+                  src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=ef4444&color=fff`} 
+                  className="w-7 h-7 rounded-full object-cover ring-1 ring-white/10 shrink-0 mt-0.5" 
+                  alt="" 
+                />
+                <div className="flex-1 space-y-2">
+                  <textarea
+                    rows={2}
+                    value={postText}
+                    onChange={(e) => setPostText(e.target.value)}
+                    placeholder="Share your thoughts or ask a question..."
+                    className="w-full bg-transparent text-xs text-white placeholder-zinc-500 focus:outline-none resize-none font-normal"
                   />
-                  <div className="flex-1 space-y-3">
-                    <textarea
-                      rows={3}
-                      value={postText}
-                      onChange={(e) => setPostText(e.target.value)}
-                      placeholder="What's on your mind about anime? Share your thoughts, reviews, or questions..."
-                      className="w-full bg-white/5 border border-white/5 focus:border-white/10 rounded-2xl py-3 px-4 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar font-normal"
-                    />
-                    
-                    {/* Optional linked anime display */}
-                    {selectedLinkAnime ? (
-                      <div className="flex items-center gap-3 bg-white/5 border border-white/10 p-2 rounded-2xl max-w-xs animate-in zoom-in-95 duration-200">
-                        <img src={selectedLinkAnime.coverImage?.large} className="w-8 h-12 rounded-lg object-cover" alt="" />
-                        <div className="min-w-0 flex-1 text-left">
-                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Linked Anime</p>
-                          <h4 className="font-semibold text-xs text-zinc-200 truncate">{selectedLinkAnime.title.english || selectedLinkAnime.title.userPreferred}</h4>
-                        </div>
-                        <button 
-                          onClick={() => setSelectedLinkAnime(null)}
-                          className="p-1 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      /* Link Anime Search input */
-                      <div className="relative max-w-xs text-left">
-                        <PlusCircle size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  
+                  {/* Linked anime chip if selected */}
+                  {selectedLinkAnime && (
+                    <div className="inline-flex items-center gap-2 bg-white/[0.05] border border-white/10 px-2.5 py-1 rounded-lg">
+                      <img src={selectedLinkAnime.coverImage?.large} className="w-4 h-6 rounded object-cover" alt="" />
+                      <span className="text-[11px] text-zinc-200 truncate max-w-[180px]">{selectedLinkAnime.title.english || selectedLinkAnime.title.userPreferred}</span>
+                      <button 
+                        onClick={() => setSelectedLinkAnime(null)}
+                        className="text-zinc-400 hover:text-white"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
+                    {!selectedLinkAnime && (
+                      <div className="relative text-left">
+                        <PlusCircle size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
                         <input
                           type="text"
                           value={postAnimeSearch}
                           onChange={(e) => handleLinkAnimeSearch(e.target.value)}
-                          placeholder="Link an Anime (optional)..."
-                          className="w-full bg-white/5 border border-white/5 hover:border-white/10 focus:border-white/10 rounded-full py-1.5 pl-8 pr-4 text-[11px] text-white placeholder-zinc-500 focus:outline-none font-normal"
+                          placeholder="Link anime..."
+                          className="bg-white/[0.04] rounded-full py-1 pl-7 pr-3 text-[11px] text-white placeholder-zinc-500 focus:outline-none w-32 focus:w-44 transition-all"
                         />
                         {postAnimeResults.length > 0 && (
-                          <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50 p-1.5 space-y-1">
+                          <div className="absolute left-0 mt-1 bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-xl z-50 p-1 w-52 space-y-0.5">
                             {postAnimeResults.map(media => (
                               <button
                                 key={media.id}
@@ -1685,9 +1692,9 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                                   setPostAnimeSearch('');
                                   setPostAnimeResults([]);
                                 }}
-                                className="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-white/5 text-zinc-300 hover:text-white transition-colors flex items-center gap-2"
+                                className="w-full text-left px-2 py-1.5 rounded-lg text-xs hover:bg-white/5 text-zinc-300 hover:text-white transition-colors flex items-center gap-2"
                               >
-                                <img src={media.coverImage?.large} className="w-6 h-9 rounded object-cover shrink-0" alt="" />
+                                <img src={media.coverImage?.large} className="w-5 h-7 rounded object-cover shrink-0" alt="" />
                                 <span className="truncate">{media.title.english || media.title.userPreferred}</span>
                               </button>
                             ))}
@@ -1696,152 +1703,144 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                       </div>
                     )}
 
-                    <div className="flex justify-end border-t border-white/5 pt-3.5">
-                      <button
-                        onClick={handleCreatePost}
-                        disabled={!postText.trim()}
-                        className="px-5 py-2 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-bold text-xs uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-red-600/25 flex items-center gap-1.5"
-                      >
-                        <Send size={12} />
-                        <span>Share Post</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleCreatePost}
+                      disabled={!postText.trim()}
+                      className="ml-auto px-3.5 py-1 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-30 text-white font-medium text-xs transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Send size={11} />
+                      <span>Post</span>
+                    </button>
                   </div>
                 </div>
               </div>
-
-              {combinedActivities.length === 0 && communityLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <Loader2 className="animate-spin text-red-500" size={32} />
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Fetching live updates...</p>
-                </div>
-              ) : combinedActivities.length === 0 ? (
-                <div className="text-zinc-500 text-xs py-10 italic">No community activity found at this time.</div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {combinedActivities.map((act) => renderActivityCard(act))}
-                  </div>
-
-                  {communityLoading && (
-                    <div className="flex justify-center mt-6">
-                      <Loader2 className="animate-spin text-red-500" size={20} />
-                    </div>
-                  )}
-                </>
-              )}
             </div>
-          )}
 
-          {/* Reviews Board Section */}
-          {forumSection === 'reviews' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {reviews.length === 0 && communityLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <Loader2 className="animate-spin text-red-500" size={32} />
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Loading reviews...</p>
-                </div>
-              ) : reviews.length === 0 ? (
-                <div className="text-zinc-500 text-xs py-10 italic">No reviews found at this time.</div>
-              ) : (
-                <>
-                  <div className="space-y-5">
-                    {reviews.map((rev) => renderReviewCard(rev))}
-                  </div>
-
-                  {communityLoading && (
-                    <div className="flex justify-center mt-6">
-                      <Loader2 className="animate-spin text-red-500" size={20} />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Recommendations Section */}
-          {forumSection === 'recommendations' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {recommendations.length === 0 && communityLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <Loader2 className="animate-spin text-red-500" size={32} />
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Fetching recommendations...</p>
-                </div>
-              ) : recommendations.length === 0 ? (
-                <div className="text-zinc-500 text-xs py-10 italic">No recommendations found.</div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {recommendations.map((rec) => renderRecommendationCard(rec))}
-                  </div>
-
-                  {communityLoading && (
-                    <div className="flex justify-center mt-6">
-                      <Loader2 className="animate-spin text-red-500" size={20} />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Users Directory Tab Section */}
-          {forumSection === 'users' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="bg-[#0d0d0f]/50 border border-white/5 rounded-3xl p-5 md:p-6 backdrop-blur-md mb-6 text-left">
-                <h3 className="font-semibold text-sm text-white mb-2">Search Users Directory</h3>
-                <p className="text-zinc-500 text-xs mb-4">Connect with other members of the MovieVerse and AniList anime communities.</p>
-                
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-                  <input
-                    type="text"
-                    value={usersSearchQuery}
-                    onChange={(e) => handleUserSearch(e.target.value)}
-                    placeholder="Type a username to search..."
-                    className="w-full bg-white/5 border border-white/5 focus:border-white/10 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none font-normal"
-                  />
-                </div>
+            {combinedActivities.length === 0 && communityLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-2">
+                <Loader2 className="animate-spin text-red-500" size={24} />
+                <p className="text-[11px] text-zinc-500 font-normal">Loading updates...</p>
               </div>
+            ) : combinedActivities.length === 0 ? (
+              <div className="text-zinc-500 text-xs py-8 italic text-center">No community activity yet.</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {combinedActivities.map((act) => renderActivityCard(act))}
+                </div>
 
-              <div className="relative min-h-[250px]">
-                {usersLoading && (
-                  <div className="absolute inset-0 z-10 bg-black/45 backdrop-blur-xs flex flex-col items-center justify-center gap-3">
-                    <Loader2 className="animate-spin text-red-500" size={32} />
-                    <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Searching directory...</p>
+                {communityLoading && (
+                  <div className="flex justify-center mt-4">
+                    <Loader2 className="animate-spin text-red-500" size={16} />
                   </div>
                 )}
-                
-                {searchedUsers.length === 0 && !usersLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                    <Users size={48} className="text-white/20 mb-4 animate-pulse" />
-                    <h4 className="text-sm font-bold text-white mb-1">No Users Found</h4>
-                    <p className="text-zinc-500 text-xs max-w-sm">Try typing a username in the search box above to lookup members.</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Reviews Board Section */}
+        {forumSection === 'reviews' && (
+          <div className="space-y-3">
+            {reviews.length === 0 && communityLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-2">
+                <Loader2 className="animate-spin text-red-500" size={24} />
+                <p className="text-[11px] text-zinc-500 font-normal">Loading reviews...</p>
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="text-zinc-500 text-xs py-8 italic text-center">No reviews yet.</div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {reviews.map((rev) => renderReviewCard(rev))}
+                </div>
+
+                {communityLoading && (
+                  <div className="flex justify-center mt-4">
+                    <Loader2 className="animate-spin text-red-500" size={16} />
                   </div>
-                ) : (
-                  <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5 transition-opacity duration-200 ${usersLoading ? 'opacity-40 pointer-events-none' : ''}`}>
-                    {searchedUsers.map((user) => (
-                      <div 
-                        key={user.id} 
-                        onClick={() => { setSelectedUser(user.name); fetchUserProfile(user.name); }}
-                        className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 p-5 rounded-3xl flex flex-col items-center text-center cursor-pointer transition-all hover:scale-102"
-                      >
-                        <img 
-                          src={user.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=333&color=fff`} 
-                          className="w-16 h-16 rounded-full object-cover border border-white/10 mb-3 shadow-md" 
-                          alt="" 
-                        />
-                        <h4 className="font-semibold text-xs text-zinc-200 truncate w-full">{user.name}</h4>
-                        <p className="text-[9px] text-zinc-500 truncate w-full mt-1.5 uppercase font-medium tracking-wider">AniList Member</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Recommendations / Pairings Section */}
+        {forumSection === 'recommendations' && (
+          <div className="space-y-3">
+            {recommendations.length === 0 && communityLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-2">
+                <Loader2 className="animate-spin text-red-500" size={24} />
+                <p className="text-[11px] text-zinc-500 font-normal">Loading pairings...</p>
+              </div>
+            ) : recommendations.length === 0 ? (
+              <div className="text-zinc-500 text-xs py-8 italic text-center">No recommendations yet.</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {recommendations.map((rec) => renderRecommendationCard(rec))}
+                </div>
+
+                {communityLoading && (
+                  <div className="flex justify-center mt-4">
+                    <Loader2 className="animate-spin text-red-500" size={16} />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Users Directory Tab Section */}
+        {forumSection === 'users' && (
+          <div className="space-y-4">
+            <div className="relative max-w-xs text-left">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
+              <input
+                type="text"
+                value={usersSearchQuery}
+                onChange={(e) => handleUserSearch(e.target.value)}
+                placeholder="Search member..."
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-full py-1.5 pl-8 pr-3 text-xs text-white placeholder-zinc-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="relative min-h-[180px]">
+              {usersLoading && (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="animate-spin text-red-500" size={20} />
+                </div>
+              )}
+              
+              {searchedUsers.length === 0 && !usersLoading ? (
+                <div className="text-center py-12 text-zinc-500 text-xs">
+                  Type a username above to search for members.
+                </div>
+              ) : (
+                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 transition-opacity ${usersLoading ? 'opacity-40' : ''}`}>
+                  {searchedUsers.map((user) => (
+                    <div 
+                      key={user.id} 
+                      onClick={() => { setSelectedUser(user.name); fetchUserProfile(user.name); }}
+                      className="rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.06] p-3 flex items-center gap-2.5 cursor-pointer transition-all text-left"
+                    >
+                      <img 
+                        src={user.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=333&color=fff`} 
+                        className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0" 
+                        alt="" 
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-medium text-zinc-200 truncate">{user.name}</h4>
+                        <p className="text-[10px] text-zinc-500 truncate">Member</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
       </div>
 
       {renderModals()}
