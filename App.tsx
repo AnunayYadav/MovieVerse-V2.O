@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { App as CapApp } from '@capacitor/app';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -9,7 +9,7 @@ import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, 
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
-import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
+import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, markNotificationsRead, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
 import { WatchPartySection } from './components/WatchParty';
 import { WatchPartyRoomsPage } from './components/WatchPartyRoomsPage';
 import { MoviePlayer } from './components/MoviePlayer';
@@ -280,17 +280,7 @@ const MovieRowCard = ({
                     </span>
                     {movie.vote_average > 0 && (
                         <span className="text-xs font-bold text-white/90 flex items-center gap-1">
-                            <img src="/mvrating.png" alt="MV Rating" className="w-3.5 h-3.5 object-contain" />
-                            {getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date).toFixed(1)}
-                        </span>
-                    )}
-                </div>
-
-                {/* If not hovered, still show rating in the corner */}
-                <div className="absolute top-2.5 right-2.5 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
-                    {movie.vote_average > 0 && (
-                        <span className="bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm border border-white/5">
-                            <Star size={8} fill="currentColor" className="text-yellow-400" />
+                            <Star size={10} fill="currentColor" className="text-yellow-400" />
                             {movie.vote_average.toFixed(1)}
                         </span>
                     )}
@@ -963,14 +953,6 @@ const ContinueWatchingCard = ({
                     referrerPolicy="no-referrer"
                 />
 
-                {/* Rating Badge */}
-                {movie.vote_average ? (
-                    <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-amber-400 text-[10px] font-bold flex items-center gap-1 shadow-md">
-                        <Star size={10} className="fill-amber-400 text-amber-400" />
-                        <span>{movie.vote_average.toFixed(1)}</span>
-                    </div>
-                ) : null}
-
                 {/* Progress Bar Overlay inside Poster */}
                 {progress > 0 && (
                     <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/60 z-10 overflow-hidden">
@@ -987,7 +969,12 @@ const ContinueWatchingCard = ({
 
                 <div className="mt-1 flex items-center justify-between text-[10px] font-semibold text-zinc-400 font-sans">
                     <span>{year || (isFuture ? 'Upcoming' : '')}</span>
-                    <MVRatingBadge rating={mvRating} size={12} />
+                    {movie.vote_average > 0 && (
+                        <span className="flex items-center gap-1 font-bold text-white/90">
+                            <Star size={10} fill="currentColor" className="text-yellow-400" />
+                            {movie.vote_average.toFixed(1)}
+                        </span>
+                    )}
                 </div>
             </div>
         </div>
@@ -1460,6 +1447,7 @@ export default function App() {
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState(false);
     const [selectedMovieVal, setSelectedMovieVal] = useState<Movie | null>(null);
+    const [isMovieDetailsScrolled, setIsMovieDetailsScrolled] = useState(false);
     const setSelectedMovie = (movie: Movie | null) => {
         setSelectedMovieVal(movie);
         if (movie) {
@@ -1469,6 +1457,8 @@ export default function App() {
                 clearTimeout(hoverLeaveTimeoutRef.current);
                 hoverLeaveTimeoutRef.current = null;
             }
+        } else {
+            setIsMovieDetailsScrolled(false);
         }
     };
     const selectedMovie = selectedMovieVal;
@@ -1723,6 +1713,9 @@ export default function App() {
 
     const [isBrowseOpen, setIsBrowseOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const [profileMenuTab, setProfileMenuTab] = useState<'menu' | 'notifications'>('menu');
+    const [dropdownNotifications, setDropdownNotifications] = useState<any[]>([]);
+    const [loadingDropdownNotifs, setLoadingDropdownNotifs] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const watchlistRef = useRef<Movie[]>([]);
     const favoritesRef = useRef<Movie[]>([]);
@@ -2515,7 +2508,6 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "LiveTV", "Anime", "Manga"].includes(selectedCategory);
     const hasHeroBanner = !!(
         (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Anime", "Manga", "Music"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0) ||
@@ -4391,70 +4383,12 @@ export default function App() {
                             <input
                                 type="text"
                                 placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
-                                className={`w-full bg-[#1a1a1a] border border-zinc-900 focus:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none transition-all ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
+                                className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
-                                onFocus={() => setShowSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchInput)}
                             />
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-
-                            {showSuggestions && searchInput.trim().length >= 2 && window.innerWidth >= 768 && (
-                                <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden z-[150] animate-in fade-in slide-in-from-top-2 duration-200 w-full text-left">
-                                    {loadingSuggestions ? (
-                                        <div className="p-4 flex items-center justify-center text-zinc-400 gap-2 text-xs">
-                                            <Loader2 className="animate-spin text-red-600 animate-duration-1000" size={14} />
-                                            <span>Searching...</span>
-                                        </div>
-                                    ) : searchSuggestions.length === 0 ? (
-                                        <div className="p-4 text-center text-zinc-500 text-xs">
-                                            No matches found
-                                        </div>
-                                    ) : (
-                                        <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
-                                            {searchSuggestions.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    onClick={() => {
-                                                        if (item.type === 'anime') {
-                                                            setSelectedMovie({
-                                                                id: item.id,
-                                                                title: item.title,
-                                                                name: item.title,
-                                                                poster_path: item.poster,
-                                                                isAnimeDirect: true,
-                                                                media_type: item.media_type
-                                                            } as any);
-                                                        } else {
-                                                            setSelectedMovie(item.originalItem);
-                                                        }
-                                                        setSearchInput('');
-                                                        setSearchSuggestions([]);
-                                                        setShowSuggestions(false);
-                                                        setIsSidebarOpen(false);
-                                                    }}
-                                                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
-                                                >
-                                                    <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
-                                                        {item.poster ? (
-                                                            <img src={item.poster} alt="" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
-                                                        )}
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
-                                                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
-                                                            {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
                         </div>
 
                         <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
@@ -4541,13 +4475,9 @@ export default function App() {
 
             {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
-                        selectedMovie
-                            ? 'bg-black/90 backdrop-blur-xl border-b border-white/5 shadow-2xl'
-                            : selectedCategory === "Music"
-                                ? 'bg-zinc-950/40 backdrop-blur-xl border-b border-white/5'
-                                : (hasHeroBanner && !isScrolled)
-                                    ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
-                                    : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
+                        (selectedMovie ? isMovieDetailsScrolled : isScrolled)
+                            ? 'bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b-0 border-transparent shadow-lg'
+                            : 'bg-gradient-to-b from-black/50 via-black/15 to-transparent backdrop-blur-none border-b-0 border-transparent shadow-none'
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl">
                         <div className="hidden md:flex items-center gap-4 md:gap-8">
@@ -4636,90 +4566,33 @@ export default function App() {
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
-                                    className={`w-full bg-[#1a1a1a] border border-zinc-900 focus:border-zinc-800 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
+                                    className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
                                     value={searchInput}
                                     onChange={(e) => setSearchInput(e.target.value)}
-                                    onFocus={() => setShowSuggestions(true)}
-                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchInput); }}
                                     onSubmit={() => handleSearchSubmit(searchInput)}
                                 />
-                                <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
+                                <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
                                 <button
                                     onClick={() => setIsAiSearchActive(!isAiSearchActive)}
-                                    className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-300 ${isAiSearchActive ? 'text-purple-400 bg-purple-500/10 shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:text-purple-300' : 'text-gray-500 hover:text-gray-300'}`}
+                                    className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-300 ${isAiSearchActive ? 'text-purple-400 bg-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:text-purple-300' : 'text-zinc-400 hover:text-zinc-200'}`}
                                     title="Toggle AI Semantic Search"
                                 >
                                     <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
                                 </button>
-
-                                {showSuggestions && searchInput.trim().length >= 2 && window.innerWidth >= 768 && (
-                                    <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden z-[150] animate-in fade-in slide-in-from-top-2 duration-200 w-full text-left">
-                                        {loadingSuggestions ? (
-                                            <div className="p-4 flex items-center justify-center text-zinc-400 gap-2 text-xs">
-                                                <Loader2 className="animate-spin text-red-600 animate-duration-1000" size={14} />
-                                                <span>Searching...</span>
-                                            </div>
-                                        ) : searchSuggestions.length === 0 ? (
-                                            <div className="p-4 text-center text-zinc-500 text-xs">
-                                                No matches found
-                                            </div>
-                                        ) : (
-                                            <div className="py-1 max-h-80 overflow-y-auto custom-scrollbar">
-                                                {searchSuggestions.map((item) => (
-                                                    <div
-                                                        key={item.id}
-                                                        onClick={() => {
-                                                            if (item.type === 'anime') {
-                                                                setSelectedMovie({
-                                                                    id: item.id,
-                                                                    title: item.title,
-                                                                    name: item.title,
-                                                                    poster_path: item.poster,
-                                                                    isAnimeDirect: true,
-                                                                    media_type: item.media_type
-                                                                 } as any);
-                                                            } else {
-                                                                setSelectedMovie(item.originalItem);
-                                                            }
-                                                            setSearchInput('');
-                                                            setSearchSuggestions([]);
-                                                            setShowSuggestions(false);
-                                                        }}
-                                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
-                                                    >
-                                                        <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
-                                                            {item.poster ? (
-                                                                <img src={item.poster} alt="" className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
-                                                            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
-                                                                {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
 
                             <div className="hidden md:flex items-center gap-3">
-                                <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
-                                    <Bell size={20} />
-                                    {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-600"></span>}
-                                </button>
-
                                 {/* Profile Dropdown Container */}
                                 <div className="relative">
                                     <button
-                                        onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${isProfileDropdownOpen ? 'ring-2 ring-red-600 ring-offset-2 ring-offset-black' : ''
+                                        onClick={() => {
+                                            if (isProfileDropdownOpen) {
+                                                setProfileMenuTab('menu');
+                                            }
+                                            setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                                        }}
+                                        className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${isProfileDropdownOpen ? 'ring-2 ring-red-600 ring-offset-2 ring-offset-black' : ''
                                             } ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40'}`}
                                     >
                                         {userProfile.avatar ? (
@@ -4727,44 +4600,136 @@ export default function App() {
                                         ) : (
                                             userProfile.name.charAt(0).toUpperCase()
                                         )}
+                                        {hasUnread && (
+                                            <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-600 ring-2 ring-black" />
+                                        )}
                                     </button>
 
                                     {isProfileDropdownOpen && (
                                         <div
                                             className="fixed inset-0 z-[65]"
-                                            onClick={() => setIsProfileDropdownOpen(false)}
+                                            onClick={() => {
+                                                setIsProfileDropdownOpen(false);
+                                                setProfileMenuTab('menu');
+                                            }}
                                         />
                                     )}
-                                    <div className={`absolute top-[calc(100%+0.75rem)] right-0 w-48 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 z-[70] transition-all duration-200 transform origin-top-right select-none ${isProfileDropdownOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    <div className={`absolute top-[calc(100%+0.75rem)] right-0 ${profileMenuTab === 'notifications' ? 'w-80' : 'w-52'} bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2.5 z-[70] transition-all duration-300 transform origin-top-right select-none ${isProfileDropdownOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Dropdown Arrow */}
                                         <div className="absolute -top-1 right-3 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 z-[-1]" />
 
-                                        <div className="px-3 py-2 border-b border-white/5 mb-1 text-left">
-                                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Signed in as</p>
-                                            <p className="text-xs font-semibold text-white truncate mt-0.5">{userProfile.name || 'Guest'}</p>
-                                        </div>
+                                        {profileMenuTab === 'menu' ? (
+                                            <div className="animate-in fade-in duration-200">
+                                                <div className="px-3 py-2 border-b border-white/5 mb-1 text-left">
+                                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Signed in as</p>
+                                                    <p className="text-xs font-semibold text-white truncate mt-0.5">{userProfile.name || 'Guest'}</p>
+                                                </div>
 
-                                        <button
-                                            onClick={() => {
-                                                setIsSettingsOpen(true);
-                                                setIsProfileDropdownOpen(false);
-                                            }}
-                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
-                                        >
-                                            <User size={15} className="text-zinc-400" />
-                                            Edit Profile
-                                        </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setIsSettingsOpen(true);
+                                                        setIsProfileDropdownOpen(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                                                >
+                                                    <User size={15} className="text-zinc-400" />
+                                                    Edit Profile
+                                                </button>
 
-                                        <button
-                                            onClick={() => {
-                                                setIsSettingsOpen(true);
-                                                setIsProfileDropdownOpen(false);
-                                            }}
-                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
-                                        >
-                                            <Settings size={15} className="text-zinc-400" />
-                                            Settings
-                                        </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setIsSettingsOpen(true);
+                                                        setIsProfileDropdownOpen(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                                                >
+                                                    <Settings size={15} className="text-zinc-400" />
+                                                    Settings
+                                                </button>
+
+                                                <button
+                                                    onClick={async () => {
+                                                        setProfileMenuTab('notifications');
+                                                        setLoadingDropdownNotifs(true);
+                                                        const data = await getNotifications();
+                                                        setDropdownNotifications(data);
+                                                        setLoadingDropdownNotifs(false);
+                                                    }}
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                                                >
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Bell size={15} className={hasUnread ? "text-red-500" : "text-zinc-400"} />
+                                                        <span>Notifications</span>
+                                                    </div>
+                                                    {hasUnread && (
+                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="animate-in fade-in duration-200">
+                                                <div className="flex items-center justify-between pb-2.5 border-b border-white/5 mb-2 px-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => setProfileMenuTab('menu')}
+                                                            className="text-zinc-400 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-all"
+                                                            title="Back to profile menu"
+                                                        >
+                                                            <ArrowLeft size={16} />
+                                                        </button>
+                                                        <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                                            <Bell size={13} className="text-red-500" /> Notifications
+                                                        </h3>
+                                                    </div>
+                                                    {dropdownNotifications.some(n => !n.read) && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                setDropdownNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                                                                await markNotificationsRead();
+                                                                checkUnreadNotifications();
+                                                            }}
+                                                            className="text-[10px] text-red-500 hover:text-red-400 font-bold uppercase tracking-wider hover:underline transition-all"
+                                                        >
+                                                            Mark all read
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1.5 mt-1 px-0.5">
+                                                    {loadingDropdownNotifs ? (
+                                                        <div className="space-y-2.5 py-3">
+                                                            {[...Array(3)].map((_, i) => (
+                                                                <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />
+                                                            ))}
+                                                        </div>
+                                                    ) : dropdownNotifications.length === 0 ? (
+                                                        <div className="py-8 flex flex-col items-center justify-center text-zinc-500 text-center">
+                                                            <Inbox size={22} className="mb-1.5 opacity-40 text-zinc-400" />
+                                                            <p className="text-xs font-medium text-zinc-400">Your inbox is empty</p>
+                                                            <p className="text-[10px] text-zinc-600 mt-0.5">No new notifications</p>
+                                                        </div>
+                                                    ) : (
+                                                        dropdownNotifications.map(n => (
+                                                            <div
+                                                                key={n.id}
+                                                                className={`p-2.5 rounded-xl border border-transparent transition-all relative flex flex-col text-left ${
+                                                                    !n.read ? 'bg-white/[0.06] border-l-2 border-l-red-600' : 'bg-transparent hover:bg-white/[0.04]'
+                                                                }`}
+                                                            >
+                                                                <div className="flex justify-between items-start gap-2 mb-0.5">
+                                                                    <p className={`text-xs leading-snug ${!n.read ? 'text-white font-bold' : 'text-zinc-300 font-medium'}`}>
+                                                                        {n.title}
+                                                                    </p>
+                                                                    {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1 shrink-0" />}
+                                                                </div>
+                                                                <p className="text-[11px] text-zinc-400 leading-normal line-clamp-2">{n.message}</p>
+                                                                <p className="text-[9px] text-zinc-600 mt-1 font-medium">{n.time}</p>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -5300,51 +5265,7 @@ export default function App() {
                                         </div>
                                     )}
 
-                                    {showStickyHeader && (
-                                        <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-3 hidden md:flex flex-row items-center justify-end gap-4 animate-in fade-in">
-                                            {!isTV && (
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <div className="relative group shrink-0">
-                                                        <TvFocusButton onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
-                                                            <div className="flex items-center gap-2"><Filter size={14} /> <span>Sort</span></div>
-                                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
-                                                        </TvFocusButton>
-                                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                                        <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1 ${isSortDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
-                                                            {[
-                                                                { label: 'Popularity', value: 'popularity.desc' },
-                                                                { label: 'Newest First', value: 'primary_release_date.desc' },
-                                                                { label: 'Top Rated', value: 'vote_average.desc' },
-                                                                { label: 'Revenue', value: 'revenue.desc' }
-                                                            ].map(opt => (
-                                                                <TvFocusButton key={opt.value} onClick={() => { setSortOption(opt.value); setIsSortDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
-                                                                    {opt.label}
-                                                                    {sortOption === opt.value && <Check size={12} className={accentText} />}
-                                                                </TvFocusButton>
-                                                            ))}
-                                                        </div>
-                                                    </div>
 
-
-                                                    <div className="relative group shrink-0">
-                                                        <TvFocusButton onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
-                                                            <div className="flex items-center gap-2"><Languages size={14} /> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
-                                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
-                                                        </TvFocusButton>
-                                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                                        <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1 ${isLanguageDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
-                                                            {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                                                <TvFocusButton key={lang} onClick={() => { setSelectedLanguage(lang); setIsLanguageDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
-                                                                    {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
-                                                                    {selectedLanguage === lang && <Check size={12} className={accentText} />}
-                                                                </TvFocusButton>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
 
                                     <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
                                         {fetchError && !loading && movies.length === 0 && (
@@ -5570,8 +5491,10 @@ export default function App() {
                 <MoviePage
                     key={selectedMovie.id}
                     movie={watched.find(m => m.id === selectedMovie.id) || selectedMovie}
+                    onScrollChange={setIsMovieDetailsScrolled}
                     onClose={() => {
                         setSelectedMovie(null);
+                        setIsMovieDetailsScrolled(false);
                         setActiveDetailsTab("overview");
                         setShowDetailsCast(false);
                         setShowDetailsCrew(false);

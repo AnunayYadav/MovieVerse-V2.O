@@ -994,14 +994,6 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
           referrerPolicy="no-referrer"
         />
 
-        {/* Rating Badge */}
-        {rating && (
-          <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 z-10 font-sans">
-            <Star size={9} fill="currentColor" className="text-yellow-400" />
-            {rating.toFixed(1)}
-          </div>
-        )}
-
         {/* Episode Badge */}
         {drama.episode && (
           <div className="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm text-[8px] font-bold text-white px-1.5 py-0.5 rounded shadow-md z-10 font-sans">
@@ -1017,11 +1009,16 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
         </h4>
         <div className="flex items-center justify-between mt-1 text-[9px] text-zinc-400 font-semibold font-sans">
           <span>{drama.year || drama.network || 'Airing'}</span>
-          {drama.air_time && (
+          {rating ? (
+            <span className="flex items-center gap-1 font-bold text-white/90">
+              <Star size={10} fill="currentColor" className="text-yellow-400" />
+              {rating.toFixed(1)}
+            </span>
+          ) : drama.air_time ? (
             <span className="uppercase text-[8px] px-1 py-0.2 rounded bg-white/5 text-zinc-300 border border-white/5">
               {drama.air_time}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -118,6 +118,7 @@ interface MoviePageProps {
     showFullCrew?: boolean;
     onShowFullCrewChange?: (show: boolean) => void;
     onCharacterClick?: (id: number) => void;
+    onScrollChange?: (scrolled: boolean) => void;
 }
 
 const PopularityMeter = ({ score, count }: { score: number; count: number }) => {
@@ -423,7 +424,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     onShowFullCastChange,
     showFullCrew: showFullCrewProp = false,
     onShowFullCrewChange,
-    onCharacterClick
+    onCharacterClick,
+    onScrollChange
 }) => {
     const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
     const onPlayStateChangeRef = useRef(onPlayStateChange);
@@ -2667,11 +2669,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         );
     };
 
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const scrolled = e.currentTarget.scrollTop > 20;
+        onScrollChange?.(scrolled);
+    };
+
     return (
-        <div className={`fixed top-16 inset-x-0 bottom-0 z-[50] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        <div onScroll={handleScroll} className={`fixed inset-0 z-[50] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
-                    <TvFocusButton onClick={handleClose} className="absolute top-4 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
+                    <TvFocusButton onClick={handleClose} className="absolute top-20 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
                         <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
                     </TvFocusButton>
                 )}
@@ -2727,7 +2734,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30' : 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent'}`}></div>
                                 <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent' : 'bg-gradient-to-r from-[#0a0a0a]/50 via-transparent to-transparent'}`}></div>
                                  {trailer && videoLoaded && (
-                                     <TvFocusButton onClick={toggleMute} className="absolute top-4 right-4 md:bottom-6 md:right-6 z-30 w-10 h-10 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
+                                     <TvFocusButton onClick={toggleMute} className="absolute top-20 right-4 md:bottom-6 md:right-6 z-30 w-10 h-10 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
                              </div>
 
@@ -2854,9 +2861,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         </div>
 
                         {/* Details and Tabs section wrapper */}
-                        <div className="max-w-7xl mx-auto w-full px-4 py-6 md:p-10 mt-0 md:-mt-6 relative z-20">
+                        <div className="max-w-7xl mx-auto w-full px-4 py-4 md:px-8 md:py-6 relative z-20">
                             {/* Premium Tab Navigation Underlined Text */}
-                            <div className="flex items-center gap-6 md:gap-8 border-b border-white/10 pb-2 mb-8 overflow-x-auto hide-scrollbar w-full py-1 select-none">
+                            <div className="flex items-center gap-6 md:gap-8 border-b border-white/10 pb-2 mb-6 overflow-x-auto hide-scrollbar w-full py-1 select-none">
                                 {tabs.map(tab => {
                                     const isActive = (activeTab || 'overview') === tab.id;
                                     return (
@@ -2881,8 +2888,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 })}
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                                <div className="lg:col-span-2 space-y-10">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                                <div className="lg:col-span-2 space-y-6">
                                     {(activeTab || 'overview') === 'overview' && (
                                         <div className="animate-in fade-in">
                                             {nextAiringEpisode && (
@@ -2907,12 +2914,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="mb-10">
-                                                <h3 className="text-xl font-bold text-white mb-4">Plot Summary</h3>
-                                                <p className="text-gray-300 leading-relaxed text-base font-light">{displayData.overview || "No overview available."}</p>
+                                            <div className="mb-5">
+                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-2.5">Plot Summary</h3>
+                                                <p className="text-zinc-300 leading-relaxed text-sm md:text-base font-normal">{displayData.overview || "No overview available."}</p>
                                             </div>
                                              {displayData.external_ids && (
-                                                <div className="flex gap-3 mb-8">
+                                                <div className="flex gap-2.5 mb-5">
                                                     {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${details.external_ids.imdb_id}`} icon={Film} hoverColor="hover:text-yellow-500 hover:border-yellow-500/30"/>}
                                                     {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} hoverColor="hover:text-pink-500 hover:border-pink-500/30"/>}
                                                     {displayData.external_ids.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} hoverColor="hover:text-sky-400 hover:border-sky-400/30"/>}
@@ -2923,16 +2930,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             {/* Integrated Horizontal Popularity Meter */}
                                             {displayData.vote_count > 0 && (
-                                                <div className="p-3.5 sm:p-4 bg-white/[0.04] rounded-3xl mb-6 shadow-sm">
+                                                <div className="p-3.5 bg-white/[0.03] border border-white/[0.06] rounded-2xl mb-5 shadow-sm">
                                                     <div className="flex flex-wrap items-center justify-between gap-2.5 mb-2.5">
                                                         <div className="flex items-center gap-2.5">
-                                                            <span className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                                                            <span className="text-base sm:text-lg font-semibold text-white tracking-tight">
                                                                 Popularity {Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%
                                                             </span>
-                                                            <span className="text-xs font-medium text-zinc-300">
+                                                            <span className="text-xs font-normal text-zinc-400">
                                                                 {(displayData.vote_average || 0).toFixed(1)} / 10
                                                             </span>
-                                                            <span className="text-xs text-zinc-400">
+                                                            <span className="text-xs text-zinc-500">
                                                                 • {displayData.vote_count.toLocaleString()} votes
                                                             </span>
                                                         </div>
@@ -2954,7 +2961,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             {/* Movie & Genre Tags */}
                                             {((displayData.genres && displayData.genres.length > 0) || (displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags)) && (
-                                                <div className="mb-8">
+                                                <div className="mb-5">
                                                     <div className="flex flex-wrap gap-2">
                                                         {displayData.genres?.map((genre: any) => (
                                                             <button 
@@ -2963,7 +2970,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     onClose();
                                                                     if (onKeywordClick) onKeywordClick({ id: genre.id || 0, name: genre.name });
                                                                 }}
-                                                                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/10 hover:bg-white/20 text-zinc-200 transition-all cursor-pointer border-0 outline-none active:scale-95"
+                                                                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 hover:text-white transition-all cursor-pointer border-0 outline-none active:scale-95"
                                                             >
                                                                 {genre.name}
                                                             </button>
@@ -2981,7 +2988,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             onClose();
                                                                             if (onKeywordClick) onKeywordClick({ id: tagId, name: tagName });
                                                                         }}
-                                                                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 hover:bg-white/15 text-zinc-300 transition-all cursor-pointer border-0 outline-none active:scale-95"
+                                                                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer border-0 outline-none active:scale-95"
                                                                     >
                                                                         #{tagName}
                                                                     </button>
@@ -2991,26 +2998,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="mb-10">
-                                                <h3 className="text-xl font-bold text-white mb-6">Top Cast</h3>
-                                                <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
+                                            <div className="mb-6">
+                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-3.5">Top Cast</h3>
+                                                <div className="flex overflow-x-auto gap-5 pb-2 hide-scrollbar">
                                                      {displayData.credits?.cast?.slice(0, 10).map((person) => (
                                                          <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
-                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent transition-all shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
-                                                            <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
-                                                            <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1">{person.character}</p>
+                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2.5 border-2 border-transparent transition-all shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
+                                                            <h4 className="text-xs md:text-sm font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4>
+                                                            <p className="text-[11px] text-zinc-400 line-clamp-1">{person.character}</p>
                                                         </TvFocusButton>
                                                     ))}
-                                                    <TvFocusButton onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group"><ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
+                                                    <TvFocusButton onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group self-start"><ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-medium text-zinc-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-bold text-white mb-6">Crew</h3>
-                                                <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
-                                                     {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                         <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></TvFocusButton>
-                                                    ))}
-                                                    <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
+                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-3.5">Crew</h3>
+                                                <div className="flex overflow-x-auto gap-5 pb-2 hide-scrollbar">
+                                                     {displayData.credits?.crew?.slice(0, 10).map((person) => (
+                                                          <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-2.5 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[11px] text-zinc-400 line-clamp-1">{person.job}</p></TvFocusButton>
+                                                     ))}
+                                                    <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group self-start"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-medium text-zinc-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
                                         </div>
@@ -4206,62 +4213,59 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                 <div className="space-y-6">
                                     {isDrama && (mdlLoading ? (
-                                        <div className="bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl flex items-center justify-center gap-2">
-                                            <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Fetching MyDramaList Info...</span>
+                                        <div className="rounded-3xl bg-zinc-950/40 backdrop-blur-xl border border-white/[0.06] p-6 flex items-center justify-center gap-2.5">
+                                            <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
+                                            <span className="text-xs text-zinc-400 font-medium tracking-wide">Fetching MyDramaList details...</span>
                                         </div>
                                     ) : mdlDetails ? (
-                                        <div className="bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden group text-left">
-                                            <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[120px] opacity-10 bg-amber-500 pointer-events-none" />
-                                            
-                                            <h3 className="text-xs font-black text-white/95 uppercase tracking-[0.25em] border-b border-white/5 pb-4 mb-2 flex items-center gap-2">
-                                                <Tv size={14} className="text-amber-500" />
-                                                <span>MyDramaList Details</span>
-                                            </h3>
+                                        <div className="rounded-3xl bg-zinc-950/40 backdrop-blur-xl border border-white/[0.06] p-6 space-y-4 text-left">
+                                            <div className="flex items-center gap-2 pb-3 border-b border-white/[0.06]">
+                                                <Tv size={14} className="text-zinc-400" />
+                                                <h3 className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">MyDramaList</h3>
+                                            </div>
 
-                                            <div className="space-y-3.5 text-xs">
-                                                {mdlDetails.alternative_titles && (
+                                            {mdlDetails.alternative_titles && (
+                                                <div>
+                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Alternative Titles</span>
+                                                    <span className="text-zinc-200 text-sm leading-relaxed block">{mdlDetails.alternative_titles}</span>
+                                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                                {mdlDetails.country && (
                                                     <div>
-                                                        <span className="text-zinc-500 font-normal block mb-0.5">Alternative Titles</span>
-                                                        <span className="text-zinc-300 font-bold leading-normal">{mdlDetails.alternative_titles}</span>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Country</span>
+                                                        <span className="text-zinc-200 font-medium text-sm block">{mdlDetails.country}</span>
                                                     </div>
                                                 )}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {mdlDetails.country && (
-                                                        <div>
-                                                            <span className="text-zinc-500 block mb-0.5">Country</span>
-                                                            <span className="text-zinc-200 font-bold">{mdlDetails.country}</span>
-                                                        </div>
-                                                    )}
-                                                    {mdlDetails.duration && (
-                                                        <div>
-                                                            <span className="text-zinc-500 block mb-0.5">Duration</span>
-                                                            <span className="text-zinc-200 font-bold">{mdlDetails.duration}</span>
-                                                        </div>
-                                                    )}
-                                                    {mdlDetails.score_details && (
-                                                        <div>
-                                                            <span className="text-zinc-500 block mb-0.5">MDL Score</span>
-                                                            <span className="text-amber-500 font-bold flex items-center gap-0.5">★ {mdlDetails.score_details}</span>
-                                                        </div>
-                                                    )}
-                                                    {mdlDetails.ranked && (
-                                                        <div>
-                                                            <span className="text-zinc-500 block mb-0.5">Ranking</span>
-                                                            <span className="text-zinc-200 font-bold">#{mdlDetails.ranked}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                {mdlDetails.duration && (
+                                                    <div>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Duration</span>
+                                                        <span className="text-zinc-200 font-medium text-sm block">{mdlDetails.duration}</span>
+                                                    </div>
+                                                )}
+                                                {mdlDetails.score_details && (
+                                                    <div>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">MDL Score</span>
+                                                        <span className="text-amber-400 font-medium text-sm block">★ {mdlDetails.score_details}</span>
+                                                    </div>
+                                                )}
+                                                {mdlDetails.ranked && (
+                                                    <div>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Ranking</span>
+                                                        <span className="text-zinc-200 font-medium text-sm block">#{mdlDetails.ranked}</span>
+                                                    </div>
+                                                )}
                                                 {mdlDetails.original_network && (
                                                     <div>
-                                                        <span className="text-zinc-500 block mb-0.5">Original Network</span>
-                                                        <span className="text-zinc-300 font-bold">{mdlDetails.original_network}</span>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Original Network</span>
+                                                        <span className="text-zinc-200 font-medium text-sm block">{mdlDetails.original_network}</span>
                                                     </div>
                                                 )}
                                                 {mdlDetails.aired && (
                                                     <div>
-                                                        <span className="text-zinc-500 block mb-0.5">Aired Dates</span>
-                                                        <span className="text-zinc-300 font-medium">{mdlDetails.aired}</span>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Aired Dates</span>
+                                                        <span className="text-zinc-300 font-normal text-sm block">{mdlDetails.aired}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -4271,7 +4275,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     href={mdlDetails.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="block w-full py-2 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-center text-[10px] rounded-xl border border-white/5 transition-all uppercase tracking-wider"
+                                                    className="block w-full py-2 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white font-medium text-center text-xs rounded-xl border border-white/[0.06] transition-all tracking-wide mt-2"
                                                 >
                                                     View on MyDramaList
                                                 </a>
@@ -4279,169 +4283,178 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </div>
                                     ) : null)}
 
-                                    <div className="bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden group">
-                                        <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[120px] opacity-10 bg-red-600 pointer-events-none transition-all duration-1000 group-hover:opacity-20" />
-                                        
-                                        <h3 className="text-xs font-black text-white/95 uppercase tracking-[0.25em] border-b border-white/5 pb-4 mb-2 flex items-center gap-2">
-                                            <Info size={14} className="text-red-500" />
-                                            <span>Show Information</span>
-                                        </h3>
-
-                                        <div className="grid grid-cols-2 gap-4 pb-4">
-                                            {isAnime ? (
-                                                <>
-                                                    {displayData.studio && (
-                                                        <div className="space-y-1">
-                                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Tv size={10}/> Studio</p>
-                                                            <button 
-                                                                onClick={() => onStudioClick(displayData.studioId || null, displayData.studio, true)}
-                                                                className="text-white hover:text-red-500 font-bold text-sm truncate bg-transparent border-0 p-0 focus:outline-none text-left transition-colors cursor-pointer block"
-                                                            >
-                                                                {displayData.studio}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Check size={10}/> Status</p>
-                                                        <p className={`text-sm font-bold ${displayData.status === 'FINISHED' || displayData.status === 'Released' ? 'text-green-400' : 'text-white'}`}>
-                                                            {displayData.status === 'FINISHED' ? 'Finished' : displayData.status === 'RELEASING' ? 'Releasing' : displayData.status === 'NOT_YET_RELEASED' ? 'Upcoming' : (displayData.status || 'N/A')}
-                                                        </p>
-                                                    </div>
-                                                    <div className="space-y-1 pt-2 border-t border-white/5">
-                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Layers size={10}/> Format</p>
-                                                        <p className="text-white font-bold text-sm">{displayData.format || 'N/A'}</p>
-                                                    </div>
-                                                    <div className="space-y-1 pt-2 border-t border-white/5">
-                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><BookOpen size={10}/> Source</p>
-                                                        <p className="text-white font-bold text-sm">{displayData.source ? displayData.source.replace('_', ' ') : 'N/A'}</p>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {director && (
-                                                        <div className="space-y-1">
-                                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><PenTool size={10}/> Director</p>
-                                                            <p className="text-white font-bold text-sm truncate">{director.name}</p>
-                                                        </div>
-                                                    )}
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Check size={10}/> Status</p>
-                                                        <p className={`text-sm font-bold ${displayData.status === 'Released' ? 'text-green-400' : 'text-white'}`}>{displayData.status}</p>
-                                                    </div>
-                                                    <div className="space-y-1 pt-2 border-t border-white/5">
-                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><DollarSign size={10}/> Budget</p>
-                                                        <p className="text-white font-bold text-sm">{formatCurrency(displayData.budget, appRegion)}</p>
-                                                    </div>
-                                                    <div className="space-y-1 pt-2 border-t border-white/5">
-                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Trophy size={10}/> Revenue</p>
-                                                        <p className="text-green-400 font-bold text-sm">{formatCurrency(displayData.revenue, appRegion)}</p>
-                                                    </div>
-                                                </>
-                                            )}
+                                    <div className="rounded-3xl bg-zinc-950/40 backdrop-blur-xl border border-white/[0.06] p-6 md:p-7 space-y-6 text-left">
+                                        {/* Header */}
+                                        <div className="flex items-center gap-2 pb-4 border-b border-white/[0.06]">
+                                            <Info size={14} className="text-zinc-400" />
+                                            <h3 className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">Information</h3>
                                         </div>
 
-                                        <div className="pt-4 border-t border-white/5 space-y-3">
-                                            {(() => {
-                                                const originalLangCode = displayData.original_language?.toLowerCase() || 'en';
-                                                const spokenLangMatch = displayData.spoken_languages?.find(lang => lang.iso_639_1 === originalLangCode);
-                                                const originalLangFull = spokenLangMatch?.english_name || spokenLangMatch?.name || LANGUAGES_FULL_MAP[originalLangCode] || originalLangCode.toUpperCase();
+                                        {/* Clean 2-Column Typographic Grid */}
+                                        {(() => {
+                                            const originalLangCode = displayData.original_language?.toLowerCase() || 'en';
+                                            const spokenLangMatch = displayData.spoken_languages?.find(lang => lang.iso_639_1 === originalLangCode);
+                                            const originalLangFull = spokenLangMatch?.english_name || spokenLangMatch?.name || LANGUAGES_FULL_MAP[originalLangCode] || originalLangCode.toUpperCase();
 
-                                                const getProductionCountriesList = () => {
-                                                    if (displayData.production_countries && displayData.production_countries.length > 0) {
-                                                        return displayData.production_countries.map(c => COUNTRIES_FULL_MAP[c.iso_3166_1.toUpperCase()] || c.name);
-                                                    }
-                                                    if (displayData.origin_country && displayData.origin_country.length > 0) {
-                                                        return displayData.origin_country.map(code => COUNTRIES_FULL_MAP[code.toUpperCase()] || code.toUpperCase());
-                                                    }
-                                                    return [];
-                                                };
-                                                const productionCountries = getProductionCountriesList();
+                                            const getProductionCountriesList = () => {
+                                                if (displayData.production_countries && displayData.production_countries.length > 0) {
+                                                    return displayData.production_countries.map(c => COUNTRIES_FULL_MAP[c.iso_3166_1.toUpperCase()] || c.name);
+                                                }
+                                                if (displayData.origin_country && displayData.origin_country.length > 0) {
+                                                    return displayData.origin_country.map(code => COUNTRIES_FULL_MAP[code.toUpperCase()] || code.toUpperCase());
+                                                }
+                                                return [];
+                                            };
+                                            const productionCountries = getProductionCountriesList();
 
-                                                return (
-                                                    <>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Languages size={12}/> Original Language</span>
-                                                            <span className="text-[10px] bg-red-600/10 border border-red-500/20 px-2 py-0.5 rounded text-red-400 font-bold uppercase tracking-widest">{originalLangFull}</span>
-                                                        </div>
-                                                        {isAnime && displayData.season && (
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Calendar size={12}/> Season</span>
-                                                                <span className="text-[10px] bg-blue-600/10 border border-blue-500/20 px-2 py-0.5 rounded text-blue-400 font-bold uppercase tracking-widest">{displayData.season} {displayData.seasonYear}</span>
+                                            return (
+                                                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                                    {isAnime ? (
+                                                        <>
+                                                            {displayData.studio && (
+                                                                <div>
+                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Studio</span>
+                                                                    <button 
+                                                                        onClick={() => onStudioClick(displayData.studioId || null, displayData.studio, true)}
+                                                                        className="text-white hover:text-zinc-300 font-medium text-sm truncate bg-transparent border-0 p-0 focus:outline-none text-left transition-colors cursor-pointer block w-full"
+                                                                    >
+                                                                        {displayData.studio}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Status</span>
+                                                                <span className={`text-sm font-medium block truncate ${displayData.status === 'FINISHED' || displayData.status === 'Released' ? 'text-emerald-400' : 'text-zinc-200'}`}>
+                                                                    {displayData.status === 'FINISHED' ? 'Finished' : displayData.status === 'RELEASING' ? 'Releasing' : displayData.status === 'NOT_YET_RELEASED' ? 'Upcoming' : (displayData.status || 'N/A')}
+                                                                </span>
                                                             </div>
-                                                        )}
-                                                        {productionCountries.length > 0 && (
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Globe size={12}/> Origin Country</span>
-                                                                <span className="text-[10px] bg-purple-600/10 border border-purple-500/20 px-2 py-0.5 rounded text-purple-400 font-bold uppercase tracking-widest truncate max-w-[150px]" title={productionCountries.join(", ")}>{productionCountries.join(", ")}</span>
+                                                            <div>
+                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Format</span>
+                                                                <span className="text-zinc-200 font-medium text-sm block truncate">{displayData.format || 'N/A'}</span>
                                                             </div>
-                                                        )}
-                                                    </>
-                                                );
-                                            })()}
-                                            {displayData.spoken_languages && displayData.spoken_languages.length > 0 && (
-                                                <div className="space-y-2">
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Headphones size={10}/> Spoken / Dubbed</p>
-                                                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                                        {displayData.spoken_languages.map((lang, idx) => (
-                                                            <span key={idx} className="text-[10px] bg-white/5 border border-white/5 px-2 py-1 rounded-md text-gray-300 font-medium">{lang.english_name || lang.name}</span>
-                                                        ))}
+                                                            <div>
+                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Source</span>
+                                                                <span className="text-zinc-200 font-medium text-sm block truncate">{displayData.source ? displayData.source.replace(/_/g, ' ') : 'N/A'}</span>
+                                                            </div>
+                                                            {displayData.season && (
+                                                                <div>
+                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Season</span>
+                                                                    <span className="text-zinc-200 font-medium text-sm block truncate">{displayData.season} {displayData.seasonYear}</span>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {director && (
+                                                                <div>
+                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Director</span>
+                                                                    <span className="text-zinc-100 font-medium text-sm block truncate" title={director.name}>{director.name}</span>
+                                                                </div>
+                                                            )}
+                                                            <div>
+                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Status</span>
+                                                                <span className={`text-sm font-medium block truncate ${displayData.status === 'Released' ? 'text-emerald-400' : 'text-zinc-200'}`}>{displayData.status || 'N/A'}</span>
+                                                            </div>
+                                                            {displayData.budget > 0 && (
+                                                                <div>
+                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Budget</span>
+                                                                    <span className="text-zinc-200 font-medium text-sm block truncate">{formatCurrency(displayData.budget, appRegion)}</span>
+                                                                </div>
+                                                            )}
+                                                            {displayData.revenue > 0 && (
+                                                                <div>
+                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Revenue</span>
+                                                                    <span className="text-emerald-400 font-medium text-sm block truncate">{formatCurrency(displayData.revenue, appRegion)}</span>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+
+                                                    {/* Original Language */}
+                                                    <div>
+                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Original Language</span>
+                                                        <span className="text-zinc-200 font-medium text-sm block truncate">{originalLangFull}</span>
                                                     </div>
+
+                                                    {/* Origin Country */}
+                                                    {productionCountries.length > 0 && (
+                                                        <div>
+                                                            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Origin Country</span>
+                                                            <span className="text-zinc-200 font-medium text-sm block truncate" title={productionCountries.join(", ")}>
+                                                                {productionCountries.join(", ")}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            );
+                                        })()}
 
-                                        <div className="pt-4 border-t border-white/5 space-y-3">
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Monitor size={12}/> Where to Watch</p>
+                                        {/* Spoken & Dubbed */}
+                                        {displayData.spoken_languages && displayData.spoken_languages.length > 0 && (
+                                            <div className="pt-4 border-t border-white/[0.06]">
+                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Spoken & Dubbed</span>
+                                                <p className="text-sm font-normal text-zinc-300 leading-relaxed">
+                                                    {displayData.spoken_languages.map(l => l.english_name || l.name).join(', ')}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {/* Where to Watch */}
+                                        <div className="pt-4 border-t border-white/[0.06] space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Where to Watch</span>
+                                                <span className="text-[10px] text-zinc-600 font-medium">Powered by JustWatch</span>
+                                            </div>
                                             {(providers?.flatrate || providers?.rent || providers?.buy) ? (
                                                 <div className="space-y-3">
                                                     {providers.flatrate && (
                                                         <div className="space-y-1.5">
-                                                            <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Stream{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p>
+                                                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Stream{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {providers.flatrate.map(p => (
-                                                                    <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg shadow-md hover:scale-105 transition-transform" title={p.provider_name} alt={p.provider_name}/>
+                                                                    <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     )}
                                                     {(providers.rent || providers.buy) && (
                                                         <div className="space-y-1.5">
-                                                            <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Rent / Buy{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p>
+                                                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Rent / Buy{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p>
                                                             <div className="flex flex-wrap gap-2">
                                                                 {[...(providers.rent || []), ...(providers.buy || [])].reduce((acc: any[], curr) => { if (!acc.find(p => p.provider_id === curr.provider_id)) acc.push(curr); return acc; }, []).map(p => (
-                                                                    <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg shadow-md hover:scale-105 transition-transform" title={p.provider_name} alt={p.provider_name}/>
+                                                                    <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     )}
                                                 </div>
                                             ) : (
-                                                <p className="text-xs text-gray-500 italic">No streaming information available.</p>
+                                                <p className="text-xs text-zinc-500">No streaming information available.</p>
                                             )}
-                                            <div className="text-right pt-1"><span className="text-[8px] font-bold text-gray-600 tracking-wider">Powered by JustWatch</span></div>
                                         </div>
 
+                                        {/* Production Companies */}
                                         {displayData.production_companies && displayData.production_companies.length > 0 && (
-                                            <div className="pt-4 border-t border-white/5 space-y-3">
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Building2 size={12}/> Production</p>
-                                                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                                            <div className="pt-4 border-t border-white/[0.06] space-y-3">
+                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">Production</span>
+                                                <div className="space-y-2.5">
                                                     {displayData.production_companies.map((company) => (
                                                         <div 
                                                             key={company.id} 
                                                             onClick={() => onStudioClick(company.id, company.name, false)}
-                                                            className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-white/5 transition-colors group/prod cursor-pointer"
+                                                            className="flex items-center gap-3 py-1 cursor-pointer group/prod transition-opacity hover:opacity-80"
                                                             title={`View ${company.name} Studios`}
                                                         >
-                                                            <div className="w-8 h-8 bg-white/90 rounded-md p-1 flex items-center justify-center shrink-0 shadow-sm group-hover/prod:bg-white transition-colors">
+                                                            <div className="w-7 h-7 bg-white/90 rounded-md p-1 flex items-center justify-center shrink-0">
                                                                 {company.logo_path ? (
                                                                     <img src={`${TMDB_IMAGE_BASE}${company.logo_path}`} alt={company.name} className="max-w-full max-h-full object-contain"/>
                                                                 ) : (
-                                                                    <Building2 size={14} className="text-black/40"/>
+                                                                    <Building2 size={13} className="text-zinc-700"/>
                                                                 )}
                                                             </div>
-                                                            <div className="min-w-0">
-                                                                <p className="text-xs font-bold text-white group-hover/prod:text-red-500 transition-colors truncate leading-none mb-1">{company.name}</p>
-                                                                <p className="text-[9px] text-gray-500 uppercase font-medium">{company.origin_country || 'Global'}</p>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-xs font-medium text-zinc-200 group-hover/prod:text-white truncate">{company.name}</p>
+                                                                <p className="text-[10px] text-zinc-500">{company.origin_country || 'Global'}</p>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -4449,37 +4462,77 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             </div>
                                         )}
                                     </div>
-                                    {displayData.keywords?.keywords && displayData.keywords.keywords.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 pt-2">
-                                            {displayData.keywords.keywords.slice(0, 8).map(k => (
-                                                <span key={k.id} onClick={() => { onKeywordClick(k); }} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-full text-gray-400 hover:text-white cursor-pointer transition-colors">#{k.name}</span>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
 
 
                             {collection && collection.parts && collection.parts.length > 0 && (
-                                <div className="mt-16 pt-10 border-t border-white/10">
-                                    <div className="flex flex-col gap-8 mb-12">
+                                <div className="mt-8 pt-6 border-t border-white/[0.06]">
+                                    <div className="flex flex-col gap-4 mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 rounded-xl bg-red-500/10 text-red-500"><Layers size={24}/></div>
-                                            <div><h3 className="text-2xl font-black text-white tracking-tight">{collection.name}</h3><p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Chronological Order</p></div>
+                                            <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-300 shrink-0">
+                                                <Layers size={16}/>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight">{collection.name}</h3>
+                                                <p className="text-xs text-zinc-500 font-medium tracking-wide mt-0.5">Chronological Order • {collection.parts.length} Films</p>
+                                            </div>
                                         </div>
                                         <div className="relative w-full">
-                                            <div className="absolute top-[calc(45%+14px)] left-0 right-0 h-[2px] bg-white/10 z-0 overflow-hidden"><div className={`h-full transition-all duration-1000 ${accentBg}`} style={{ width: `${((collection.parts.findIndex(p => p.id === movie.id) + 1) / collection.parts.length) * 100}%` }}/></div>
-                                            <div ref={timelineContainerRef} className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-4 hide-scrollbar relative z-10 px-4 scroll-smooth">
-                                                {collection.parts.map((part, index) => {
+                                            <div ref={timelineContainerRef} className="flex overflow-x-auto gap-5 md:gap-7 pb-4 pt-1 hide-scrollbar relative z-10 px-1 scroll-smooth">
+                                                {collection.parts.map((part) => {
                                                     const isCurrent = part.id === movie.id;
                                                     const partYear = part.release_date?.split('-')[0] || 'TBA';
                                                     return (
-                                                        <div key={part.id} ref={isCurrent ? activeTimelineItemRef : null} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
-                                                            <div onClick={() => { if(!isCurrent) { onSwitchMovie(part); } }} className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${isCurrent ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105 z-20' : 'border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100'}`}><img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={part.title}/>{isCurrent && <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center p-3"><span className="text-[10px] font-black uppercase tracking-widest text-white shadow-lg">Viewing Now</span></div>}</div>
-                                                            <div className={`mb-4 px-3 py-1 rounded-full text-[11px] font-black shadow-lg transition-all duration-500 ${isCurrent ? `${accentBg} text-white` : 'bg-white/5 text-gray-400 group-hover:text-white'}`}>{partYear}</div>
-                                                            <div className="relative mb-6"><div className={`w-3 h-3 rounded-full transition-all duration-500 shadow-xl ${isCurrent ? `${accentBg} scale-150 ring-4 ring-white/10` : 'bg-white/20 scale-100 group-hover:bg-white/40'}`} />{isCurrent && <div className={`absolute inset-0 w-3 h-3 rounded-full animate-ping ${accentBg} opacity-75`}></div>}</div>
-                                                            <div className="text-center w-full px-2"><h4 className={`font-bold text-xs md:text-sm leading-tight transition-colors duration-300 line-clamp-2 ${isCurrent ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>{part.title}</h4></div>
+                                                        <div 
+                                                            key={part.id} 
+                                                            ref={isCurrent ? activeTimelineItemRef : null} 
+                                                            className="flex flex-col items-center shrink-0 w-36 md:w-44 group cursor-pointer"
+                                                            onClick={() => { if(!isCurrent) { onSwitchMovie(part); } }}
+                                                        >
+                                                            {/* Poster Card */}
+                                                            <div className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden transition-all duration-300 ${
+                                                                isCurrent 
+                                                                    ? 'ring-2 ring-white/90 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.8)] scale-[1.03]' 
+                                                                    : 'ring-1 ring-white/10 group-hover:ring-white/30 group-hover:scale-[1.02] opacity-85 group-hover:opacity-100 shadow-md'
+                                                            }`}>
+                                                                <img 
+                                                                    src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
+                                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                                    alt={part.title}
+                                                                />
+                                                                {isCurrent && (
+                                                                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-xl flex items-center gap-1.5 shadow-md">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                                        <span className="text-[10px] font-medium text-white/90 tracking-wide">Viewing</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Timeline Node & Line */}
+                                                            <div className="flex flex-col items-center mt-5 mb-2 relative w-full">
+                                                                <div className="absolute top-1/2 left-0 right-0 h-px bg-white/[0.08] -translate-y-1/2 pointer-events-none" />
+                                                                <div className={`relative z-10 w-2.5 h-2.5 rounded-full transition-all ${
+                                                                    isCurrent 
+                                                                        ? 'bg-white ring-4 ring-white/20 shadow-[0_0_12px_rgba(255,255,255,0.9)]' 
+                                                                        : 'bg-zinc-700 group-hover:bg-zinc-400'
+                                                                }`} />
+                                                            </div>
+
+                                                            {/* Release Year */}
+                                                            <span className={`text-[11px] font-medium tracking-wider mb-1 transition-colors ${
+                                                                isCurrent ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'
+                                                            }`}>
+                                                                {partYear}
+                                                            </span>
+
+                                                            {/* Movie Title */}
+                                                            <h4 className={`text-xs md:text-sm font-medium leading-snug text-center line-clamp-2 px-1 transition-colors ${
+                                                                isCurrent ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'
+                                                            }`}>
+                                                                {part.title}
+                                                            </h4>
                                                         </div>
                                                     );
                                                 })}

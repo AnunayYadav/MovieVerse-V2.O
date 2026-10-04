@@ -248,8 +248,8 @@ export const MVRatingBadge = ({ rating, size = 14 }: { rating: number | undefine
   
   return (
     <div className="flex items-center gap-1 font-sans">
-      <img src="/mvrating.png" alt="MV Rating" style={{ width: size, height: size }} className="object-contain" />
-      <span className="text-sm font-bold text-white/95">
+      <Star size={10} fill="currentColor" className="text-yellow-400" />
+      <span className="text-xs font-bold text-white/90">
         {numRating.toFixed(1)}
       </span>
     </div>
@@ -550,7 +550,12 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
                     </h4>
                     <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
                       <span>{year || 'TBA'}</span>
-                      <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={12} />
+                      {rating && rating > 0 ? (
+                        <span className="flex items-center gap-1 font-bold text-white/90">
+                          <Star size={10} fill="currentColor" className="text-yellow-400" />
+                          {rating.toFixed(1)}
+                        </span>
+                      ) : null}
                     </div>
                  </div>
               </div>
@@ -598,14 +603,6 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
               </div>
           )}
 
-          {/* Rating Badge */}
-          {rating && (
-            <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 z-10 font-sans">
-              <Star size={9} fill="currentColor" className="text-yellow-400" />
-              {rating.toFixed(1)}
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
                <button 
@@ -625,7 +622,12 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
           </h4>
           <div className="flex items-center justify-between mt-1 text-[9px] text-zinc-400 font-semibold font-sans">
             <span>{year || 'TBA'}</span>
-            <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={12} />
+            {rating && rating > 0 ? (
+              <span className="flex items-center gap-1 font-bold text-white/90">
+                <Star size={10} fill="currentColor" className="text-yellow-400" />
+                {rating.toFixed(1)}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
