@@ -4,7 +4,6 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { NetflixHoverCard } from './components/NetflixHoverCard';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { LoginPage } from './components/LoginPage';
@@ -97,64 +96,10 @@ const MovieRowCard = ({
         };
     }, [movie.id]);
 
-    const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (leaveTimeoutRef.current) {
-            clearTimeout(leaveTimeoutRef.current);
-            leaveTimeoutRef.current = null;
-        }
-
-        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
-
-        const target = e.currentTarget;
-        enterTimeoutRef.current = setTimeout(() => {
-            const rect = target.getBoundingClientRect();
-            const scrollY = window.scrollY || window.pageYOffset;
-            const scrollX = window.scrollX || window.pageXOffset;
-            
-            const position = {
-                top: rect.top + scrollY,
-                left: rect.left + scrollX,
-                width: rect.width,
-                height: rect.height
-            };
-
-            window.dispatchEvent(new CustomEvent('movie-card-hover', {
-                detail: {
-                    movie,
-                    rect: position,
-                    horizontal: true
-                }
-            }));
-        }, 800);
-    };
-
-    const handleMouseLeave = () => {
-        if (enterTimeoutRef.current) {
-            clearTimeout(enterTimeoutRef.current);
-            enterTimeoutRef.current = null;
-        }
-
-        leaveTimeoutRef.current = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 150);
-    };
-
-    useEffect(() => {
-        return () => {
-            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
-            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
-        };
-    }, []);
-
     return (
         <div
             ref={ref}
             onClick={onClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group"
         >
             <img
@@ -792,64 +737,10 @@ const ContinueWatchingCard = ({
     const animeCover = (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
     const posterUrl = resolveImageUrl(movie.poster_path) || resolveImageUrl(animeCover) || resolveImageUrl(movie.backdrop_path) || `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`;
 
-    const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (leaveTimeoutRef.current) {
-            clearTimeout(leaveTimeoutRef.current);
-            leaveTimeoutRef.current = null;
-        }
-
-        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
-
-        const target = e.currentTarget;
-        enterTimeoutRef.current = setTimeout(() => {
-            const rect = target.getBoundingClientRect();
-            const scrollY = window.scrollY || window.pageYOffset;
-            const scrollX = window.scrollX || window.pageXOffset;
-            
-            const position = {
-                top: rect.top + scrollY,
-                left: rect.left + scrollX,
-                width: rect.width,
-                height: rect.height
-            };
-
-            window.dispatchEvent(new CustomEvent('movie-card-hover', {
-                detail: {
-                    movie,
-                    rect: position,
-                    horizontal: false
-                }
-            }));
-        }, 800);
-    };
-
-    const handleMouseLeave = () => {
-        if (enterTimeoutRef.current) {
-            clearTimeout(enterTimeoutRef.current);
-            enterTimeoutRef.current = null;
-        }
-
-        leaveTimeoutRef.current = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 150);
-    };
-
-    useEffect(() => {
-        return () => {
-            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
-            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
-        };
-    }, []);
-
     return (
         <div
             ref={ref}
             onClick={onClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left font-sans"
         >
             {/* Vertical Poster Container */}
@@ -897,66 +788,12 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
         onEnterPress: () => onMovieClick(movie)
     });
 
-    const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (leaveTimeoutRef.current) {
-            clearTimeout(leaveTimeoutRef.current);
-            leaveTimeoutRef.current = null;
-        }
-
-        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
-
-        const target = e.currentTarget;
-        enterTimeoutRef.current = setTimeout(() => {
-            const rect = target.getBoundingClientRect();
-            const scrollY = window.scrollY || window.pageYOffset;
-            const scrollX = window.scrollX || window.pageXOffset;
-            
-            const position = {
-                top: rect.top + scrollY,
-                left: rect.left + scrollX,
-                width: rect.width,
-                height: rect.height
-            };
-
-            window.dispatchEvent(new CustomEvent('movie-card-hover', {
-                detail: {
-                    movie,
-                    rect: position,
-                    horizontal: false
-                }
-            }));
-        }, 800);
-    };
-
-    const handleMouseLeave = () => {
-        if (enterTimeoutRef.current) {
-            clearTimeout(enterTimeoutRef.current);
-            enterTimeoutRef.current = null;
-        }
-
-        leaveTimeoutRef.current = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 150);
-    };
-
-    useEffect(() => {
-        return () => {
-            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
-            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
-        };
-    }, []);
-
     return (
         <div 
             ref={ref}
             key={movie.id} 
             className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none select-none" 
             onClick={() => onMovieClick(movie)}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
         >
             <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
                 style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
@@ -1281,14 +1118,7 @@ export default function App() {
     const [isMovieDetailsScrolled, setIsMovieDetailsScrolled] = useState(false);
     const setSelectedMovie = (movie: Movie | null) => {
         setSelectedMovieVal(movie);
-        if (movie) {
-            setHoveredMovieInfo(null);
-            setIsHoverCardClosing(false);
-            if (hoverLeaveTimeoutRef.current) {
-                clearTimeout(hoverLeaveTimeoutRef.current);
-                hoverLeaveTimeoutRef.current = null;
-            }
-        } else {
+        if (!movie) {
             setIsMovieDetailsScrolled(false);
         }
     };
@@ -1315,73 +1145,6 @@ export default function App() {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-    const [hoveredMovieInfo, setHoveredMovieInfo] = useState<{ movie: Movie; rect: { top: number; left: number; width: number; height: number; }; horizontal?: boolean; } | null>(null);
-    const [isHoverCardClosing, setIsHoverCardClosing] = useState(false);
-    const hoverLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isMouseOverHoverCard = useRef(false);
-
-    const handleHoverCardEnter = () => {
-        isMouseOverHoverCard.current = true;
-        setIsHoverCardClosing(false);
-        if (hoverLeaveTimeoutRef.current) {
-            clearTimeout(hoverLeaveTimeoutRef.current);
-            hoverLeaveTimeoutRef.current = null;
-        }
-    };
-
-    const handleHoverCardLeave = () => {
-        isMouseOverHoverCard.current = false;
-        setIsHoverCardClosing(true);
-        if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
-        hoverLeaveTimeoutRef.current = setTimeout(() => {
-            setHoveredMovieInfo(null);
-            setIsHoverCardClosing(false);
-        }, 150);
-    };
-
-    const handlePlayMovieFromHover = (movie: Movie) => {
-        setSelectedMovie(movie);
-        if (movie.first_air_date || movie.name) {
-            setWatchSeason(1);
-            setWatchEpisode(1);
-        }
-        setIsWatching(true);
-    };
-
-    useEffect(() => {
-        const handleHover = (e: Event) => {
-            const customEvent = e as CustomEvent;
-            isMouseOverHoverCard.current = false;
-            if (hoverLeaveTimeoutRef.current) {
-                clearTimeout(hoverLeaveTimeoutRef.current);
-                hoverLeaveTimeoutRef.current = null;
-            }
-            setHoveredMovieInfo(customEvent.detail);
-            setIsHoverCardClosing(false);
-        };
-
-        const handleLeave = () => {
-            if (isMouseOverHoverCard.current) {
-                return;
-            }
-            setIsHoverCardClosing(true);
-            if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
-            hoverLeaveTimeoutRef.current = setTimeout(() => {
-                setHoveredMovieInfo(null);
-                setIsHoverCardClosing(false);
-            }, 150);
-        };
-
-        window.addEventListener('movie-card-hover', handleHover);
-        window.addEventListener('movie-card-hover-leave', handleLeave);
-
-        return () => {
-            window.removeEventListener('movie-card-hover', handleHover);
-            window.removeEventListener('movie-card-hover-leave', handleLeave);
-            if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
-        };
-    }, []);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
@@ -5494,23 +5257,6 @@ export default function App() {
                     </div>
                 </div>
 
-            {hoveredMovieInfo && !selectedMovie && (
-                <NetflixHoverCard
-                    movie={hoveredMovieInfo.movie}
-                    rect={hoveredMovieInfo.rect}
-                    apiKey={apiKey}
-                    isWatchlisted={watchlist.some(m => m.id === hoveredMovieInfo.movie.id)}
-                    isWatched={watched.some(m => m.id === hoveredMovieInfo.movie.id)}
-                    onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
-                    onToggleWatched={handleToggleWatched}
-                    onPlay={setSelectedMovie}
-                    onDetailClick={setSelectedMovie}
-                    onMouseEnter={handleHoverCardEnter}
-                    onMouseLeave={handleHoverCardLeave}
-                    horizontal={hoveredMovieInfo.horizontal}
-                    isClosing={isHoverCardClosing}
-                />
-            )}
 
             {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
         </div>

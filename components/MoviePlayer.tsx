@@ -580,7 +580,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // ── AUTO SERVER PROBE & PLAY PROGRESS SELECTION STATES ──────────
   const [isAutoProbing, setIsAutoProbing] = useState<boolean>(false);
-  const [autoProbeStatus, setAutoProbeStatus] = useState<string>('Probing 8 streaming servers in parallel...');
+  const [autoProbeStatus, setAutoProbeStatus] = useState<string>('Benchmarking streaming servers in parallel...');
   const [autoProbeBadges, setAutoProbeBadges] = useState<Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }>>({});
   const [autoPlayingServerId, setAutoPlayingServerId] = useState<string>(() => {
     if (isAnime || isAnimeDirect) return 'vidnest_animepahe';
@@ -626,7 +626,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const runAutoServerProbe = useCallback(async () => {
     setIsAutoProbing(true);
-    setAutoProbeStatus('Testing real video playback across candidate streaming servers...');
+    setAutoProbeStatus('Benchmarking playback routes across servers...');
 
     const candidateIds = getFilteredProviders(isAnime, isWatchParty, isAnimeDirect)
       .filter(p => p.id !== 'auto')
@@ -685,9 +685,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           ...prev,
           [hlsWinner]: { status: 'playing', latency: 85, label: PROVIDERS.find(p => p.id === hlsWinner)?.name || 'Direct Stream' }
         }));
-        setAutoProbeStatus(`Selected fastest verified server: ${PROVIDERS.find(p => p.id === hlsWinner)?.name || 'Direct HLS'}`);
+        setAutoProbeStatus(`Selected fastest verified server: ${PROVIDERS.find(p => p.id === hlsWinner)?.name || 'Direct Stream'}`);
         setAutoPlayingServerId(hlsWinner);
-        setTimeout(() => setIsAutoProbing(false), 600);
+        setTimeout(() => setIsAutoProbing(false), 900);
         return;
       }
 
@@ -698,9 +698,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           ...prev,
           [verifiedWinner]: { status: 'playing', latency: 90, label: PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner }
         }));
-        setAutoProbeStatus(`Selected verified watchprogress server: ${PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner}`);
+        setAutoProbeStatus(`Selected verified server: ${PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner}`);
         setAutoPlayingServerId(verifiedWinner);
-        setTimeout(() => setIsAutoProbing(false), 600);
+        setTimeout(() => setIsAutoProbing(false), 900);
         return;
       }
 
@@ -733,9 +733,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           return updated;
         });
 
-        setAutoProbeStatus(`Auto-selected fastest server: ${PROVIDERS.find(p => p.id === winner.id)?.name} (${winner.latency}ms)`);
+        setAutoProbeStatus(`Selected fastest server: ${PROVIDERS.find(p => p.id === winner.id)?.name} (${winner.latency}ms)`);
         setAutoPlayingServerId(winner.id);
-        setTimeout(() => setIsAutoProbing(false), 700);
+        setTimeout(() => setIsAutoProbing(false), 1000);
         return;
       }
     } catch (e) {
@@ -744,8 +744,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     const fallbackId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'videasy_adfree';
     setAutoPlayingServerId(fallbackId);
-    setAutoProbeStatus(`Selected default server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'VidEasy'}`);
-    setTimeout(() => setIsAutoProbing(false), 800);
+    setAutoProbeStatus(`Routing to primary server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'VidEasy'}`);
+    setTimeout(() => setIsAutoProbing(false), 1000);
   }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, isWatchParty, isAnimeDirect, verifiedPlaybackServers]);
 
   // Trigger auto server probe whenever selectedProviderId === 'auto'
@@ -3168,45 +3168,121 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {/* ── Auto-Probe Futuristic Loader Overlay ── */}
+        {/* ── Auto-Probe Apple-Inspired HUD Overlay ── */}
         {isAutoProbing && (
-          <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300 select-none">
-            <div className="relative mb-6">
-              <div className="w-16 h-16 rounded-full border-4 border-red-600/30 border-t-red-600 animate-spin flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)]" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Zap size={22} className="text-red-500 animate-pulse" />
-              </div>
-            </div>
+          <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-6 select-none animate-in fade-in duration-300">
+            {/* Ambient Background Radial Glow */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.06)_0%,rgba(0,0,0,0)_75%)]" />
 
-            <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight mb-1 font-sans">
-              Auto-Selecting Fast Server...
-            </h3>
-            <p className="text-xs md:text-sm text-zinc-400 max-w-md mb-6 font-medium">
-              {autoProbeStatus}
-            </p>
+            {/* Apple Vision / tvOS-style Frosted Glass Card */}
+            <div className="relative w-full max-w-lg rounded-3xl bg-zinc-950/80 border border-white/[0.12] shadow-[0_30px_90px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-3xl p-7 sm:p-9 flex flex-col items-center text-center overflow-hidden animate-in zoom-in-95 duration-300">
+              {/* Specular Top Border Highlight */}
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+              {/* Ambient Inner Lighting */}
+              <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-36 bg-white/[0.04] rounded-full blur-3xl pointer-events-none" />
 
-            <div className="flex flex-wrap items-center justify-center gap-2 max-w-xl">
-              {Object.entries(autoProbeBadges).map(([key, badge]: [string, any]) => (
-                <div
-                  key={key}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-300 flex items-center gap-1.5 ${badge.status === 'playing'
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                    : badge.status === 'testing'
-                      ? 'bg-white/5 border-white/10 text-zinc-300 animate-pulse'
-                      : 'bg-zinc-900 border-white/5 text-zinc-600'
-                    }`}
-                >
-                  {badge.status === 'playing' ? (
-                    <Check size={12} className="text-emerald-400" />
-                  ) : badge.status === 'testing' ? (
-                    <Loader2 size={12} className="animate-spin text-red-500" />
-                  ) : (
-                    <X size={12} />
-                  )}
-                  <span>{badge.label}</span>
-                  {badge.latency && <span className="text-[10px] opacity-75">({badge.latency}ms)</span>}
+              {/* Apple-style Concentric Radar & Disc */}
+              <div className="relative w-20 h-20 mb-6 flex items-center justify-center">
+                {/* Soft ambient breathing glow */}
+                <div className="absolute inset-0 rounded-full bg-white/[0.08] blur-xl animate-pulse" />
+
+                {/* Smooth Apple Spinner Track */}
+                <svg className="w-20 h-20 animate-spin -rotate-90" viewBox="0 0 80 80" style={{ animationDuration: '2.5s' }}>
+                  <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="2.5" className="text-white/[0.08]" fill="none" />
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="34"
+                    stroke="url(#apple-hud-spinner-gradient)"
+                    strokeWidth="2.5"
+                    strokeDasharray="213"
+                    strokeDashoffset="140"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <defs>
+                    <linearGradient id="apple-hud-spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                      <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* Center Frosted Glass Disc */}
+                <div className="absolute inset-2.5 rounded-full bg-gradient-to-b from-white/[0.16] to-white/[0.04] border border-white/20 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_8px_24px_rgba(0,0,0,0.6)] flex items-center justify-center">
+                  <Zap size={20} className="text-white fill-white/80 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] animate-pulse" />
                 </div>
-              ))}
+              </div>
+
+              {/* Typography Header */}
+              <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight mb-2 font-sans">
+                Auto-Selecting Fast Server
+              </h3>
+
+              {/* Dynamic Status Capsule (Apple Dynamic Island style) */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] backdrop-blur-md mb-6 max-w-full">
+                {autoProbeStatus.toLowerCase().includes('select') || autoProbeStatus.toLowerCase().includes('connect') || autoProbeStatus.toLowerCase().includes('rout') || autoProbeStatus.toLowerCase().includes('fastest') || autoProbeStatus.toLowerCase().includes('verified') ? (
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                  </span>
+                ) : (
+                  <Loader2 size={12} className="animate-spin text-zinc-400 shrink-0" strokeWidth={2} />
+                )}
+                <span className="text-xs font-normal text-zinc-300 truncate font-sans">
+                  {autoProbeStatus}
+                </span>
+              </div>
+
+              {/* Server Route Badges */}
+              <div className="flex flex-wrap items-center justify-center gap-2 w-full max-w-md">
+                {Object.entries(autoProbeBadges).map(([key, badge]: [string, any]) => {
+                  const isPlaying = badge.status === 'playing';
+                  const isTesting = badge.status === 'testing';
+
+                  return (
+                    <div
+                      key={key}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-all duration-300 flex items-center gap-2 select-none ${
+                        isPlaying
+                          ? 'bg-emerald-500/[0.12] border-emerald-500/35 text-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.18)] ring-1 ring-emerald-500/25'
+                          : isTesting
+                            ? 'bg-white/[0.04] border-white/[0.08] text-zinc-300 shadow-sm'
+                            : 'bg-white/[0.01] border-white/[0.03] text-zinc-600 opacity-40'
+                      }`}
+                    >
+                      {isPlaying ? (
+                        <Check size={12} strokeWidth={2.5} className="text-emerald-400 shrink-0" />
+                      ) : isTesting ? (
+                        <Loader2 size={12} className="animate-spin text-zinc-400 shrink-0" strokeWidth={2} />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-700 shrink-0" />
+                      )}
+
+                      <span className={badge.status === 'failed' ? 'line-through decoration-zinc-700/60 font-normal' : 'font-normal'}>
+                        {badge.label}
+                      </span>
+
+                      {badge.latency && isPlaying && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-semibold">
+                          {badge.latency}ms
+                        </span>
+                      )}
+                      {badge.latency && isTesting && (
+                        <span className="text-[10px] opacity-60 font-mono">
+                          {badge.latency}ms
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Subdued Footer Metadata */}
+              <div className="mt-6 flex items-center gap-1.5 text-[11px] text-zinc-500 font-normal">
+                <Radio size={12} className="text-zinc-500 animate-pulse" />
+                <span>Benchmarking latency & stream reliability in real-time</span>
+              </div>
             </div>
           </div>
         )}
