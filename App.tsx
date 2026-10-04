@@ -4317,7 +4317,7 @@ export default function App() {
                         <div className={`relative w-full h-full bg-black overflow-hidden animate-in fade-in duration-500 ${isWatchPartyImmersive ? '' : 'flex flex-col lg:flex-row'}`}>
                             <div className={`bg-black transition-all duration-500 ${isWatchPartyImmersive
                                     ? 'absolute inset-0 w-full h-full z-0'
-                                    : 'flex-1 relative h-[56.25vw] max-h-[60vh] lg:h-full lg:max-h-none'
+                                    : 'flex-1 relative h-[56.25vw] max-h-[60vh] lg:h-full lg:max-h-none overflow-y-auto custom-scrollbar'
                                 }`}>
                                 <MoviePlayer
                                     tmdbId={watchPartyMovie.id}
@@ -4365,7 +4365,7 @@ export default function App() {
                             </div>
                             <div className={`transition-all duration-500 ${isWatchPartyImmersive
                                     ? 'absolute right-4 top-16 bottom-24 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border-none shadow-none opacity-40 hover:opacity-100'
-                                    : 'w-full lg:w-80 shrink-0 h-[calc(100vh-4rem-56.25vw)] lg:h-full border-t lg:border-t-0 border-white/10'
+                                    : 'w-full lg:w-80 xl:w-96 shrink-0 h-[calc(100vh-4rem-56.25vw)] lg:h-full border-t lg:border-t-0 border-white/[0.08]'
                                 }`}>
                                 <WatchPartySection
                                     roomCode={activeWatchPartyRoom}

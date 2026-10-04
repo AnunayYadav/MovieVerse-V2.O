@@ -5367,7 +5367,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       )}
 
       {/* Top Navbar */}
-      <div className="w-full max-w-[1700px] mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between gap-3">
+      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] px-4 sm:px-6'} mx-auto pt-4 pb-2 flex items-center justify-between gap-3`}>
         <button
           onClick={onClose}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-normal text-zinc-300 hover:text-white border border-white/5 transition-all active:scale-95 shadow-sm"
@@ -5378,15 +5378,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         <div className="flex items-center gap-2">
           {isWatchParty && (
-            <span className="px-2.5 py-1 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 text-xs font-normal flex items-center gap-1.5">
-              <Users size={12} /> Watch Party
+            <span className="px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-300 text-xs font-normal flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Watch Party Active
             </span>
           )}
         </div>
       </div>
 
       {/* Main Split Layout: Player on Left + Sidebar (Episodes, Details, Servers) on Right */}
-      <div className={`w-full max-w-[1700px] mx-auto p-3 sm:p-5 flex-1 flex flex-col ${sidebarPosition === 'right' ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-5 items-start justify-center`}>
+      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] p-3 sm:p-5'} mx-auto flex-1 flex flex-col ${!isWatchParty && (sidebarPosition === 'right' ? 'lg:flex-row' : 'lg:flex-row-reverse')} gap-5 items-start justify-center`}>
 
         {/* LEFT PANEL: VIDEO STREAMING CONTENT & CONTROLS */}
         <div className="flex-1 min-w-0 flex flex-col w-full space-y-3.5">
@@ -5498,6 +5499,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         </div>
 
         {/* RIGHT PANEL: SIDEBAR (Episodes, Details, Server Selector) */}
+        {!isWatchParty && (
         <div className="w-full lg:w-80 xl:w-96 shrink-0 bg-[#0e0f14]/90 border border-white/[0.08] rounded-2xl flex flex-col overflow-hidden backdrop-blur-xl shadow-2xl lg:sticky lg:top-4">
           {/* Top Tabs */}
           <div className="flex items-center justify-between px-4 pt-3.5 border-b border-white/[0.06]">
@@ -5904,6 +5906,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             </div>
           )}
         </div>
+        )}
 
       </div>
     </div>

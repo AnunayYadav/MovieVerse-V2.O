@@ -87,30 +87,30 @@ export const WatchPartyRoomsPage: React.FC<WatchPartyRoomsPageProps> = ({ apiKey
       <div className="max-w-7xl mx-auto space-y-10">
         
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 pb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/[0.06] pb-8">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <span className="w-2 h-8 bg-purple-600 rounded-full shadow-[0_0_15px_rgba(147,51,234,0.5)]"></span>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white flex items-center gap-3">
+              <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
               Live Watch Parties
             </h1>
-            <p className="text-zinc-500 text-xs mt-2 font-medium">Join sync-playback watch parties with friends in real-time or select a title to host your own.</p>
+            <p className="text-zinc-400 text-xs mt-2 font-normal">Join synchronized watch parties with friends in real-time or select a title to host your own.</p>
           </div>
           
           {/* Quick Join form & Refresh */}
           <div className="flex items-center gap-3 shrink-0">
-            <form onSubmit={handleJoinSubmit} className="flex items-center gap-2 bg-white/[0.02] border border-white/10 rounded-2xl p-1.5 focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/10 transition-all shadow-lg">
+            <form onSubmit={handleJoinSubmit} className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-full p-1 focus-within:border-white/25 focus-within:bg-white/[0.06] transition-all shadow-sm">
               <input
                 type="text"
                 maxLength={5}
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 placeholder="ENTER CODE"
-                className="w-28 bg-transparent text-center font-black tracking-wider text-sm text-purple-400 placeholder-zinc-700 outline-none uppercase"
+                className="w-28 bg-transparent text-center font-mono font-semibold tracking-widest text-xs text-white placeholder-zinc-500 outline-none uppercase"
               />
               <button
                 type="submit"
                 disabled={joining || !joinCode.trim()}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 active:scale-95 disabled:opacity-50 text-white text-xs font-black tracking-wider uppercase rounded-xl transition-all shadow-md shadow-purple-500/10 cursor-pointer"
+                className="px-4 py-1.5 bg-white text-black hover:bg-zinc-200 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-xs font-medium rounded-full transition-all cursor-pointer shadow-sm"
               >
                 {joining ? <Loader2 className="animate-spin" size={13} /> : 'Join'}
               </button>
@@ -119,10 +119,10 @@ export const WatchPartyRoomsPage: React.FC<WatchPartyRoomsPageProps> = ({ apiKey
             <button
               onClick={handleManualRefresh}
               disabled={refreshing}
-              className="p-3 bg-white/[0.02] hover:bg-white/[0.07] border border-white/5 hover:border-white/10 rounded-2xl text-zinc-400 hover:text-white transition-all active:scale-90"
+              className="p-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-full text-zinc-400 hover:text-white transition-all active:scale-90"
               title="Refresh Rooms"
             >
-              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
@@ -234,30 +234,30 @@ const WatchPartyRoomCard: React.FC<WatchPartyRoomCardProps> = ({ room, apiKey, o
   return (
     <div 
       onClick={() => onJoin(room.id)}
-      className="group aspect-[16/10] relative rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 hover:border-purple-500/30 cursor-pointer shadow-xl hover:shadow-[0_8px_30px_rgba(147,51,234,0.1)] hover:scale-[1.02] transition-all duration-500 flex flex-col justify-end"
+      className="group aspect-[16/10] relative rounded-2xl overflow-hidden bg-zinc-950 border border-white/[0.08] hover:border-white/20 cursor-pointer shadow-xl hover:scale-[1.01] transition-all duration-300 flex flex-col justify-end"
     >
       {/* Backdrop Image */}
       {metadata?.backdrop ? (
         <div 
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
           style={bgStyle}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-tr from-purple-950/20 to-zinc-900" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-zinc-900 to-zinc-950" />
       )}
       
       {/* Premium Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
 
       {/* Card Info Overlay */}
-      <div className="absolute inset-0 p-5 flex flex-col justify-between z-10 select-none">
+      <div className="absolute inset-0 p-4 sm:p-5 flex flex-col justify-between z-10 select-none">
         
         {/* Top Badges */}
         <div className="flex items-start justify-between">
-          <span className="font-sans font-black text-[10px] tracking-widest uppercase bg-purple-600/90 text-white px-2.5 py-1 rounded-xl shadow-md border border-purple-500/20">
+          <span className="font-mono font-semibold text-[10px] tracking-wider uppercase bg-white/10 backdrop-blur-md text-white px-2.5 py-1 rounded-lg shadow-sm border border-white/10">
             {room.id}
           </span>
-          <span className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/15 px-3 py-1 rounded-full text-[10px] font-black tracking-wide text-zinc-300">
+          <span className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full text-[10px] font-medium text-zinc-300">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
@@ -267,13 +267,13 @@ const WatchPartyRoomCard: React.FC<WatchPartyRoomCardProps> = ({ room, apiKey, o
         </div>
 
         {/* Bottom Details */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div>
-            <h4 className="text-sm font-extrabold text-white group-hover:text-purple-400 transition-colors line-clamp-1">
+            <h4 className="text-sm font-semibold text-white transition-colors line-clamp-1">
               {metadata?.title}
             </h4>
-            <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-              <span>{room.media_type}</span>
+            <div className="flex items-center gap-2 mt-1 text-[11px] text-zinc-400 font-normal">
+              <span className="capitalize">{room.media_type}</span>
               {room.media_type === 'tv' && room.season && (
                 <>
                   <span className="w-1 h-1 bg-zinc-600 rounded-full" />
@@ -284,9 +284,9 @@ const WatchPartyRoomCard: React.FC<WatchPartyRoomCardProps> = ({ room, apiKey, o
           </div>
 
           {/* Action Trigger */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-2 group-hover:translate-y-0 duration-300 flex items-center justify-between pt-1 border-t border-white/5">
-            <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-1">
-              Join Party <Play size={8} fill="currentColor" />
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-between pt-1 border-t border-white/[0.08]">
+            <span className="text-[11px] font-medium text-white flex items-center gap-1.5">
+              Join Party <Play size={9} fill="currentColor" />
             </span>
           </div>
         </div>
