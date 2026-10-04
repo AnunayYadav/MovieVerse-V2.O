@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { App as CapApp } from '@capacitor/app';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { NetflixHoverCard } from './components/NetflixHoverCard';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
-import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, markNotificationsRead, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
 import { WatchPartySection } from './components/WatchParty';
@@ -20,10 +19,8 @@ import { AnimePage } from './components/AnimePage';
 import { MangaPage } from './components/MangaPage';
 import { NovelPage } from './components/NovelPage';
 import { DramaPage } from './components/DramaPage';
-import { MusicPage } from './components/MusicPage';
-import { RadioPage } from './components/RadioPage';
 import { PodcastsPage } from './components/BooksPage';
-import { BookOpen, Drama, Music, Headphones, Mic } from 'lucide-react';
+import { BookOpen, Drama, Mic } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 import { syncWatchlistToAniList } from './services/anilistSync';
@@ -47,93 +44,6 @@ const DEFAULT_COLLECTIONS: any = {
 const FRANCHISE_IDS = [86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2660, 2656, 2342, 912503];
 
 const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
-
-interface CategoryItem {
-    name: string;
-    type: 'genre' | 'keyword';
-    id: number;
-}
-
-const ALL_CATEGORIES: CategoryItem[] = [
-    // A
-    { name: "Action", type: "genre", id: 28 },
-    { name: "Adventure", type: "genre", id: 12 },
-    { name: "Animation", type: "genre", id: 16 },
-
-    // B
-    { name: "Based on Book", type: "keyword", id: 818 },
-    { name: "Based on Game", type: "keyword", id: 230985 },
-    { name: "Based on True Story", type: "keyword", id: 9672 },
-    { name: "Biography", type: "keyword", id: 156100 },
-
-    // C
-    { name: "Comedy", type: "genre", id: 35 },
-    { name: "Crime", type: "genre", id: 80 },
-    { name: "Christmas", type: "keyword", id: 9308 },
-    { name: "Coming of Age", type: "keyword", id: 10683 },
-    { name: "Cult Classic", type: "keyword", id: 9658 },
-    { name: "Cyberpunk", type: "keyword", id: 285 },
-
-    // D
-    { name: "Documentary", type: "genre", id: 99 },
-    { name: "Drama", type: "genre", id: 18 },
-    { name: "Disaster", type: "keyword", id: 233 },
-    { name: "Dystopia", type: "keyword", id: 4565 },
-
-    // E
-    { name: "Espionage", type: "keyword", id: 470 },
-
-    // F
-    { name: "Family", type: "genre", id: 10751 },
-    { name: "Fantasy", type: "genre", id: 14 },
-    { name: "Found Footage", type: "keyword", id: 12903 },
-
-    // G
-    { name: "Gangster", type: "keyword", id: 10391 },
-
-    // H
-    { name: "History", type: "genre", id: 36 },
-    { name: "Horror", type: "genre", id: 27 },
-    { name: "Heist", type: "keyword", id: 10526 },
-
-    // L
-    { name: "LGBTQ+", type: "keyword", id: 237442 },
-
-    // M
-    { name: "Music", type: "genre", id: 10402 },
-    { name: "Mystery", type: "genre", id: 9648 },
-    { name: "Martial Arts", type: "keyword", id: 849 },
-    { name: "Mind-Bending", type: "keyword", id: 10125 },
-
-    // P
-    { name: "Post-Apocalyptic", type: "keyword", id: 4485 },
-    { name: "Psychological Thriller", type: "keyword", id: 10125 },
-
-    // R
-    { name: "Romance", type: "genre", id: 10749 },
-    { name: "Romantic Comedy", type: "keyword", id: 9799 },
-
-    // S
-    { name: "Sci-Fi", type: "genre", id: 878 },
-    { name: "Space Exploration", type: "keyword", id: 9882 },
-    { name: "Superhero", type: "keyword", id: 9715 },
-    { name: "Supernatural", type: "keyword", id: 6158 },
-    { name: "Survival", type: "keyword", id: 10391 },
-
-    // T
-    { name: "Thriller", type: "genre", id: 53 },
-    { name: "Time Travel", type: "keyword", id: 4379 },
-
-    // V
-    { name: "Vampire", type: "keyword", id: 3133 },
-
-    // W
-    { name: "War", type: "genre", id: 10752 },
-    { name: "Western", type: "genre", id: 37 },
-
-    // Z
-    { name: "Zombie", type: "keyword", id: 12377 }
-];
 
 // Sub-component for horizontal scrolling rows of movies
 const MovieRowCard = ({
@@ -1362,87 +1272,8 @@ export default function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isAiSearchActive, setIsAiSearchActive] = useState(false);
     const [searchInput, setSearchInput] = useState("");
-    const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [searchHistory, setSearchHistory] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("All");
-
-    useEffect(() => {
-        if (!searchInput.trim() || searchInput.trim().length < 2) {
-            setSearchSuggestions([]);
-            return;
-        }
-
-        const delayDebounce = setTimeout(async () => {
-            setLoadingSuggestions(true);
-            try {
-                if (selectedCategory === 'Anime') {
-                    const query = `
-                      query ($search: String) {
-                        Page(page: 1, perPage: 6) {
-                          media(search: $search, type: ANIME) {
-                            id
-                            title {
-                              english
-                              userPreferred
-                              romaji
-                            }
-                            coverImage {
-                              large
-                            }
-                            format
-                            startDate { year }
-                          }
-                        }
-                      }
-                    `;
-                    const res = await window.fetch('/api/anilist', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query, variables: { search: searchInput } })
-                    });
-                    const json = await res.json();
-                    const list = json?.data?.Page?.media || [];
-                    const items = list.map((m: any) => ({
-                        id: m.id,
-                        title: m.title.english || m.title.userPreferred || m.title.romaji,
-                        poster: m.coverImage?.large || '',
-                        type: 'anime',
-                        year: m.startDate?.year || '',
-                        isAnimeDirect: true,
-                        media_type: m.format === 'MOVIE' ? 'movie' : 'tv',
-                        originalItem: m
-                    }));
-                    setSearchSuggestions(items);
-                } else {
-                    const res = await window.fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(searchInput)}&language=en-US&page=1&include_adult=false`);
-                    if (res.ok) {
-                        const json = await res.json();
-                        const list = (json.results || []).slice(0, 6);
-                        const items = list
-                            .filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv')
-                            .map((m: any) => ({
-                                id: m.id,
-                                title: m.title || m.name || m.original_title || m.original_name,
-                                poster: m.poster_path ? `${TMDB_IMAGE_BASE}${m.poster_path}` : '',
-                                type: m.media_type,
-                                year: (m.release_date || m.first_air_date || '').split('-')[0] || '',
-                                media_type: m.media_type,
-                                originalItem: m
-                            }));
-                        setSearchSuggestions(items);
-                    }
-                }
-            } catch (err) {
-                console.error("Error fetching search suggestions", err);
-            } finally {
-                setLoadingSuggestions(false);
-            }
-        }, 300);
-
-        return () => clearTimeout(delayDebounce);
-    }, [searchInput, selectedCategory, apiKey]);
 
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState(false);
@@ -1833,8 +1664,6 @@ export default function App() {
 
             if (path === '/' || path === '') {
                 category = "All";
-            } else if (path === '/music' || path === '/browse/music') {
-                category = "Music";
             } else if (path === '/anime' || path === '/explore') {
                 category = "Anime";
             } else if (path === '/manga' || path === '/browse/manga') {
@@ -1845,8 +1674,6 @@ export default function App() {
                 category = "Novels";
             } else if (path === '/live-tv') {
                 category = "LiveTV";
-            } else if (path === '/radio' || path === '/browse/radio') {
-                category = "Radio";
             } else if (path === '/podcasts' || path === '/browse/podcasts') {
                 category = "Podcasts";
             } else if (path === '/dramas' || path === '/browse/dramas') {
@@ -1879,9 +1706,7 @@ export default function App() {
                 else if (sub === 'family') category = "Family";
                 else if (sub === 'tv-shows') category = "TV Shows";
                 else if (sub === 'coming') category = "Coming";
-                else if (sub === 'categories') category = "Categories";
                 else if (sub === 'franchise') category = "Franchise";
-                else if (sub === 'radio') category = "Radio";
                 else if (sub === 'podcasts') category = "Podcasts";
             } else if (path.startsWith('/library/')) {
                 const sub = parts[2];
@@ -2214,10 +2039,6 @@ export default function App() {
             } else {
                 newPath = '/browse/dramas';
             }
-        } else if (selectedCategory === 'Music') {
-            newPath = '/music';
-        } else if (selectedCategory === 'Radio') {
-            newPath = '/radio';
         } else if (selectedCategory === 'Podcasts') {
             newPath = '/podcasts';
         } else if (selectedCategory === 'Collection' && currentCollection) {
@@ -2261,8 +2082,6 @@ export default function App() {
             pageTitle = 'Explore - MovieVerse AI';
         } else if (selectedCategory === 'LiveTV') {
             pageTitle = 'Live TV - MovieVerse AI';
-        } else if (selectedCategory === 'Radio') {
-            pageTitle = 'Radio - MovieVerse AI';
         } else if (selectedCategory === 'Podcasts') {
             pageTitle = 'Podcasts & Audiobooks - MovieVerse AI';
         } else if (selectedCategory === 'Awards') {
@@ -2277,8 +2096,6 @@ export default function App() {
             pageTitle = 'TV Shows - MovieVerse AI';
         } else if (selectedCategory === 'Coming') {
             pageTitle = 'Coming Soon - MovieVerse AI';
-        } else if (selectedCategory === 'Categories') {
-            pageTitle = 'Categories - MovieVerse AI';
         } else if (selectedCategory === 'Franchise') {
             pageTitle = 'Franchises - MovieVerse AI';
         } else if (selectedCategory === 'Watchlist') {
@@ -2509,7 +2326,7 @@ export default function App() {
     const accentBgLow = "bg-red-600/20";
 
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Anime", "Manga", "Music"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Franchise", "LiveTV", "Anime", "Manga"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0) ||
         (!searchQuery && (selectedCategory === "Anime" || (selectedCategory === "Manga" && !selectedMangaId)))
     );
@@ -3233,7 +3050,7 @@ export default function App() {
 
     const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false, overrideQuery?: string) => {
         if (!apiKey) return;
-        if (selectedCategory === "Manga" || selectedCategory === "Anime" || selectedCategory === "AnimeCommunity" || selectedCategory === "Music") return;
+        if (selectedCategory === "Manga" || selectedCategory === "Anime" || selectedCategory === "AnimeCommunity") return;
         setFetchError(false);
         if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
             const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
@@ -3241,7 +3058,7 @@ export default function App() {
             setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null);
             setHasMore(false); return;
         }
-        if (["LiveTV", "Categories", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
+        if (["LiveTV", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -3527,7 +3344,7 @@ export default function App() {
                 });
             } else {
                 setMovies(finalResults);
-                const hasHero = !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && !searchQuery;
+                const hasHero = !["People", "Coming", "Collections", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && !searchQuery;
                 if (hasHero && finalResults.length > 0) {
                     const pool = finalResults.filter((m: Movie) => m.backdrop_path).slice(0, 5);
                     const selectedPool = pool.length > 0 ? pool : finalResults.slice(0, 5);
@@ -3557,7 +3374,6 @@ export default function App() {
     }, [searchInput, isAiSearchActive]);
 
     useEffect(() => {
-        if (selectedCategory === "Categories") return;
         if (isAiSearchActive) return;
         const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300);
         return () => clearTimeout(timeout);
@@ -3590,7 +3406,6 @@ export default function App() {
     };
     const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); setIsSidebarOpen(false); };
     const handleSearchSubmit = (query: string) => {
-        if (selectedCategory === "Categories") return;
         resetFilters();
         if (selectedCategory === "Manga") {
             setSelectedMangaId(null);
@@ -3599,7 +3414,6 @@ export default function App() {
         setSearchQuery(query);
         setSearchInput(query);
         addToSearchHistory(query);
-        setShowSuggestions(false);
         setIsSidebarOpen(false);
 
         if (isAiSearchActive) {
@@ -4206,7 +4020,7 @@ export default function App() {
 
     useEffect(() => {
         const isHomepage = selectedCategory === 'All' && !searchQuery && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId;
-        const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History", "Music"].includes(selectedCategory) && !tmdbCollectionId;
+        const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId;
 
         if (!isHomepage && !isDynamicCategory) return;
 
@@ -4312,16 +4126,12 @@ export default function App() {
     };
 
     const browseOptions = [
-        { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
-        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
-        { id: "Music", icon: Music, label: "Music", action: () => { resetFilters(); setSelectedCategory("Music"); } },
-        { id: "Radio", icon: Headphones, label: "Radio", action: () => { resetFilters(); setSelectedCategory("Radio"); } },
+        { id: "LiveTV", icon: Tv, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
         { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } },
-        { id: "Podcasts", icon: Mic, label: "Podcasts", action: () => { resetFilters(); setSelectedCategory("Podcasts"); } },
-        { id: "Settings", icon: Settings, label: "Settings", action: () => { setIsSettingsOpen(true); } }
+        { id: "Podcasts", icon: Mic, label: "Podcasts", action: () => { resetFilters(); setSelectedCategory("Podcasts"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -4382,7 +4192,7 @@ export default function App() {
                         <div className="mb-8 md:hidden relative group">
                             <input
                                 type="text"
-                                placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
+                                placeholder="Search... (Press /)"
                                 className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
@@ -4410,17 +4220,11 @@ export default function App() {
 
                             <div className="space-y-1">
                                 <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("Music"); }} className={getSidebarItemClass(selectedCategory === "Music")}>
-                                    <Music size={18} /> Music
-                                </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={getSidebarItemClass(selectedCategory === "TV Shows")}>
                                     <Tv size={18} /> TV Shows
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
                                     <Radio size={18} /> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
-                                </button>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("Radio"); }} className={getSidebarItemClass(selectedCategory === "Radio")}>
-                                    <Headphones size={18} /> Radio
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Podcasts"); }} className={getSidebarItemClass(selectedCategory === "Podcasts")}>
                                     <Mic size={18} /> Podcasts
@@ -4479,18 +4283,19 @@ export default function App() {
                             ? 'bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b-0 border-transparent shadow-lg'
                             : 'bg-gradient-to-b from-black/50 via-black/15 to-transparent backdrop-blur-none border-b-0 border-transparent shadow-none'
                     }`}>
-                    <div className="flex items-center justify-between w-full max-w-7xl">
-                        <div className="hidden md:flex items-center gap-4 md:gap-8">
+                    <div className="flex items-center justify-between w-full max-w-7xl gap-2 md:gap-4">
+                        <div className="flex items-center gap-2 md:gap-8 shrink-0">
                             {!isTV && (
                                 <button
                                     onClick={() => setIsSidebarOpen(true)}
-                                    className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-white"
+                                    className="p-2 -ml-1 md:-ml-2 hover:bg-white/10 active:bg-white/15 rounded-full transition-colors text-white"
+                                    aria-label="Open navigation menu"
                                 >
-                                    <Menu size={24} />
+                                    <Menu size={22} className="md:w-6 md:h-6" />
                                 </button>
                             )}
 
-                            <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
+                            <div className="hidden sm:flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                                 <div className="relative group flex items-center justify-center">
                                     <BrandLogo size={36} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
                                 </div>
@@ -4518,7 +4323,7 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels", "Podcasts"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -4527,10 +4332,10 @@ export default function App() {
                                         <ChevronDown size={12} className={`transition-transform duration-500 opacity-60 ${isBrowseOpen ? 'rotate-180' : ''}`} />
                                     </TvFocusButton>
 
-                                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[360px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
-                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-[#0a0a0f] border border-white/[0.08] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[350px] h-[16px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
+                                    <div className={`absolute top-[calc(100%+0.6rem)] left-1/2 -translate-x-1/2 w-[350px] bg-[#090a0e]/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.9)] p-3 grid grid-cols-3 gap-2.5 z-[60] transition-all duration-300 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Popover Arrow */}
-                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0a0a0f] border-t border-l border-white/[0.08] left-1/2 -translate-x-1/2 z-[-1]" />
+                                        <div className="absolute -top-1.5 w-3 h-3 rotate-45 bg-[#090a0e] border-t border-l border-white/10 left-1/2 -translate-x-1/2 z-[-1]" />
 
                                         {browseOptions.map(opt => {
                                             const isActive = selectedCategory === opt.id ||
@@ -4540,18 +4345,24 @@ export default function App() {
                                                 <TvFocusButton
                                                     key={opt.id}
                                                     onClick={() => handleBrowseAction(opt.action)}
-                                                    className="group flex flex-col items-center justify-center gap-2.5 py-2.5 px-1 rounded-xl transition-all duration-300 hover:bg-white/[0.03] active:scale-95 border border-transparent hover:border-white/[0.01]"
+                                                    className={`group flex flex-col items-center justify-center gap-2.5 py-3.5 px-2 rounded-2xl transition-all duration-200 text-center cursor-pointer ${
+                                                        isActive
+                                                            ? 'text-white'
+                                                            : 'text-zinc-300 hover:text-white hover:bg-white/[0.04]'
+                                                    }`}
                                                 >
-                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
-                                                            ? 'bg-gradient-to-br from-red-500 to-rose-600 border border-red-400/20 text-white shadow-[0_8px_20px_rgba(239,68,68,0.35)] scale-105'
-                                                            : 'bg-white/[0.03] border border-white/[0.06] text-zinc-400 group-hover:bg-white/10 group-hover:border-white/15 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]'
-                                                        }`}>
-                                                        <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
+                                                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                                        isActive
+                                                            ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                                            : 'bg-white/[0.05] text-zinc-300 group-hover:text-white group-hover:bg-white/[0.1] group-hover:scale-105'
+                                                    }`}>
+                                                        <opt.icon size={20} className="transition-transform duration-200 group-hover:scale-110" />
                                                     </div>
-                                                    <span className={`text-[11px] font-semibold tracking-wide transition-colors duration-300 ${isActive
-                                                            ? 'text-red-400 font-extrabold'
-                                                            : 'text-zinc-400 group-hover:text-zinc-200'
-                                                        }`}>{opt.label}</span>
+                                                    <span className={`text-xs font-semibold tracking-wide truncate max-w-full transition-colors duration-200 ${
+                                                        isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'
+                                                    }`}>
+                                                        {opt.label}
+                                                    </span>
                                                 </TvFocusButton>
                                             );
                                         })}
@@ -4560,12 +4371,12 @@ export default function App() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 w-full px-4 md:px-0 md:w-auto">
-                            <div className="relative w-full md:w-64 lg:w-80 group">
+                        <div className="flex-1 min-w-0 max-w-full md:w-64 lg:w-80 md:flex-initial mx-1 md:mx-0">
+                            <div className="relative w-full group">
                                 <TvFocusInput
                                     ref={searchInputRef}
                                     type="text"
-                                    placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
+                                    placeholder={window.innerWidth < 640 ? "Search..." : "Search... (Press /)"}
                                     className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
                                     value={searchInput}
                                     onChange={(e) => setSearchInput(e.target.value)}
@@ -4581,40 +4392,41 @@ export default function App() {
                                     <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
                                 </button>
                             </div>
+                        </div>
 
-                            <div className="hidden md:flex items-center gap-3">
-                                {/* Profile Dropdown Container */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => {
-                                            if (isProfileDropdownOpen) {
-                                                setProfileMenuTab('menu');
-                                            }
-                                            setIsProfileDropdownOpen(!isProfileDropdownOpen);
-                                        }}
-                                        className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${isProfileDropdownOpen ? 'ring-2 ring-red-600 ring-offset-2 ring-offset-black' : ''
-                                            } ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40'}`}
-                                    >
-                                        {userProfile.avatar ? (
-                                            <img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            userProfile.name.charAt(0).toUpperCase()
-                                        )}
-                                        {hasUnread && (
-                                            <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-600 ring-2 ring-black" />
-                                        )}
-                                    </button>
-
-                                    {isProfileDropdownOpen && (
-                                        <div
-                                            className="fixed inset-0 z-[65]"
-                                            onClick={() => {
-                                                setIsProfileDropdownOpen(false);
-                                                setProfileMenuTab('menu');
-                                            }}
-                                        />
+                        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                            {/* Profile Dropdown Container */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => {
+                                        if (isProfileDropdownOpen) {
+                                            setProfileMenuTab('menu');
+                                        }
+                                        setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                                    }}
+                                    className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${isProfileDropdownOpen ? 'ring-2 ring-red-600 ring-offset-2 ring-offset-black' : ''
+                                        } ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40'}`}
+                                >
+                                    {userProfile.avatar ? (
+                                        <img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        userProfile.name.charAt(0).toUpperCase()
                                     )}
-                                    <div className={`absolute top-[calc(100%+0.75rem)] right-0 ${profileMenuTab === 'notifications' ? 'w-80' : 'w-52'} bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2.5 z-[70] transition-all duration-300 transform origin-top-right select-none ${isProfileDropdownOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    {hasUnread && (
+                                        <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-600 ring-2 ring-black" />
+                                    )}
+                                </button>
+
+                                {isProfileDropdownOpen && (
+                                    <div
+                                        className="fixed inset-0 z-[65]"
+                                        onClick={() => {
+                                            setIsProfileDropdownOpen(false);
+                                            setProfileMenuTab('menu');
+                                        }}
+                                    />
+                                )}
+                                <div className={`absolute top-[calc(100%+0.75rem)] right-0 ${profileMenuTab === 'notifications' ? 'w-[calc(100vw-2rem)] max-w-xs sm:w-80' : 'w-52'} bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2.5 z-[70] transition-all duration-300 transform origin-top-right select-none ${isProfileDropdownOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Dropdown Arrow */}
                                         <div className="absolute -top-1 right-3 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 z-[-1]" />
 
@@ -4734,7 +4546,6 @@ export default function App() {
                                 </div>
                             </div>
                         </div>
-                    </div>
                 </nav>
             )}
 
@@ -4897,99 +4708,11 @@ export default function App() {
                             disableEntryAnimation={isNavigatingBack}
                         />
 
-                    ) : selectedCategory === "Music" ? (
-                        <MusicPage
-                            isAuthenticated={isAuthenticated}
-                            disableEntryAnimation={isNavigatingBack}
-                        />
-
-                    ) : selectedCategory === "Radio" ? (
-                        <RadioPage
-                            searchQuery={searchQuery}
-                            onSearchClear={() => setSearchQuery('')}
-                        />
-
                     ) : selectedCategory === "Podcasts" ? (
                         <PodcastsPage
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                         />
-
-                    ) : selectedCategory === "Categories" ? (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-16 pt-2 select-none">
-                            <div className="px-4 md:px-12 max-w-7xl mx-auto">
-                                <div className="mb-8 border-b border-white/5 pb-6">
-                                    <div>
-                                        <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                                            <span className="w-2.5 h-8 rounded-full bg-red-600"></span>
-                                            Categories
-                                        </h2>
-                                        <p className="text-zinc-500 text-xs md:text-sm mt-1">Browse and find movies sorted by genres and special sub-categories.</p>
-                                    </div>
-                                </div>
-
-                                {/* Alphabetical Categorized List */}
-                                <div className="space-y-8 mt-8">
-                                    {(() => {
-                                        const filtered = ALL_CATEGORIES.filter(cat =>
-                                            cat.name.toLowerCase().includes(searchQuery.toLowerCase())
-                                        );
-
-                                        const groups: Record<string, typeof ALL_CATEGORIES> = {};
-                                        filtered.forEach(cat => {
-                                            const firstLetter = cat.name.charAt(0).toUpperCase();
-                                            if (!groups[firstLetter]) {
-                                                groups[firstLetter] = [];
-                                            }
-                                            groups[firstLetter].push(cat);
-                                        });
-                                        const sortedLetters = Object.keys(groups).sort();
-
-                                        if (sortedLetters.length === 0) {
-                                            return (
-                                                <div className="text-center py-20 opacity-50 flex flex-col items-center">
-                                                    <Ghost size={48} className="mb-4 text-white/20" />
-                                                    <p className="text-sm font-bold text-gray-400">No categories found matching "{searchQuery}"</p>
-                                                </div>
-                                            );
-                                        }
-
-                                        return sortedLetters.map(letter => (
-                                            <div key={letter} className="flex gap-6 md:gap-12 py-6 border-b border-white/5 last:border-b-0 text-left">
-                                                {/* Big Letter Label */}
-                                                <div className="w-12 md:w-16 shrink-0 flex items-start justify-center">
-                                                    <span className="text-4xl md:text-5xl font-bold text-white/95 leading-none tracking-tight font-sans">
-                                                        {letter}
-                                                    </span>
-                                                </div>
-
-                                                {/* Chips Grid */}
-                                                <div className="flex-1 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                                    {groups[letter].sort((a, b) => a.name.localeCompare(b.name)).map(cat => (
-                                                        <button
-                                                            key={`${cat.type}-${cat.id}`}
-                                                            onClick={() => {
-                                                                if (cat.type === 'genre') {
-                                                                    resetFilters();
-                                                                    setSelectedCategory(cat.name);
-                                                                } else {
-                                                                    handleKeywordClick({ id: cat.id, name: cat.name });
-                                                                }
-                                                            }}
-                                                            className="flex items-center px-4 py-2.5 bg-[#141416] hover:bg-zinc-800/80 rounded-lg transition-all duration-300 text-left active:scale-[0.98] group"
-                                                        >
-                                                            <span className="text-xs md:text-[13.5px] font-medium text-zinc-300 group-hover:text-white group-hover:translate-x-0.5 transition-all duration-200 truncate">
-                                                                {cat.name}
-                                                            </span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ));
-                                    })()}
-                                </div>
-                            </div>
-                        </div>
                     ) : selectedCategory === "Franchise" ? (
                         <div className="animate-in fade-in duration-750 min-h-screen pb-16 pt-2">
                             {/* Hero Spotlight Collection */}
@@ -5190,7 +4913,7 @@ export default function App() {
                         <>
                             {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Franchise" && (
                                 <>
-                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Music"].includes(selectedCategory) && (
+                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && (
                                         <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group select-none bg-black">
                                             {/* Backdrop Background */}
                                             <div className="absolute inset-0">
@@ -5405,7 +5128,7 @@ export default function App() {
                                             </div>
                                         ) : (
                                             <div className="space-y-8">
-                                                {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History", "Music"].includes(selectedCategory) && !tmdbCollectionId ? (
+                                                {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId ? (
                                                     <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
                                                         {activeCategoryRows.map(cat => (
                                                             <MovieRow
@@ -5702,7 +5425,7 @@ export default function App() {
             />
 
             {/* Mobile Browse Dropdown Menu */}
-            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[290px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-[#0a0a0f] border border-white/5 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.95)] p-3 grid grid-cols-3 gap-2.5 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[330px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-[#090a0e]/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] p-3 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
                 {browseOptions.map(opt => {
                     const isActive = selectedCategory === opt.id ||
                         (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || selectedCategory === "WatchParty"));
@@ -5711,15 +5434,24 @@ export default function App() {
                         <button
                             key={opt.id}
                             onClick={() => handleBrowseAction(opt.action)}
-                            className="group flex flex-col items-center justify-center gap-2 py-2 px-0.5 rounded-xl transition-all duration-300 hover:bg-white/[0.03] active:scale-95 border border-transparent"
+                            className={`group flex flex-col items-center justify-center gap-2 py-3 px-1.5 rounded-2xl transition-all duration-200 text-center active:scale-95 ${
+                                isActive
+                                    ? 'text-white'
+                                    : 'text-zinc-300 hover:text-white hover:bg-white/[0.04]'
+                            }`}
                         >
-                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${isActive
-                                    ? 'bg-gradient-to-br from-red-500 to-rose-600 border border-red-400/20 text-white shadow-[0_6px_15px_rgba(239,68,68,0.3)] scale-105'
-                                    : 'bg-zinc-900/60 border border-zinc-800/40 text-zinc-400 group-hover:bg-zinc-800/80 group-hover:border-zinc-700/60 group-hover:text-white group-hover:scale-105'
-                                }`}>
-                                <opt.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                isActive
+                                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                    : 'bg-white/[0.05] text-zinc-300 group-hover:bg-white/[0.1]'
+                            }`}>
+                                <opt.icon size={19} className="transition-transform duration-200" />
                             </div>
-                            <span className={`text-[9px] font-bold text-center line-clamp-1 transition-colors duration-300 ${isActive ? 'text-red-400' : 'text-zinc-400 group-hover:text-white'}`}>{opt.label}</span>
+                            <span className={`text-[11px] font-semibold tracking-wide truncate max-w-full ${
+                                isActive ? 'text-white' : 'text-zinc-300'
+                            }`}>
+                                {opt.label}
+                            </span>
                         </button>
                     );
                 })}
@@ -5732,7 +5464,7 @@ export default function App() {
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
                         { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                         { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "Podcasts", "WatchParty", "Radio", "Music", "Dramas"].includes(selectedCategory) }
+                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "Podcasts", "WatchParty", "Dramas"].includes(selectedCategory) }
                     ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
