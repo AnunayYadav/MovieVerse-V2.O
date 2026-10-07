@@ -114,6 +114,24 @@ export const PROVIDERS: Provider[] = [
     supportsLanguage: true
   },
   {
+    id: 'vidstuck',
+    name: 'VidStuck',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      const subParam = subtitle && subtitle !== 'None' ? `&subtitle=${encodeURIComponent(subtitle.toLowerCase())}` : '';
+      return `https://vidstuck.xyz/embed/movie/${tmdbId}?color=${colorParam}&branding=MovieVerse${subParam}${progressParam}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      const subParam = subtitle && subtitle !== 'None' ? `&subtitle=${encodeURIComponent(subtitle.toLowerCase())}` : '';
+      return `https://vidstuck.xyz/embed/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&color=${colorParam}&branding=MovieVerse${subParam}${progressParam}`;
+    },
+    supportsPostMessage: true,
+    supportsLanguage: true
+  },
+  {
     id: 'vidnest',
     name: 'VidNest',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 

@@ -61,6 +61,12 @@
       "type": "movie"
     },
     {
+      "server": "VidStuck",
+      "url": "https://vidstuck.xyz",
+      "enabled": true,
+      "type": "all"
+    },
+    {
       "server": "Vidsrcto",
       "url": "https://vidsrc.cc",
       "enabled": true,

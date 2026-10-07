@@ -2991,6 +2991,37 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
           }
 
+          // Handle VIDSTUCK events explicitly
+          if (
+            event.origin === 'https://vidstuck.xyz' ||
+            (parsed && parsed.id && parsed.timestamp !== undefined && parsed.progress !== undefined && (parsed.type === 'movie' || parsed.type === 'tv' || parsed.type === 'anime'))
+          ) {
+            const timeNum = Number(parsed.timestamp);
+            const durationNum = Number(parsed.duration);
+            if (!isNaN(timeNum)) {
+              currentProgressRef.current = timeNum;
+              if (!isSeekingRef.current) {
+                setPlayerCurrentTime(timeNum);
+              }
+              setIsBuffering(false);
+              setIsPlaying(true);
+              if (onProgress) {
+                const isComplete = Number(parsed.progress) >= 95 || (durationNum > 0 && timeNum >= durationNum - 5);
+                onProgress({
+                  currentTime: timeNum,
+                  duration: !isNaN(durationNum) ? durationNum : 0,
+                  event: isComplete ? 'complete' : 'time',
+                  season: parsed.season ? Number(parsed.season) : currentSeason,
+                  episode: parsed.episode ? Number(parsed.episode) : currentEpisode
+                });
+              }
+            }
+            if (!isNaN(durationNum) && durationNum > 0) {
+              setPlayerDuration(durationNum);
+            }
+            return;
+          }
+
           // General fallback parsing for other providers
           let rawTime = parsed.timestamp ?? parsed.currentTime ?? parsed.current_time ?? parsed.time;
           let rawDuration = parsed.duration ?? parsed.totalTime ?? parsed.total_time;
@@ -5317,7 +5348,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const getServerBadge = (id: string, index: number) => {
     if (id === 'auto') return { label: 'Fast', isFast: true };
-    if (id === 'cinesrc' || id === 'vidfast') return { label: 'Fast', isFast: true };
+    if (id === 'cinesrc' || id === 'vidfast' || id === 'vidstuck') return { label: 'Fast', isFast: true };
     if (id === 'videasy_adfree' || id === 'vidsrc' || id === 'peachify') return { label: 'HD' };
     if (id === 'vidnest_animepahe' || id === 'megaplay') return { label: 'Fast', isFast: true };
     if (id === '2embed') return { label: 'Backup' };
@@ -5753,7 +5784,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </div>
 
                 {/* Audio Language row if supported */}
-                {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto', 'vidfast'].includes(selectedProviderId)) && (
+                {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto', 'vidfast', 'vidstuck'].includes(selectedProviderId)) && (
                   <div className="pt-2 border-t border-white/[0.04] space-y-1.5">
                     <span className="text-[10px] font-normal text-zinc-500 uppercase tracking-wider">Language</span>
                     <div className="flex flex-wrap gap-1">
