@@ -518,18 +518,22 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-            return localStorage.getItem(key) || 'auto';
+            const stored = localStorage.getItem(key);
+            if (!stored || (!isAnime && (stored === 'auto' || stored === 'auto_select'))) return isAnime ? 'auto' : 'vidstuck';
+            return stored;
         }
-        return 'auto';
+        return isAnime ? 'auto' : 'vidstuck';
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-            return localStorage.getItem(key) || 'auto';
+            const stored = localStorage.getItem(key);
+            if (!stored || (!isAnime && (stored === 'auto' || stored === 'auto_select'))) return isAnime ? 'auto' : 'vidstuck';
+            return stored;
         }
-        return 'auto';
+        return isAnime ? 'auto' : 'vidstuck';
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
@@ -556,7 +560,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-        const preferred = localStorage.getItem(key) || 'auto';
+        const stored = localStorage.getItem(key);
+        const preferred = (!stored || (!isAnime && (stored === 'auto' || stored === 'auto_select'))) ? (isAnime ? 'auto' : 'vidstuck') : stored;
         setSelectedProviderId(preferred);
         setSelectedCastProviderId(preferred);
     }, [isAnime]);

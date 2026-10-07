@@ -1,6 +1,12 @@
 {
   "sources": [
     {
+      "server": "VidStuck",
+      "url": "https://vidstuck.xyz",
+      "enabled": true,
+      "type": "all"
+    },
+    {
       "server": "Anizone",
       "url": "https://anizone.to",
       "enabled": true,
@@ -59,12 +65,6 @@
       "url": "https://www.2embed.cc",
       "enabled": true,
       "type": "movie"
-    },
-    {
-      "server": "VidStuck",
-      "url": "https://vidstuck.xyz",
-      "enabled": true,
-      "type": "all"
     },
     {
       "server": "Vidsrcto",

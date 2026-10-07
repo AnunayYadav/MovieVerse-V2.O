@@ -1264,13 +1264,13 @@ export default function App() {
     const [watchPartyPlayerState, setWatchPartyPlayerState] = useState<'play' | 'pause'>('play');
     const [watchPartyProviderId, setWatchPartyProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'vidstuck';
             const prov = PROVIDERS.find(p => p.id === preferred);
             if (prov && prov.supportsPostMessage) {
                 return preferred;
             }
         }
-        return 'vidfast';
+        return 'vidstuck';
     });
     const [isWatchPartyJoinOpen, setIsWatchPartyJoinOpen] = useState(false);
     const [joinRoomCode, setJoinRoomCode] = useState('');
@@ -2667,9 +2667,9 @@ export default function App() {
             setWatchPartyForceProgress(undefined);
             setWatchPartyGuestTime(0);
             setWatchPartyPlayerState('play');
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'vidstuck';
             const prov = PROVIDERS.find(p => p.id === preferred);
-            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
+            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidstuck');
             setSelectedMovie(null); // Close Details modal
         }
     };
@@ -2715,9 +2715,9 @@ export default function App() {
                 setWatchPartyForceProgress(undefined);
             }
             setWatchPartyPlayerState(room.is_playing === false ? 'pause' : 'play');
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'vidstuck';
             const prov = PROVIDERS.find(p => p.id === preferred);
-            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
+            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidstuck');
 
             setIsWatchPartyJoinOpen(false);
             setJoinRoomCode('');

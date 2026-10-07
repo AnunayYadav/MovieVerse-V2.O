@@ -348,7 +348,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
-    const defaultProvider = 'auto';
+    const defaultProvider = isAnime ? 'auto' : 'vidstuck';
     let chosen = providerId;
     if (!isAnime && (chosen === 'vidnest_animepahe' || chosen === 'megaplay' || chosen === 'encdec_animekai')) {
       chosen = undefined;
@@ -356,16 +356,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (typeof window !== 'undefined') {
       const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
       let preferred = chosen || localStorage.getItem(key);
-      if (!preferred || preferred === 'auto_select') {
+      if (!preferred || preferred === 'auto_select' || (!chosen && preferred === 'auto' && !isAnime)) {
         preferred = defaultProvider;
       }
       if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'megaplay' || preferred === 'encdec_animekai')) {
-        preferred = 'auto';
+        preferred = 'vidstuck';
       }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
         if (!prov || !prov.supportsPostMessage) {
-          return 'vidfast'; // Fallback default for Watch Party
+          return 'vidstuck'; // Fallback default for Watch Party
         }
       }
       if (!PROVIDERS.some(p => p.id === preferred)) {
@@ -593,7 +593,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // Ensure non-anime never stays on anime-only providers
   useEffect(() => {
     if (!isAnime && (selectedProviderId === 'vidnest_animepahe' || selectedProviderId === 'megaplay' || selectedProviderId === 'encdec_animekai')) {
-      setSelectedProviderId('auto');
+      setSelectedProviderId('vidstuck');
     }
   }, [isAnime, selectedProviderId]);
 
@@ -603,7 +603,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [autoProbeBadges, setAutoProbeBadges] = useState<Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }>>({});
   const [autoPlayingServerId, setAutoPlayingServerId] = useState<string>(() => {
     if (isAnime || isAnimeDirect) return 'vidnest_animepahe';
-    return 'videasy_adfree';
+    return 'vidstuck';
   });
 
 
@@ -761,9 +761,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       console.warn("Auto probe exception:", e);
     }
 
-    const fallbackId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'videasy_adfree';
+    const fallbackId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'vidstuck';
     setAutoPlayingServerId(fallbackId);
-    setAutoProbeStatus(`Routing to primary server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'VidEasy'}`);
+    setAutoProbeStatus(`Routing to primary server: ${PROVIDERS.find(p => p.id === fallbackId)?.name || 'VidStuck'}`);
     setTimeout(() => setIsAutoProbing(false), 1000);
   }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, isWatchParty, isAnimeDirect, verifiedPlaybackServers]);
 

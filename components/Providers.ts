@@ -45,7 +45,7 @@ export const PROVIDERS: Provider[] = [
       }
       const colorParam = color ? color.replace('#', '') : 'EF4444';
       const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
-      return `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
+      return `https://vidstuck.xyz/embed/movie/${tmdbId}?color=${colorParam}&branding=MovieVerse${progressParam}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
       if (isAnime) {
@@ -53,7 +53,25 @@ export const PROVIDERS: Provider[] = [
       }
       const colorParam = color ? color.replace('#', '') : 'EF4444';
       const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
-      return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
+      return `https://vidstuck.xyz/embed/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&color=${colorParam}&branding=MovieVerse${progressParam}`;
+    },
+    supportsPostMessage: true,
+    supportsLanguage: true
+  },
+  {
+    id: 'vidstuck',
+    name: 'VidStuck',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      const subParam = subtitle && subtitle !== 'None' ? `&subtitle=${encodeURIComponent(subtitle.toLowerCase())}` : '';
+      return `https://vidstuck.xyz/embed/movie/${tmdbId}?color=${colorParam}&branding=MovieVerse${subParam}${progressParam}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      const subParam = subtitle && subtitle !== 'None' ? `&subtitle=${encodeURIComponent(subtitle.toLowerCase())}` : '';
+      return `https://vidstuck.xyz/embed/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&color=${colorParam}&branding=MovieVerse${subParam}${progressParam}`;
     },
     supportsPostMessage: true,
     supportsLanguage: true
@@ -110,24 +128,6 @@ export const PROVIDERS: Provider[] = [
       `https://vidfast.vc/movie/${tmdbId}?autoPlay=true&controls=true&theme=${color.replace('#', '')}${language ? `&lang=${getAudioCode(language, 'iso')}` : ''}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
       `https://vidfast.vc/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${language ? `&lang=${getAudioCode(language, 'iso')}` : ''}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: true,
-    supportsLanguage: true
-  },
-  {
-    id: 'vidstuck',
-    name: 'VidStuck',
-    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
-      const colorParam = color ? color.replace('#', '') : 'EF4444';
-      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
-      const subParam = subtitle && subtitle !== 'None' ? `&subtitle=${encodeURIComponent(subtitle.toLowerCase())}` : '';
-      return `https://vidstuck.xyz/embed/movie/${tmdbId}?color=${colorParam}&branding=MovieVerse${subParam}${progressParam}`;
-    },
-    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
-      const colorParam = color ? color.replace('#', '') : 'EF4444';
-      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
-      const subParam = subtitle && subtitle !== 'None' ? `&subtitle=${encodeURIComponent(subtitle.toLowerCase())}` : '';
-      return `https://vidstuck.xyz/embed/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&color=${colorParam}&branding=MovieVerse${subParam}${progressParam}`;
-    },
     supportsPostMessage: true,
     supportsLanguage: true
   },
