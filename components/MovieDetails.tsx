@@ -2680,7 +2680,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
                     <TvFocusButton onClick={handleClose} className="absolute top-20 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
@@ -3007,13 +3007,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-3.5">Top Cast</h3>
                                                 <div className="flex overflow-x-auto gap-5 pb-2 hide-scrollbar">
                                                      {displayData.credits?.cast?.slice(0, 10).map((person) => (
-                                                         <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
-                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2.5 border-2 border-transparent transition-all shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
-                                                            <h4 className="text-xs md:text-sm font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4>
+                                                         <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-20 bg-transparent p-0 border border-transparent">
+                                                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-2.5 bg-white/5 transition-all duration-500 border border-transparent shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
+                                                            <h4 className="text-xs font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4>
                                                             <p className="text-[11px] text-zinc-400 line-clamp-1">{person.character}</p>
                                                         </TvFocusButton>
                                                     ))}
-                                                    <TvFocusButton onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group self-start"><ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-medium text-zinc-400 group-hover:text-white">View All</span></TvFocusButton>
+                                                    <TvFocusButton onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group self-start"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-medium text-zinc-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
                                             <div>

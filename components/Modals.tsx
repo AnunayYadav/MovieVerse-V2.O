@@ -17,30 +17,79 @@ interface FullCreditsModalProps {
 }
 
 export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onClose, title, credits, onPersonClick }) => {
+    const [isClosing, setIsClosing] = useState(false);
+
+    const handleClose = useCallback(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setIsClosing(false);
+            onClose();
+        }, 320);
+    }, [onClose]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setIsClosing(false);
+            return;
+        }
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') handleClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, handleClose]);
+
+    if (!isOpen && !isClosing) return null;
+
     return (
-        <div className={`fixed inset-0 z-[150] flex flex-col transition-all duration-300 transform ${isOpen ? 'visible opacity-100 translate-x-0 pointer-events-auto bg-black/95 backdrop-blur-xl' : 'invisible opacity-0 translate-x-10 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
-            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-black/40">
-                <div className="flex items-center gap-4">
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>
-                    <h2 className="text-xl font-bold text-white">{title}</h2>
+        <div className={`fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+            {/* Sticky Header with Back Button, Title, and Count */}
+            <div className="sticky top-0 z-30 px-4 md:px-8 py-3.5 md:py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0a0a0a]/95 backdrop-blur-2xl">
+                <div className="flex items-center gap-3 md:gap-4">
+                    <button 
+                        onClick={handleClose} 
+                        className="p-2 -ml-1 md:-ml-2 hover:bg-white/10 active:bg-white/15 rounded-full transition-all text-white cursor-pointer flex items-center justify-center group active:scale-95"
+                        title="Back"
+                        aria-label="Back"
+                    >
+                        <ArrowLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
+                    </button>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">{title}</h2>
+                    </div>
                 </div>
-                <span className="text-xs font-bold bg-white/10 px-3 py-1 rounded-full text-gray-300">{credits.length} People</span>
+                <span className="text-xs font-semibold bg-white/[0.08] text-zinc-300 px-3 py-1 rounded-full border border-white/[0.06]">
+                    {credits.length} {credits.length === 1 ? 'Person' : 'People'}
+                </span>
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {/* Clean Unboxed Circles & Details */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10">
+                <div className="max-w-7xl mx-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-x-4 sm:gap-x-6 gap-y-6 sm:gap-y-8 justify-items-center">
                     {credits.map((person, idx) => (
-                        <div key={`${person.id}-${idx}`} onClick={() => { onClose(); onPersonClick(person.id, person.name, person.isAniListStaff); }} className="flex flex-col items-center text-center p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
-                            <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/30 transition-all">
+                        <button 
+                            key={`${person.id}-${person.job || person.character || ''}-${idx}`} 
+                            onClick={() => { 
+                                onClose(); 
+                                onPersonClick(person.id, person.name, person.isAniListStaff); 
+                            }} 
+                            className="flex flex-col items-center text-center group cursor-pointer bg-transparent border-0 p-0 outline-none select-none transition-transform duration-200 hover:scale-105 active:scale-95 w-24 sm:w-28"
+                        >
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-2.5 bg-white/5 transition-all duration-300 border border-white/10 group-hover:border-white/30 shadow-lg shrink-0">
                                 <img 
-                                    src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
+                                    src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name || 'Unknown')}&background=222&color=fff`} 
                                     alt={person.name} 
                                     className="w-full h-full object-cover"
+                                    loading="lazy"
                                 />
                             </div>
-                            <h4 className="text-sm font-bold text-white mb-1 line-clamp-1">{person.name}</h4>
-                            <p className="text-xs text-gray-500 line-clamp-1">{person.character || person.job}</p>
-                        </div>
+                            <h4 className="text-xs sm:text-sm font-medium text-zinc-100 group-hover:text-red-400 transition-colors leading-tight mb-1 line-clamp-2 max-w-full">
+                                {person.name}
+                            </h4>
+                            <p className="text-[11px] text-zinc-400 line-clamp-1 max-w-full">
+                                {person.character || person.job}
+                            </p>
+                        </button>
                     ))}
                 </div>
             </div>

@@ -4118,7 +4118,7 @@ export default function App() {
               </>
             )}
 
-            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && (
+            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && !showDetailsCast && !showDetailsCrew && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
                         (selectedMovie ? isMovieDetailsScrolled : isScrolled)
                             ? 'bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b-0 border-transparent shadow-lg'
@@ -4129,14 +4129,14 @@ export default function App() {
                             {!isTV && (
                                 <button
                                     onClick={() => setIsSidebarOpen(true)}
-                                    className="p-2 -ml-1 md:-ml-2 hover:bg-white/10 active:bg-white/15 rounded-full transition-colors text-white"
+                                    className="md:hidden p-2 -ml-1 hover:bg-white/10 active:bg-white/15 rounded-full transition-colors text-white"
                                     aria-label="Open navigation menu"
                                 >
-                                    <Menu size={22} className="md:w-6 md:h-6" />
+                                    <Menu size={22} />
                                 </button>
                             )}
 
-                            <div className="hidden md:flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
+                            <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                                 <div className="relative group flex items-center justify-center">
                                     <BrandLogo size={36} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
                                 </div>
