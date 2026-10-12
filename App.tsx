@@ -202,7 +202,7 @@ const ComingSoonCard = ({
         <div
             ref={ref}
             onClick={() => setSelectedMovie(movie)}
-            className="shrink-0 w-[220px] md:w-[280px] flex flex-col bg-[#0f0f12]/60 backdrop-blur-md rounded-2xl border border-white/5 hover:border-zinc-700/40 hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)] cursor-pointer"
+            className="w-full flex flex-col bg-[#0f0f12]/70 backdrop-blur-md rounded-2xl border border-white/5 hover:border-zinc-700/40 hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)] cursor-pointer"
         >
             {/* Cinematic widescreen backdrop */}
             <div
@@ -266,11 +266,7 @@ const ComingSoonCard = ({
                         </div>
                     </div>
 
-                    <p className="text-[9px] font-bold tracking-wider uppercase mt-0.5 text-red-500/90">
-                        Expected {formatted.full}
-                    </p>
-
-                    <p className="text-zinc-400 text-[11px] leading-normal mt-1.5 line-clamp-2 font-normal">
+                    <p className="text-zinc-400 text-[11px] leading-normal mt-2 line-clamp-2 font-normal">
                         {movie.overview || "No synopsis available for this upcoming title yet. Check back closer to release."}
                     </p>
                 </div>
@@ -3918,16 +3914,16 @@ export default function App() {
     }
 
     const getSidebarItemClass = (isActive: boolean) => {
-        return `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 relative group/item select-none ${isActive
-                ? "bg-white/10 text-white font-semibold shadow-sm"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+        return `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal tracking-normal transition-all duration-200 relative group/item select-none ${isActive
+                ? "bg-white/10 text-white font-medium shadow-sm"
+                : "text-gray-300 hover:text-white hover:bg-white/[0.04]"
             }`;
     };
 
     const getSidebarLibraryClass = (isActive: boolean) => {
-        return `w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 relative group/item select-none ${isActive
-                ? "bg-white/10 text-white font-semibold shadow-sm"
-                : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+        return `w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-normal tracking-normal transition-all duration-200 relative group/item select-none ${isActive
+                ? "bg-white/10 text-white font-medium shadow-sm"
+                : "text-gray-300 hover:text-white hover:bg-white/[0.04]"
             }`;
     };
 
@@ -3980,10 +3976,10 @@ export default function App() {
                                 <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
                                     <Layers size={17} /> <span>Franchises</span>
                                 </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("WatchParty"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 select-none ${
+                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("WatchParty"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-normal tracking-normal transition-all duration-200 select-none ${
                                     selectedCategory === "WatchParty"
-                                        ? "bg-purple-600/20 text-purple-300 font-semibold border border-purple-500/20"
-                                        : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+                                        ? "bg-purple-600/20 text-purple-300 font-medium border border-purple-500/20"
+                                        : "text-gray-300 hover:text-white hover:bg-white/[0.04]"
                                 }`}>
                                     <div className="flex items-center gap-3">
                                         <Users size={17} className={selectedCategory === "WatchParty" ? "text-purple-400" : ""} />
@@ -4067,21 +4063,17 @@ export default function App() {
                                 </div>
                             </div>
 
-                            <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-2`}>
-                                <TvFocusButton onClick={resetToHome} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Home size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
+                            <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-1.5`}>
+                                <TvFocusButton onClick={resetToHome} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Home</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Anime" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Ghost size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "Anime" ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Anime</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Manga" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "Manga" ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Manga</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Drama size={15} className="transition-all duration-300 group-hover:scale-110" />
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Dramas</span>
                                 </TvFocusButton>
                                 <div
@@ -4089,11 +4081,10 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
-                                            ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
-                                            : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
+                                            ? "bg-white/10 text-white font-medium shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
+                                            : "text-gray-300 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
-                                        <LayoutGrid size={15} className={`transition-transform duration-500 ${isBrowseOpen ? 'rotate-180 scale-110' : ''}`} />
                                         <span>Browse</span>
                                         <ChevronDown size={12} className={`transition-transform duration-500 opacity-60 ${isBrowseOpen ? 'rotate-180' : ''}`} />
                                     </TvFocusButton>
@@ -4124,8 +4115,8 @@ export default function App() {
                                                     }`}>
                                                         <opt.icon size={20} className="transition-transform duration-200 group-hover:scale-110" />
                                                     </div>
-                                                    <span className={`text-xs font-semibold tracking-wide truncate max-w-full transition-colors duration-200 ${
-                                                        isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'
+                                                    <span className={`text-xs font-normal tracking-normal truncate max-w-full transition-colors duration-200 ${
+                                                        isActive ? 'text-white font-medium' : 'text-gray-300 group-hover:text-white'
                                                     }`}>
                                                         {opt.label}
                                                     </span>
@@ -4611,63 +4602,90 @@ export default function App() {
                             </div>
                         </div>
                     ) : selectedCategory === "Coming" ? (
-                        <div className="animate-in fade-in duration-750 px-4 md:px-12 py-8 md:py-12">
-                            {/* Page Header */}
-                            <div className="mb-10 border-b border-white/5 pb-6">
-                                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-                                    <span className="w-2 h-7 bg-red-600 rounded-full inline-block"></span>
-                                    Coming Soon
-                                </h1>
-                                <p className="text-xs md:text-sm text-gray-400 mt-2 font-normal">
-                                    Track upcoming cinematic releases scheduled worldwide. Set reminders to stay updated.
-                                </p>
-                            </div>
+                        <div className="animate-in fade-in duration-750 px-4 md:px-12 py-8 md:py-10">
+                            {/* Clean Minimalist Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 pb-5 border-b border-white/5 text-left">
+                                <div>
+                                    <div className="flex items-center gap-2.5 mb-1.5">
+                                        <span className="w-1.5 h-5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+                                            Upcoming Releases
+                                        </h1>
+                                        <span className="px-2.5 py-0.5 rounded-full bg-red-600/15 border border-red-500/25 text-[10px] font-semibold text-red-400 uppercase tracking-wider ml-1">
+                                            Calendar
+                                        </span>
+                                    </div>
+                                    <p className="text-xs md:text-sm text-zinc-400 font-normal">
+                                        Track confirmed premiere schedules for upcoming cinematic releases worldwide.
+                                    </p>
+                                </div>
 
-                            <div className="space-y-12">
-                                {groupMoviesByDate(movies).map(([date, dateMovies]) => {
-                                    const formatted = formatReleaseDate(date);
-                                    return (
-                                        <div key={date} className="relative group/date -mx-4 md:-mx-12">
-                                            {/* Date Row Header */}
-                                            <div className="flex items-end gap-3 mb-5 px-4 md:px-12">
-                                                <span
-                                                    className="text-5xl md:text-7xl font-black tracking-tighter leading-none select-none transition-all duration-500"
-                                                    style={{
-                                                        color: '#000',
-                                                        WebkitTextStroke: '1.8px rgba(255,255,255,0.3)',
-                                                        fontFamily: 'Outfit, Inter, sans-serif'
-                                                    }}
-                                                >
-                                                    {formatted.day}
-                                                </span>
-                                                <div className="flex flex-col mb-1.5">
-                                                    <span className="text-xs md:text-sm font-bold text-white tracking-widest uppercase leading-tight">
-                                                        {formatted.month}
-                                                    </span>
-                                                    <span className="text-[9px] md:text-xs text-zinc-500 font-semibold tracking-wider leading-none mt-0.5">
-                                                        {formatted.year}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Horizontal Scroll of Movies */}
-                                            <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 pt-1 px-4 md:px-12 hide-scrollbar scroll-smooth">
-                                                {dateMovies.map((movie) => (
-                                                    <ComingSoonCard
-                                                        key={movie.id}
-                                                        movie={movie}
-                                                        reminders={reminders}
-                                                        toggleReminder={toggleReminder}
-                                                        setSelectedMovie={setSelectedMovie}
-                                                        formatted={formatted}
-                                                        apiKey={apiKey}
-                                                    />
-                                                ))}
-                                            </div>
+                                {/* Stats Badges */}
+                                <div className="flex items-center gap-2.5 shrink-0">
+                                    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs text-zinc-300 font-medium">
+                                        <CalendarDays size={13} className="text-red-500" />
+                                        <span>{movies.length} Premieres</span>
+                                    </div>
+                                    {reminders.length > 0 && (
+                                        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-600/15 border border-red-500/30 text-xs text-red-300 font-medium">
+                                            <Bell size={12} className="text-red-400" fill="currentColor" />
+                                            <span>{reminders.length} Reminders</span>
                                         </div>
-                                    );
-                                })}
+                                    )}
+                                </div>
                             </div>
+
+                            {/* 4-Column Responsive Grid (Fills row edge-to-edge without empty gaps) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-5 md:gap-6">
+                                {[...movies]
+                                    .sort((a, b) => {
+                                        const dateA = a.release_date || "9999-99-99";
+                                        const dateB = b.release_date || "9999-99-99";
+                                        return dateA.localeCompare(dateB);
+                                    })
+                                    .map((movie) => {
+                                        const formatted = formatReleaseDate(movie.release_date || "");
+                                        return (
+                                            <div key={movie.id} className="flex flex-col gap-2.5 w-full">
+                                                {/* Date Tag */}
+                                                <div className="flex items-center gap-2 pb-1 border-b border-white/[0.08]">
+                                                    <span
+                                                        className="text-2xl md:text-3xl font-black tracking-tight leading-none text-white select-none"
+                                                        style={{ fontFamily: 'Outfit, Inter, sans-serif' }}
+                                                    >
+                                                        {formatted.day}
+                                                    </span>
+                                                    <div className="flex flex-col leading-none">
+                                                        <span className="text-[10px] font-bold text-red-500 tracking-wider uppercase">
+                                                            {formatted.month}
+                                                        </span>
+                                                        <span className="text-[9px] text-zinc-500 font-medium tracking-wider mt-0.5">
+                                                            {formatted.year}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Movie Card */}
+                                                <ComingSoonCard
+                                                    movie={movie}
+                                                    reminders={reminders}
+                                                    toggleReminder={toggleReminder}
+                                                    setSelectedMovie={setSelectedMovie}
+                                                    formatted={formatted}
+                                                    apiKey={apiKey}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+
+                            {movies.length === 0 && !loading && (
+                                <div className="py-24 flex flex-col items-center justify-center text-center">
+                                    <CalendarDays size={48} className="text-zinc-600 mb-3" />
+                                    <h3 className="text-base font-semibold text-white">No upcoming releases scheduled</h3>
+                                    <p className="text-xs text-zinc-500 mt-1 max-w-sm">Check back soon as theatrical schedules update regularly.</p>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -5232,11 +5250,11 @@ export default function App() {
                                 <button
                                     key={tab.id}
                                     onClick={tab.action}
-                                    className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-all duration-300 active:scale-90 relative ${isActive ? 'text-red-500 font-extrabold' : 'text-zinc-400 hover:text-white'
+                                    className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-all duration-300 active:scale-90 relative ${isActive ? 'text-red-500 font-medium' : 'text-gray-300 hover:text-white'
                                         }`}
                                 >
                                     <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
-                                    <span className="text-[9px] font-bold mt-1 tracking-wide">{tab.label}</span>
+                                    <span className={`text-[10px] mt-1 tracking-normal transition-colors ${isActive ? 'font-medium text-white' : 'font-normal text-gray-300'}`}>{tab.label}</span>
                                     {isActive && (
                                         <span className="absolute -top-1 w-1 h-1 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
                                     )}

@@ -4,7 +4,6 @@ import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
 import { getCurrentProgram } from '../utils/epgGenerator';
 import { preloadChannelMetadata } from '../utils/channelMetadata';
-import { useStreamStatuses, StreamStatus } from '../utils/streamChecker';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 import { GridEPG } from './GridEPG';
@@ -224,6 +223,17 @@ const fetchAndParseM3U = (url: string): Promise<LiveChannel[]> => {
     return promise;
 };
 
+// Clean IPTV channel names by stripping resolution & geo-block tags
+export const cleanChannelName = (name: string): string => {
+    if (!name) return "";
+    return name
+        .replace(/\s*\((?:\d{3,4}p|HD|FHD|UHD|SD|4K|1080p|720p|576p|480p|360p)\)/gi, '')
+        .replace(/\s*\[(?:Geo-blocked|Not 24\/7|Offline|Geo|Blocked|24\/7)\]/gi, '')
+        .replace(/\s*\[.*?\]/g, '')
+        .replace(/\s*\(\d+p\)/gi, '')
+        .trim();
+};
+
 // Sleek 16:9 premium channel card component
 export interface LiveTVCardProps {
     channel: LiveChannel; 
@@ -233,7 +243,7 @@ export interface LiveTVCardProps {
     className?: string;
 }
 
-// Sleek 16:9 premium channel card component
+// Apple TV-style clean minimal channel card
 export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({ 
     channel, 
     index,
@@ -267,52 +277,36 @@ export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
         return () => clearInterval(interval);
     }, [channel]);
 
-    const statuses = useStreamStatuses([channel.url]);
-    const status = statuses[channel.url] || 'checking';
+    const displayName = cleanChannelName(channel.name);
 
     return (
         <div 
             ref={ref}
             onClick={handlePlay}
-            className={`relative aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 hover:shadow-2xl transition-all duration-500 group select-none flex flex-col justify-between ${className}`}
+            className={`relative aspect-[16/9] rounded-2xl overflow-hidden bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.07] hover:border-white/20 cursor-pointer shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group select-none flex flex-col justify-between ${className}`}
         >
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#0b0c10] via-transparent to-white/[0.02]" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/80 via-transparent to-white/[0.02] pointer-events-none" />
             
-            {/* Top metadata badges */}
-            <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20">
-                <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 select-none">
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                        status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' :
-                        status === 'slow' ? 'bg-yellow-500 shadow-[0_0_8px_#eab308]' :
-                        status === 'offline' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' :
-                        'bg-zinc-500 animate-pulse'
-                    }`} />
-                    <span className={`text-[8px] font-extrabold uppercase tracking-widest ${
-                        status === 'online' ? 'text-green-400' :
-                        status === 'slow' ? 'text-yellow-400' :
-                        status === 'offline' ? 'text-red-400' :
-                        'text-zinc-400'
-                    }`}>
-                        {status === 'online' ? 'Working' :
-                         status === 'slow' ? 'Slow' :
-                         status === 'offline' ? 'Offline' :
-                         'Checking'}
-                    </span>
+            {/* Top metadata - clean, minimal live indicator and country pill */}
+            <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                    <span className="text-[10px] font-normal tracking-wide text-zinc-300">Live</span>
                 </div>
                 {channel.country && (
-                    <span className="text-[9px] font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 text-gray-400 group-hover:text-white transition-colors">
+                    <span className="text-[10px] font-normal tracking-wider bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 text-zinc-400 group-hover:text-zinc-200 transition-colors ml-auto">
                         {channel.country}
                     </span>
                 )}
             </div>
 
             {/* Logo Center Display */}
-            <div className="flex-1 w-full flex items-center justify-center px-3 pt-6 pb-2 min-h-0">
+            <div className="flex-1 w-full flex items-center justify-center px-4 pt-6 pb-2 min-h-0">
                  {channel.logo ? (
                      <img 
                         src={channel.logo} 
-                        alt={channel.name} 
-                        className="w-auto h-full max-h-16 md:max-h-20 max-w-[90%] object-contain filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-all duration-300" 
+                        alt={displayName} 
+                        className="w-auto h-full max-h-14 md:max-h-16 max-w-[85%] object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-300" 
                         loading="lazy" 
                         onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -321,43 +315,41 @@ export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
                         }}
                      />
                  ) : null}
-                 <Globe className={`text-gray-600 group-hover:text-gray-400 transition-colors duration-300 ${channel.logo ? 'hidden' : ''}`} size={38} />
+                 <Globe className={`text-zinc-600 group-hover:text-zinc-400 transition-colors duration-300 ${channel.logo ? 'hidden' : ''}`} size={32} />
             </div>
 
             {/* Title Footer */}
-            <div className="p-3 bg-[#0d0d0f]/80 border-t border-white/5 z-10 text-left">
-                <p className="text-xs font-bold text-gray-300 group-hover:text-white truncate leading-none transition-colors duration-300">
-                    {channel.name}
+            <div className="p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent border-t border-white/[0.04] z-10 text-left">
+                <p className="text-xs md:text-[13px] font-medium text-white/90 group-hover:text-white truncate leading-tight transition-colors duration-200">
+                    {displayName}
                 </p>
                 {epg && (
-                    <p className="text-[10px] text-zinc-500 truncate mt-1 group-hover:text-zinc-400 transition-colors">
+                    <p className="text-[11px] text-zinc-400 font-normal truncate mt-0.5 group-hover:text-zinc-300 transition-colors">
                         Now: {epg.current.title}
                     </p>
                 )}
             </div>
 
-            {/* Play Button Glow Overlay */}
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-15">
-                <div className="p-3 rounded-full text-white bg-red-600 scale-75 group-hover:scale-100 transition-all duration-300 shadow-xl shadow-red-600/40 border border-red-500/25">
-                    <Play size={16} fill="currentColor"/>
+            {/* Subtle Frosted Apple TV Play Button on Hover */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-15 backdrop-blur-[2px]">
+                <div className="w-11 h-11 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform duration-300">
+                    <Play size={16} fill="currentColor" className="ml-0.5" />
                 </div>
             </div>
-            
-            {/* Glossy sweep line animation */}
-            <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/[0.05] opacity-40 group-hover:animate-[shine_0.85s_ease-in-out]" />
         </div>
     );
 });
 
 // Shimmering skeleton loader for channels
 const ChannelSkeleton = () => (
-    <div className="relative w-[200px] md:w-[240px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900/45 border border-white/5 flex flex-col justify-between shadow-lg">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
+    <div className="relative w-[200px] md:w-[240px] shrink-0 aspect-[16/9] rounded-2xl overflow-hidden bg-white/[0.02] border border-white/[0.05] flex flex-col justify-between shadow-md">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
         <div className="flex-1 w-full flex items-center justify-center p-4">
-            <div className="w-3/5 h-2/5 bg-white/5 rounded-lg"></div>
+            <div className="w-2/5 h-1/3 bg-white/[0.05] rounded-lg"></div>
         </div>
-        <div className="p-3 bg-[#0d0d0f]/60 h-8 flex items-center">
-            <div className="h-2.5 w-3/4 bg-white/10 rounded"></div>
+        <div className="p-3 bg-black/40 h-10 flex flex-col justify-center gap-1">
+            <div className="h-3 w-3/4 bg-white/[0.08] rounded-full"></div>
+            <div className="h-2 w-1/2 bg-white/[0.04] rounded-full"></div>
         </div>
     </div>
 );
@@ -511,18 +503,20 @@ const LiveTVRow: React.FC<{
 
     return (
         <div className="mb-10 animate-in fade-in duration-500 text-left">
-            <div className="flex items-center justify-between px-4 md:px-12 mb-4">
-                <h3 className="text-lg font-bold text-white/90 tracking-tight flex items-center gap-2 select-none">
-                    <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                    {title}
-                </h3>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-4.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.7)] shrink-0" />
+                    <h3 className="text-lg md:text-xl font-semibold text-white tracking-tight select-none">
+                        {title}
+                    </h3>
+                </div>
                 {onExpand && filtered.length > 0 && (
                     <button
                         onClick={() => onExpand(filtered)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md select-none"
+                        className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-red-600/10 hover:text-red-400 text-zinc-400 text-xs font-normal transition-all border border-white/[0.06] hover:border-red-500/20 active:scale-95 select-none"
                     >
                         <span>See All</span>
-                        <ChevronRight size={14} />
+                        <ChevronRight size={13} className="text-zinc-500" />
                     </button>
                 )}
             </div>
@@ -530,7 +524,7 @@ const LiveTVRow: React.FC<{
             <div 
                 ref={rowRef}
                 onScroll={handleScroll}
-                className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
+                className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth"
             >
                 {loading ? (
                     [...Array(6)].map((_, i) => (
@@ -566,6 +560,7 @@ const getChannelBackdrop = (channel: LiveChannel) => {
     if (name.includes('music') || name.includes('mtv') || name.includes('song') || name.includes('radio')) {
         return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&q=80"; // Music stage
     }
+    return "https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=1600&q=80"; // Clean dark moody broadcast atmosphere
 };
 
 const renderCountryFlag = (countryId: string, className = "w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0") => {
@@ -860,157 +855,137 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                 />
             )}
 
-            {/* Premium Netflix-style Live TV Hero Banner / Carousel */}
-            <div className="relative w-full aspect-[21/9] min-h-[380px] max-h-[500px] overflow-hidden flex items-center bg-black select-none">
+            {/* Compact Apple TV-style Live TV Hero Spotlight */}
+            <div className="relative w-full overflow-hidden flex items-center bg-[#070709] py-7 md:py-9 px-4 md:px-12 select-none border-b border-white/[0.06]">
                 {(() => {
                     const activeHeroChannel = trendingChannels[heroIndex];
                     const currentProg = activeHeroChannel ? getCurrentProgram(activeHeroChannel) : null;
+                    const heroName = activeHeroChannel ? cleanChannelName(activeHeroChannel.name) : "";
                     return activeHeroChannel ? (
-                        <>
-                            {/* Background Slide Image with Fade Transitions */}
-                            <div className="absolute inset-0 transition-all duration-1000 ease-in-out">
+                        <div className="max-w-7xl mx-auto w-full relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6 z-20">
+                            {/* Subtle Ambient Backdrop Blend */}
+                            <div className="absolute -inset-x-12 -inset-y-10 pointer-events-none overflow-hidden -z-10">
                                 <img 
                                     src={getChannelBackdrop(activeHeroChannel)} 
-                                    alt={activeHeroChannel.name}
-                                    className="absolute inset-0 w-full h-full object-cover opacity-25 scale-105 transition-transform duration-[6000ms] ease-out animate-pulse"
+                                    alt=""
+                                    className="w-full h-full object-cover opacity-15 scale-105 blur-[1px] transition-all duration-1000"
                                 />
+                                <div className="absolute inset-0 bg-gradient-to-r from-[#070709] via-[#070709]/90 to-transparent" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#070709] via-transparent to-transparent" />
+                                <div className="absolute -top-24 left-1/4 w-96 h-96 bg-red-600/5 blur-[100px] rounded-full" />
                             </div>
                             
-                            {/* Netflix-style gradient fade overlays */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-black/40 to-transparent z-10" />
-                            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent z-10" />
-                            
-                            {/* Hero Banner details content */}
-                            <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                        <span className="text-[10px] font-black tracking-widest text-white uppercase">Spotlight Broadcast</span>
-                                    </div>
+                            {/* Channel Info & Actions */}
+                            <div className="max-w-2xl text-left space-y-3 animate-in fade-in duration-500">
+                                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-red-600/10 backdrop-blur-xl border border-red-500/20 text-white/90 text-[11px] font-normal">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+                                    <span className="text-red-400 font-medium">Live Broadcast</span>
                                     {activeHeroChannel.country && (
-                                        <span className="text-[9px] bg-white/10 text-white/90 border border-white/5 px-2 py-0.5 rounded uppercase font-bold tracking-widest">
-                                            {activeHeroChannel.country}
-                                        </span>
+                                        <>
+                                            <span className="text-white/30">•</span>
+                                            <span className="uppercase text-[10px] text-zinc-300 font-medium">{activeHeroChannel.country}</span>
+                                        </>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-black rounded-2xl p-1.5 border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
-                                        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent" />
+                                <div className="flex items-center gap-3">
+                                    <div className="w-11 h-11 md:w-12 md:h-12 bg-white/[0.06] backdrop-blur-2xl rounded-xl p-1.5 border border-white/10 flex items-center justify-center shadow-xl relative overflow-hidden shrink-0">
                                         {activeHeroChannel.logo ? (
                                             <img src={activeHeroChannel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
                                         ) : (
-                                            <span className="font-black text-lg text-red-500">{activeHeroChannel.name.charAt(0)}</span>
+                                            <Globe className="text-zinc-400" size={20} />
                                         )}
                                     </div>
-                                    <h2 className="text-xl md:text-3xl font-black tracking-tight text-white">{activeHeroChannel.name}</h2>
+                                    <div>
+                                        <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-white leading-tight">{heroName}</h2>
+                                        {currentProg && (
+                                            <div className="flex items-center gap-2 text-xs text-zinc-300 font-normal mt-0.5">
+                                                <span className="text-white font-medium">{currentProg.current.title}</span>
+                                                <span className="text-zinc-500">•</span>
+                                                <span className="text-zinc-400 text-[11px]">
+                                                    {currentProg.current.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} – {currentProg.current.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
-                                {/* EPG Program Preview in Hero */}
-                                {currentProg && (
-                                    <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md max-w-md flex flex-col gap-1.5 shadow-lg select-none">
-                                        <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-red-600 inline-block animate-ping"></span>
-                                            Now Playing
-                                        </span>
-                                        <h4 className="text-xs md:text-sm font-bold text-zinc-100 line-clamp-1">{currentProg.current.title}</h4>
-                                        <p className="text-[10px] text-zinc-400 font-medium">
-                                            {currentProg.current.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - {currentProg.current.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                        </p>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center gap-2.5 pt-0.5">
                                     <TvFocusButton
                                         onClick={() => handleChannelPlay(activeHeroChannel, trendingChannels)}
-                                        className="px-6 py-2.5 text-xs font-bold rounded-xl flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-lg bg-red-600 text-white hover:bg-red-700 hover:shadow-red-600/20"
+                                        className="px-5 py-2 text-xs font-medium rounded-full flex items-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                     >
-                                        <Play size={14} fill="currentColor" /> Watch Live
+                                        <Play size={13} fill="currentColor" /> Watch Live
+                                    </TvFocusButton>
+                                    <TvFocusButton
+                                        onClick={() => setShowGridEpg(true)}
+                                        className="px-4 py-2 text-xs font-normal rounded-full flex items-center gap-1.5 transition-all active:scale-95 bg-white/10 hover:bg-white/15 backdrop-blur-xl text-white border border-white/10"
+                                    >
+                                        <Calendar size={13} className="text-zinc-300" /> Schedule
                                     </TvFocusButton>
                                 </div>
                             </div>
 
-                            {/* Slider Dot Indicators */}
-                            <div className="absolute right-4 md:right-12 bottom-12 z-20 flex items-center gap-2">
+                            {/* Minimal Slider Dot Indicators with Red Active Pill */}
+                            <div className="flex md:flex-col items-center gap-1.5 self-center md:self-end">
                                 {trendingChannels.slice(0, 5).map((_, idx) => (
                                     <button 
                                         key={idx}
                                         onClick={() => setHeroIndex(idx)}
-                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === idx ? 'bg-red-600 w-6' : 'bg-white/30 hover:bg-white/50'}`}
+                                        className={`transition-all duration-300 ${heroIndex === idx ? 'bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.7)] h-1.5 w-6 rounded-full' : 'bg-white/20 hover:bg-white/40 h-1.5 w-1.5 rounded-full'}`}
                                     />
                                 ))}
                             </div>
-                        </>
+                        </div>
                     ) : (
-                        <>
-                            <img 
-                                src="https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1600&q=80" 
-                                alt="Live TV Header"
-                                className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-black/40 to-transparent z-10" />
-                            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent z-10" />
-                            <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                        <span className="text-[10px] font-black tracking-widest text-white uppercase">Live Broadcasts</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 md:h-12 bg-white/5 px-3 py-2.5 rounded-xl flex items-center justify-center border border-white/5">
-                                        <Tv className="text-red-500" size={24} />
-                                    </div>
-                                    <h2 className="text-xl md:text-3xl font-black tracking-tight text-white">Global Live TV</h2>
-                                </div>
-                                <p className="text-xs md:text-sm text-gray-300 font-medium leading-relaxed drop-shadow-md">
-                                    Stream free-to-air international television channels instantly. Explore 24/7 live news, movies, sports, entertainment, and documentaries from around the globe in real-time.
-                                </p>
-                            </div>
-                        </>
+                        <div className="max-w-7xl mx-auto w-full text-left py-4">
+                            <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-white">Global Live TV</h2>
+                            <p className="text-xs text-zinc-400 font-normal mt-1">
+                                Stream free-to-air international television channels in real-time.
+                            </p>
+                        </div>
                     );
                 })()}
             </div>
 
-
             {/* Main Interactive Row and Filter Section */}
-            <div className="max-w-7xl mx-auto px-4 md:px-0 -mt-6 relative z-50">
-                <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 bg-[#0d0d0f]/50 backdrop-blur-xl border border-white/5 p-4 rounded-2xl mx-0 md:mx-12 relative z-50">
-                    <div className="text-left w-full md:w-auto">
-                        <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                            <span className="w-1 h-4 bg-red-600 rounded-full inline-block"></span>
-                            Live Guide
-                        </h2>
-                        <p className="text-[10px] text-gray-400 font-medium mt-0.5">Filter by country or search specific stations globally</p>
+            <div className="max-w-7xl mx-auto px-4 md:px-12 pt-6 relative z-30">
+                {/* Clean Section Header & Filter Toolbar */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                    <div className="text-left">
+                        <h3 className="text-lg md:text-xl font-semibold text-white tracking-tight">
+                            {!searchQuery ? 'Live Channels' : `Search Results for "${searchQuery}"`}
+                        </h3>
+                        <p className="text-xs text-zinc-400 font-normal mt-0.5">
+                            {!searchQuery ? 'Explore live broadcasts by category, region, and language' : 'Channels matching your search query'}
+                        </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <div className="flex items-center gap-3 flex-wrap">
                         {/* Country Selector Dropdown */}
-                        <div className="relative z-50 w-full sm:w-48" ref={dropdownRef}>
+                        <div className="relative z-50" ref={dropdownRef}>
                             <TvFocusButton 
                                 onClick={() => { setIsCountryDropdownOpen(!isCountryDropdownOpen); setIsLanguageDropdownOpen(false); }}
-                                className="w-full h-10 flex items-center justify-between px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
+                                className="h-10 md:h-10.5 flex items-center gap-2.5 px-4 md:px-5 rounded-full bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 transition-all active:scale-95 text-white shadow-sm"
                             >
-                                <div className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
-                                    {renderCountryFlag(activeCountryObj.id, "w-4.5 h-3 object-cover rounded-sm shadow-sm shrink-0")}
-                                    <span className="text-xs font-bold truncate">{activeCountryObj.name}</span>
-                                </div>
-                                <ChevronDown size={14} className={`transition-transform duration-300 text-white/50 shrink-0 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
+                                {renderCountryFlag(activeCountryObj.id, "w-4.5 h-3 object-cover rounded-sm shrink-0")}
+                                <span className="text-[13px] font-normal text-zinc-100 truncate max-w-[150px]">{activeCountryObj.name}</span>
+                                <ChevronDown size={14} className={`transition-transform duration-200 text-zinc-400 shrink-0 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
                             </TvFocusButton>
 
                             {isCountryDropdownOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0e0e10]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-1">
+                                <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 bg-[#0c0d12]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden w-56 max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-2">
                                     {COUNTRIES.map(country => (
                                         <TvFocusButton 
                                             key={country.id}
                                             onClick={() => { handleCountryChange(country.id); setIsCountryDropdownOpen(false); }}
-                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-medium' : 'text-zinc-400 hover:text-white font-normal'}`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
-                                                {renderCountryFlag(country.id, "w-4.5 h-3 object-cover rounded-sm shadow-sm shrink-0")}
-                                                <span className="font-medium text-[11px] truncate">{country.name}</span>
+                                                {renderCountryFlag(country.id, "w-4 h-3 object-cover rounded-sm shrink-0")}
+                                                <span className="text-xs truncate">{country.name}</span>
                                             </div>
-                                            {selectedCountry === country.id && <Check size={12} className="shrink-0 text-white/80 ml-2" />}
+                                            {selectedCountry === country.id && <Check size={13} className="shrink-0 text-white ml-2" />}
                                         </TvFocusButton>
                                     ))}
                                 </div>
@@ -1018,31 +993,29 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                         </div>
 
                         {/* Language Selector Dropdown */}
-                        <div className="relative z-50 w-full sm:w-44" ref={langDropdownRef}>
+                        <div className="relative z-50" ref={langDropdownRef}>
                             <TvFocusButton 
                                 onClick={() => { setIsLanguageDropdownOpen(!isLanguageDropdownOpen); setIsCountryDropdownOpen(false); }}
-                                className="w-full h-10 flex items-center justify-between px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
+                                className="h-10 md:h-10.5 flex items-center gap-2.5 px-4 md:px-5 rounded-full bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 transition-all active:scale-95 text-white shadow-sm"
                             >
-                                <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
-                                    <span className="text-sm shrink-0">{activeLanguageObj.icon}</span>
-                                    <span className="text-xs font-bold truncate">{activeLanguageObj.name}</span>
-                                </div>
-                                <ChevronDown size={14} className={`transition-transform duration-300 text-white/50 shrink-0 ${isLanguageDropdownOpen ? 'rotate-180' : ''}`}/>
+                                <span className="text-sm shrink-0">{activeLanguageObj.icon}</span>
+                                <span className="text-[13px] font-normal text-zinc-100 truncate max-w-[140px]">{activeLanguageObj.name}</span>
+                                <ChevronDown size={14} className={`transition-transform duration-200 text-zinc-400 shrink-0 ${isLanguageDropdownOpen ? 'rotate-180' : ''}`}/>
                             </TvFocusButton>
 
                             {isLanguageDropdownOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0e0e10]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-1">
+                                <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 bg-[#0c0d12]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden w-52 max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-2">
                                     {LANGUAGES.map(lang => (
                                         <TvFocusButton 
                                             key={lang.id}
                                             onClick={() => { handleLanguageChange(lang.id); setIsLanguageDropdownOpen(false); }}
-                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedLanguage === lang.id ? 'bg-white/10 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl hover:bg-white/5 transition-colors ${selectedLanguage === lang.id ? 'bg-white/10 text-white font-medium' : 'text-zinc-400 hover:text-white font-normal'}`}
                                         >
                                             <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
-                                                <span className="text-sm shrink-0">{lang.icon}</span>
-                                                <span className="font-medium text-[11px] truncate">{lang.name}</span>
+                                                <span className="text-xs shrink-0">{lang.icon}</span>
+                                                <span className="text-xs truncate">{lang.name}</span>
                                             </div>
-                                            {selectedLanguage === lang.id && <Check size={12} className="shrink-0 text-white/80 ml-2" />}
+                                            {selectedLanguage === lang.id && <Check size={13} className="shrink-0 text-white ml-2" />}
                                         </TvFocusButton>
                                     ))}
                                 </div>
@@ -1052,69 +1025,13 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                         {/* Interactive Grid EPG Button */}
                         <TvFocusButton
                             onClick={() => setShowGridEpg(true)}
-                            className="h-10 px-4 rounded-xl bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap shadow-md"
+                            className="h-10 md:h-10.5 px-4 md:px-5 rounded-full bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 text-zinc-200 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 text-[13px] font-normal whitespace-nowrap shadow-sm"
                         >
-                            <Calendar size={14} className="text-red-500" />
-                            <span>Interactive Schedule</span>
+                            <Calendar size={14} className="text-zinc-400" />
+                            <span>Schedule</span>
                         </TvFocusButton>
                     </div>
                 </div>
-
-                {/* Trending Channels Row */}
-                {!searchQuery && trendingChannels.length > 0 && (
-                    <div className="mb-12 text-left px-4 md:px-12 select-none animate-in fade-in duration-500">
-                        <h3 className="text-lg font-bold text-white mb-6 tracking-tight flex items-center gap-2">
-                            <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                            Trending Channels Today
-                        </h3>
-                        <div ref={trendingRowRef} className="flex gap-8 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
-                            {trendingChannels.map((channel, idx) => (
-                                <div 
-                                    key={channel.id} 
-                                    onClick={() => handleChannelPlay(channel, trendingChannels)}
-                                    className="relative flex items-center pl-10 md:pl-12 w-[240px] md:w-[280px] shrink-0 aspect-[16/10] group cursor-pointer"
-                                >
-                                    <div className="absolute left-0 bottom-0 text-[100px] md:text-[130px] font-black leading-none select-none transform translate-y-3 md:translate-y-5 opacity-70 group-hover:opacity-100 transition-all duration-300 pointer-events-none"
-                                            style={{ 
-                                                color: '#000',
-                                                WebkitTextStroke: '1.8px rgba(255,255,255,0.35)',
-                                                fontFamily: 'Inter, sans-serif',
-                                                zIndex: 1
-                                            }}>
-                                        {idx + 1}
-                                    </div>
-                                    <div className="relative w-full h-full rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 group-hover:scale-105 group-hover:border-white/25 transition-all duration-300 shadow-xl flex flex-col justify-between"
-                                            style={{ zIndex: 2 }}>
-                                        <div className="absolute inset-0 bg-gradient-to-tr from-[#0b0c10] via-transparent to-white/[0.01]" />
-                                        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20">
-                                            <span className="text-[8px] font-extrabold uppercase tracking-widest bg-red-600 px-2 py-0.5 rounded-full text-white shadow-md shadow-red-600/20">
-                                                Trending
-                                            </span>
-                                        </div>
-                                        <div className="flex-1 w-full flex items-center justify-center px-3 pt-6 pb-2 min-h-0">
-                                            {channel.logo ? (
-                                                <img 
-                                                    src={channel.logo} 
-                                                    alt={channel.name} 
-                                                    className="w-auto h-full max-h-16 md:max-h-20 max-w-[90%] object-contain filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" 
-                                                    loading="lazy" 
-                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                />
-                                            ) : (
-                                                <Globe className="text-zinc-700" size={38} />
-                                            )}
-                                        </div>
-                                        <div className="p-3 bg-[#0d0d0f]/80 border-t border-white/5 z-10 text-left">
-                                            <p className="text-xs font-bold text-gray-300 group-hover:text-white truncate leading-none transition-colors duration-300">
-                                                {channel.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 {/* Dynamic Netflix-style Grid or Category Rows */}
                 {!searchQuery ? (
@@ -1135,11 +1052,13 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                     </div>
                 ) : (
                     // Sleek grid layout for active searches
-                    <div className="px-4 md:px-12 text-left relative z-10">
-                        <h3 className="text-lg font-bold text-white mb-6 tracking-tight flex items-center gap-2">
-                            <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                            Search Results for "{searchQuery}"
-                        </h3>
+                    <div className="text-left relative z-10">
+                        <div className="flex items-center gap-2.5 mb-6">
+                            <span className="w-1.5 h-4.5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.7)] shrink-0" />
+                            <h3 className="text-lg md:text-xl font-semibold text-white tracking-tight">
+                                Search Results for "{searchQuery}"
+                            </h3>
+                        </div>
 
                         {searchLoading ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">

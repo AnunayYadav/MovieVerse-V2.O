@@ -16,6 +16,17 @@ export interface StreamServer {
     status?: string;
 }
 
+// Clean IPTV channel names by stripping resolution & geo-block tags
+export const cleanChannelName = (name: string): string => {
+    if (!name) return "";
+    return name
+        .replace(/\s*\((?:\d{3,4}p|HD|FHD|UHD|SD|4K|1080p|720p|576p|480p|360p)\)/gi, '')
+        .replace(/\s*\[(?:Geo-blocked|Not 24\/7|Offline|Geo|Blocked|24\/7)\]/gi, '')
+        .replace(/\s*\[.*?\]/g, '')
+        .replace(/\s*\(\d+p\)/gi, '')
+        .trim();
+};
+
 // Memory caches to avoid duplicate requests
 let channelsCache: any[] | null = null;
 let streamsCache: any[] | null = null;

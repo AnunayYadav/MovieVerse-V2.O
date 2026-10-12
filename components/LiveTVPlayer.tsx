@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { AlertCircle, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, ArrowLeft, RefreshCw, SkipBack, SkipForward, Calendar, Clock, List, ExternalLink, Tv, Cast } from 'lucide-react';
+import { AlertCircle,X, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, ArrowLeft, RefreshCw, SkipBack, SkipForward, Calendar, Clock, List, ExternalLink, Tv, Cast } from 'lucide-react';
 import { LiveChannel } from '../types';
 import { getCurrentProgram, generateEPG } from '../utils/epgGenerator';
-import { getDynamicChannelDetails, ChannelDetails, StreamServer } from '../utils/channelMetadata';
+import { getDynamicChannelDetails, ChannelDetails, StreamServer, cleanChannelName } from '../utils/channelMetadata';
 import { useCasting } from '../utils/castManager';
 import { useScreenWakeLock } from '../utils/screenWakeLock';
 
@@ -502,35 +502,35 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
             onMouseLeave={handleMouseLeave}
         >
             {/* Header / Top Overlay */}
-            <div className={`absolute top-0 left-0 right-0 p-4 md:p-6 pt-6 md:pt-8 z-20 flex items-center bg-gradient-to-b from-black/90 via-black/75 to-transparent transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
+            <div className={`absolute top-0 left-0 right-0 p-4 md:px-6 md:py-5 z-20 flex items-center bg-gradient-to-b from-black/85 via-black/40 to-transparent transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
                 <div className="flex items-center justify-between gap-3 w-full">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3.5 min-w-0">
                         <button 
                             onClick={handleClose} 
-                            className="bg-black/50 hover:bg-white/15 p-2.5 rounded-full text-white transition-all duration-200 border border-white/10 active:scale-90 shadow-xl shrink-0"
+                            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white transition-all duration-200 active:scale-95 shadow-lg shrink-0"
                             title="Back"
                         >
-                            <ArrowLeft size={20}/>
+                            <ArrowLeft size={18}/>
                         </button>
                         <div className="flex items-center gap-3 min-w-0">
                             {/* Logo Container */}
-                            <div className="w-11 h-11 md:w-14 md:h-14 bg-black rounded-xl p-1 border border-white/10 flex items-center justify-center shadow-xl relative overflow-hidden shrink-0">
+                            <div className="w-10 h-10 md:w-11 md:h-11 bg-white/[0.06] backdrop-blur-xl rounded-xl p-1.5 border border-white/10 flex items-center justify-center shadow-lg relative overflow-hidden shrink-0">
                                  {channel.logo ? (
-                                    <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt={channel.name} onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
+                                    <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt={cleanChannelName(channel.name)} onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
                                  ) : (
-                                    <span className="font-bold text-lg text-red-500">{channel.name.charAt(0)}</span>
+                                    <span className="font-semibold text-base text-zinc-300">{cleanChannelName(channel.name).charAt(0)}</span>
                                  )}
                             </div>
                             <div className="text-left min-w-0 flex-1">
-                                <h2 className="text-sm md:text-lg font-bold text-white tracking-tight truncate leading-snug">{channel.name}</h2>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <h2 className="text-sm md:text-base font-semibold text-white tracking-tight truncate leading-snug">{cleanChannelName(channel.name)}</h2>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                     {channel.group && (
-                                        <span className="inline-block px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-medium text-zinc-300 leading-none">
+                                        <span className="inline-block px-2 py-0.5 rounded-full bg-white/[0.08] text-[10px] font-normal text-zinc-300 leading-none">
                                             {channel.group}
                                         </span>
                                     )}
                                     {epg && (
-                                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-medium leading-none truncate max-w-[150px] sm:max-w-xs">
+                                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-600/15 text-red-400 border border-red-500/25 text-[10px] font-medium leading-none truncate max-w-[160px] sm:max-w-xs shadow-sm">
                                             Now: {epg.current.title}
                                         </span>
                                     )}
@@ -548,38 +548,30 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                 onDoubleClick={toggleFullscreen}
             >
                 {loading && !error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-black/60 backdrop-blur-[2px] pointer-events-none transition-all">
-                        <div className="flex flex-col items-center justify-center gap-4">
-                            <div className="relative flex items-center justify-center">
-                                <div className="absolute w-16 h-16 rounded-full bg-red-600/10 border border-red-500/20 animate-ping duration-1000 pointer-events-none" />
-                                <svg className="w-12 h-12 text-red-600 animate-spin will-change-transform relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
-                                    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                                    <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                </svg>
-                            </div>
-                            <p className="font-medium animate-pulse text-xs text-zinc-300 mt-2">Connecting Live Feed...</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-black/40 backdrop-blur-[2px] pointer-events-none transition-opacity duration-300">
+                        <div className="flex flex-col items-center justify-center gap-3">
+                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                            <p className="text-xs font-normal text-zinc-300 tracking-wide">Connecting...</p>
                         </div>
                     </div>
                 )}
                 
                 {error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-15 bg-black/85 backdrop-blur-md p-6 text-center animate-in fade-in duration-300">
-                        <div className="bg-zinc-950/80 border border-white/10 rounded-3xl p-8 max-w-[340px] w-full shadow-2xl relative overflow-hidden text-center backdrop-blur-xl">
-                            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-red-600 to-red-400"></div>
-                            
-                            <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)] animate-[pulse_2s_infinite]">
-                                <AlertCircle size={28} className="text-red-500"/>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-15 bg-black/80 backdrop-blur-md p-6 text-center animate-in fade-in duration-300">
+                        <div className="bg-[#111216]/90 border border-white/[0.12] rounded-[32px] p-7 md:p-8 max-w-[360px] w-full shadow-[0_30px_70px_rgba(0,0,0,0.85)] relative overflow-hidden text-center backdrop-blur-2xl">
+                            <div className="w-12 h-12 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center mx-auto mb-4 shadow-inner">
+                                <AlertCircle size={22} className="text-zinc-200" strokeWidth={1.75} />
                             </div>
                             
-                            <h2 className="text-base font-bold mb-1 tracking-tight text-white">Signal Lost</h2>
-                            <p className="text-zinc-400 text-xs leading-relaxed mb-6 px-1 font-normal">
+                            <h2 className="text-base md:text-lg font-semibold mb-1.5 tracking-tight text-white">Signal Lost</h2>
+                            <p className="text-zinc-400 text-xs leading-relaxed mb-6 px-2 font-normal">
                                 {error}
                             </p>
 
                             {/* Stream Server Recovery Selector */}
                             {servers.length > 1 && (
-                                <div className="mb-6 select-none text-center border-t border-white/5 pt-4">
-                                    <span className="text-[10px] font-medium text-zinc-400 block mb-2.5">Switch Stream Server</span>
+                                <div className="mb-6 select-none text-center border-t border-white/[0.07] pt-4">
+                                    <span className="text-[11px] font-normal text-zinc-400 block mb-2.5">Switch Stream Server</span>
                                     <div className="flex flex-wrap gap-1.5 justify-center">
                                         {servers.map((s, idx) => (
                                             <button
@@ -589,10 +581,10 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                                     setError(null);
                                                     setLoading(true);
                                                 }}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                className={`px-3.5 py-1.5 rounded-full text-xs transition-all ${
                                                     currentServerIndex === idx
-                                                        ? 'bg-red-600 text-white shadow-md'
-                                                        : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                                                        ? 'bg-red-600 text-white font-medium shadow-md'
+                                                        : 'bg-white/[0.06] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5'
                                                 }`}
                                             >
                                                 Server {idx + 1}
@@ -602,17 +594,17 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 </div>
                             )}
                             
-                            <div className="flex items-center gap-3 justify-center border-t border-white/5 pt-5">
+                            <div className="flex items-center gap-3 justify-center border-t border-white/[0.07] pt-5">
                                 <button 
                                     onClick={handleRetry} 
-                                    className="flex-1 h-10 px-4 bg-white hover:bg-zinc-200 text-black font-semibold text-xs rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                    className="flex-1 h-11 px-5 bg-white hover:bg-zinc-200 text-black font-medium text-xs rounded-full transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 whitespace-nowrap"
                                 >
-                                    <RefreshCw size={12} />
-                                    Retry
+                                    <RefreshCw size={13} />
+                                    <span>Retry</span>
                                 </button>
                                 <button 
                                     onClick={onClose} 
-                                    className="flex-1 h-10 px-4 bg-white/10 hover:bg-white/20 text-zinc-200 font-semibold text-xs rounded-xl transition-all active:scale-95 whitespace-nowrap"
+                                    className="flex-1 h-11 px-5 bg-white/[0.08] hover:bg-white/[0.14] text-white font-medium text-xs rounded-full border border-white/10 transition-all active:scale-95 whitespace-nowrap"
                                 >
                                     Close
                                 </button>
@@ -657,22 +649,22 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
             </div>
 
             {/* Bottom Controls Overlay */}
-            <div className={`absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 md:px-6 pb-4 md:pb-6 pt-12 transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'}`}>
+            <div className={`absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 md:px-6 pb-4 md:pb-6 pt-12 transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'}`}>
                 <div className="flex flex-col gap-3 w-full">
                     {/* Live Stream timeline bar & current program text */}
                     <div className="flex flex-col gap-1.5 w-full text-left select-none">
-                        <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden relative">
+                        <div className="w-full h-1 bg-white/20 hover:h-1.5 rounded-full overflow-hidden relative transition-all">
                             <div 
-                                className={`absolute top-0 left-0 bottom-0 ${accentBg} transition-all duration-1000`}
+                                className="absolute top-0 left-0 bottom-0 bg-red-600 shadow-[0_0_10px_rgba(239,68,68,0.7)] transition-all duration-1000"
                                 style={{ width: `${epg ? epg.progress : 100}%` }}
                             />
                         </div>
                         {epg && (
-                            <div className="flex items-center justify-between text-[11px] text-zinc-300 font-medium px-0.5 flex-wrap gap-x-3 gap-y-1">
+                            <div className="flex items-center justify-between text-[11px] text-zinc-300 font-normal px-0.5 flex-wrap gap-x-3 gap-y-1">
                                 <div className="flex items-center gap-1.5 truncate max-w-full">
-                                    <Clock size={12} className="text-red-400 shrink-0" />
+                                    <Clock size={11} className="text-red-400 shrink-0" />
                                     <span className="truncate">
-                                        Now: <span className="text-white font-semibold">{epg.current.title}</span>
+                                        Now: <span className="text-white font-medium">{epg.current.title}</span>
                                     </span>
                                     <span className="text-zinc-500">•</span>
                                     <span className="text-zinc-400 shrink-0">Ends in {Math.round(epg.current.duration * (1 - epg.progress / 100))} min</span>
@@ -695,27 +687,27 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 <button 
                                     onClick={handlePrev}
                                     disabled={!prevChannel}
-                                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-90"
-                                    title={prevChannel ? `Previous: ${prevChannel.name}` : "No previous channel"}
+                                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center active:scale-90"
+                                    title={prevChannel ? `Previous: ${cleanChannelName(prevChannel.name)}` : "No previous channel"}
                                 >
-                                    <SkipBack size={16}/>
+                                    <SkipBack size={15}/>
                                 </button>
 
                                 <button 
                                     onClick={togglePlay}
-                                    className="p-2.5 rounded-full bg-white text-black hover:bg-zinc-200 transition-all active:scale-90"
+                                    className="w-9 h-9 rounded-full bg-white text-black hover:bg-zinc-200 transition-all flex items-center justify-center active:scale-90 shadow-md"
                                     title={isPlaying ? "Pause" : "Play"}
                                 >
-                                    {isPlaying ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}
+                                    {isPlaying ? <Pause size={17} fill="currentColor"/> : <Play size={17} fill="currentColor"/>}
                                 </button>
 
                                 <button 
                                     onClick={handleNext}
                                     disabled={!nextChannel}
-                                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-90"
-                                    title={nextChannel ? `Next: ${nextChannel.name}` : "No next channel"}
+                                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center active:scale-90"
+                                    title={nextChannel ? `Next: ${cleanChannelName(nextChannel.name)}` : "No next channel"}
                                 >
-                                    <SkipForward size={16}/>
+                                    <SkipForward size={15}/>
                                 </button>
                             </div>
 
@@ -726,7 +718,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                     className="text-zinc-300 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
                                     title="Mute"
                                 >
-                                    {isMuted || volume === 0 ? <VolumeX size={18}/> : <Volume2 size={18}/>}
+                                    {isMuted || volume === 0 ? <VolumeX size={17}/> : <Volume2 size={17}/>}
                                 </button>
                                 <div className="w-16 sm:w-20 hidden xs:flex items-center">
                                     <input 
@@ -743,18 +735,18 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                             
                             {/* Live Badge & Watching Count */}
                             <div className="flex items-center gap-2 select-none">
-                                <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-red-600 rounded-full">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                    <span className="text-[10px] font-bold text-white uppercase tracking-wider leading-none">LIVE</span>
+                                <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-red-600/15 backdrop-blur-xl border border-red-500/25 rounded-full text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.15)]">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider leading-none">Live</span>
                                 </div>
-                                <span className="text-[10px] text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full hidden sm:inline-block">
-                                    🔥 {watchCount.toLocaleString()}
+                                <span className="text-[10px] text-zinc-400 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/5 hidden sm:inline-block font-normal">
+                                    {watchCount.toLocaleString()} watching
                                 </span>
                             </div>
 
                             {/* Server Selector Pills */}
                             {servers.length > 1 && (
-                                <div className="flex items-center gap-1 bg-white/5 rounded-full p-0.5 select-none">
+                                <div className="flex items-center gap-1 bg-white/5 rounded-full p-0.5 select-none border border-white/5">
                                     {servers.map((s, idx) => (
                                         <button
                                             key={idx}
@@ -763,9 +755,9 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                                 setError(null);
                                                 setLoading(true);
                                             }}
-                                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
+                                            className={`px-2 py-0.5 rounded-full text-[9px] font-medium transition-all ${
                                                 currentServerIndex === idx
-                                                    ? 'bg-red-600 text-white'
+                                                    ? 'bg-red-600 text-white shadow-sm'
                                                     : 'text-zinc-400 hover:text-white'
                                             }`}
                                         >
@@ -822,9 +814,9 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                         <div className="absolute bottom-full right-0 mb-2 w-28 bg-[#09090b]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 p-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
                                             <button
                                                 onClick={() => { handleQualityChange(-1); setIsQualityMenuOpen(false); }}
-                                                className={`w-full px-3 py-1.5 text-[10px] font-bold rounded-lg text-left transition-colors ${
+                                                className={`w-full px-3 py-1.5 text-[10px] font-medium rounded-lg text-left transition-colors ${
                                                     selectedQuality === -1
-                                                        ? 'bg-red-600 text-white'
+                                                        ? 'bg-white/20 text-white shadow-sm'
                                                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                                                 }`}
                                             >
@@ -834,9 +826,9 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                                 <button
                                                     key={lvl.id}
                                                     onClick={() => { handleQualityChange(lvl.id); setIsQualityMenuOpen(false); }}
-                                                    className={`w-full px-3 py-1.5 text-[10px] font-bold rounded-lg text-left transition-colors ${
+                                                    className={`w-full px-3 py-1.5 text-[10px] font-medium rounded-lg text-left transition-colors ${
                                                         selectedQuality === lvl.id
-                                                            ? 'bg-red-600 text-white'
+                                                            ? 'bg-white/20 text-white shadow-sm'
                                                             : 'text-zinc-400 hover:text-white hover:bg-white/5'
                                                     }`}
                                                 >
@@ -850,7 +842,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
 
                             <button 
                                 onClick={() => setShowEpgGuide(!showEpgGuide)} 
-                                className={`text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full ${showEpgGuide ? 'text-red-400' : ''}`}
+                                className={`text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full ${showEpgGuide ? 'text-white bg-white/15' : ''}`}
                                 title="TV Guide"
                             >
                                 <List size={18}/>
@@ -869,158 +861,103 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
             </div>
 
             {/* EPG Slide-out TV Guide Panel */}
-            <div className={`absolute top-0 right-0 bottom-0 w-80 sm:w-96 bg-[#09090b]/95 backdrop-blur-2xl border-l border-white/10 z-30 flex flex-col p-6 transition-all duration-300 select-none shadow-2xl ${showEpgGuide ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={`absolute top-0 right-0 bottom-0 w-84 sm:w-[420px] bg-[#0c0d12]/95 backdrop-blur-3xl border-l border-white/10 z-30 flex flex-col p-6 transition-all duration-300 select-none shadow-[0_0_50px_rgba(0,0,0,0.8)] ${showEpgGuide ? 'translate-x-0' : 'translate-x-full'}`}>
                 {/* Panel Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4 text-left">
-                    <div>
-                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                            <Calendar size={14} className="text-red-500" />
-                            TV Guide (EPG)
-                        </h3>
-                        <p className="text-xs text-zinc-400 mt-0.5 font-normal">Today's Programming Schedule</p>
+                <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] mb-4 text-left">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center p-1 shadow-md shrink-0">
+                            {channel.logo ? (
+                                <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
+                            ) : (
+                                <span className="text-sm font-semibold text-zinc-300">{cleanChannelName(channel.name).charAt(0)}</span>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold text-white tracking-tight truncate max-w-[200px]">
+                                {cleanChannelName(channel.name)}
+                            </h3>
+                            <p className="text-[11px] text-zinc-400 mt-0.5 font-normal">Today's Program Schedule</p>
+                        </div>
                     </div>
                     <button 
                         onClick={() => setShowEpgGuide(false)}
-                        className="text-zinc-400 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-all text-xs font-medium"
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-95 border border-white/10"
+                        title="Close Guide"
                     >
-                        Close
+                        <X size={15} />
                     </button>
                 </div>
 
-                {/* Channel Meta Info Card */}
-                {channelDetails && (
-                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-left flex flex-col gap-3 mb-4 select-none">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-black/40 rounded-xl p-1.5 border border-white/5 flex items-center justify-center shadow-inner">
-                                {channelDetails.logo ? (
-                                    <img src={channelDetails.logo} className="max-w-full max-h-full object-contain filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
-                                ) : (
-                                    <span className="font-bold text-lg text-gray-300">{channelDetails.name.charAt(0)}</span>
-                                )}
-                            </div>
-                            <div>
-                                <h4 className="text-xs font-bold text-white leading-tight truncate max-w-[200px]">{channelDetails.name}</h4>
-                                {channelDetails.website && (
-                                    <a 
-                                        href={channelDetails.website} 
-                                        target="_blank" 
-                                        rel="noreferrer" 
-                                        className="text-[9px] text-red-400 hover:text-red-300 underline font-medium truncate max-w-[200px] block mt-0.5"
-                                    >
-                                        {channelDetails.website.replace(/^https?:\/\/(www\.)?/, '')}
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] border-t border-white/[0.03] pt-3">
-                            <div>
-                                <span className="text-zinc-400 font-medium block text-[10px]">Country</span>
-                                <span className="text-zinc-200 font-semibold">{channelDetails.country || "Global"}</span>
-                            </div>
-                            <div>
-                                <span className="text-zinc-400 font-medium block text-[10px]">Language</span>
-                                <span className="text-zinc-200 font-semibold truncate block max-w-[100px]">{channelDetails.languages.join(', ')}</span>
-                            </div>
-                            <div>
-                                <span className="text-zinc-400 font-medium block text-[10px]">Category</span>
-                                <span className="text-zinc-200 font-semibold truncate block max-w-[100px] capitalize">{channelDetails.categories.join(', ') || "Entertainment"}</span>
-                            </div>
-                            <div>
-                                <span className="text-zinc-400 font-medium block text-[10px]">Status</span>
-                                <span className="text-green-500 font-medium flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                    Online
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-
-
                 {/* Schedule List */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 text-left">
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1 text-left">
                     {generateEPG(channel).map((program, idx) => {
                         const nowTime = new Date().getTime();
                         const isCurrent = nowTime >= program.startTime.getTime() && nowTime < program.endTime.getTime();
+                        const programProgress = isCurrent 
+                            ? Math.min(100, Math.max(0, ((nowTime - program.startTime.getTime()) / (program.endTime.getTime() - program.startTime.getTime())) * 100))
+                            : 0;
                         
                         return (
                             <div 
                                 key={idx} 
                                 ref={isCurrent ? activeProgramRef : undefined}
-                                className={`p-4 rounded-xl border transition-all duration-300 flex flex-col gap-1.5 relative overflow-hidden ${
+                                className={`rounded-xl border transition-all duration-300 p-3 relative overflow-hidden ${
                                     isCurrent 
-                                        ? 'bg-gradient-to-r from-red-600/10 to-red-600/[0.02] border-red-500/40 shadow-lg shadow-red-600/5' 
-                                        : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
+                                        ? 'bg-gradient-to-r from-red-600/15 via-red-950/20 to-black/40 border-red-500/35 shadow-md shadow-red-950/30' 
+                                        : 'bg-white/[0.025] hover:bg-white/[0.06] border-white/[0.06]'
                                 }`}
                             >
                                 {isCurrent && (
-                                    <div className="absolute top-0 bottom-0 left-0 w-1 bg-red-600 animate-[pulse_2s_infinite]"></div>
+                                    <div className="absolute top-0 bottom-0 left-0 w-1 bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
                                 )}
-                                <div className="flex items-start justify-between gap-2">
-                                    <h4 className={`text-xs font-bold leading-tight ${isCurrent ? 'text-red-500' : 'text-gray-200'}`}>
-                                        {program.title}
-                                    </h4>
-                                    <span className="text-[8px] font-bold uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded border border-white/5 text-gray-400">
+
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                    {isCurrent ? (
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/20 border border-red-500/30 text-red-400 text-[9.5px] font-semibold uppercase tracking-wider">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+                                            <span>Live Now</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-[11px] font-medium text-zinc-300">
+                                            {program.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
+
+                                    <span className="text-[9.5px] font-normal px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400 border border-white/5">
                                         {program.genre}
                                     </span>
                                 </div>
-                                <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
+
+                                <h4 className={`text-xs font-semibold leading-tight mb-1 truncate ${isCurrent ? 'text-white' : 'text-zinc-200'}`}>
+                                    {program.title}
+                                </h4>
+
+                                <p className="text-[10.5px] text-zinc-400 leading-snug font-normal line-clamp-1 mb-2">
                                     {program.description}
                                 </p>
-                                <div className="flex items-center justify-between text-[9px] font-semibold text-zinc-500 mt-1 border-t border-white/[0.03] pt-1.5">
-                                    <span className="flex items-center gap-1">
-                                        <Clock size={10} className="text-zinc-600" />
-                                        {program.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {program.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                                <div className="flex items-center justify-between text-[10px] text-zinc-400 font-normal pt-1.5 border-t border-white/[0.04]">
+                                    <span className="flex items-center gap-1.5">
+                                        <Clock size={11} className={isCurrent ? "text-red-400" : "text-zinc-500"} />
+                                        <span>
+                                            {program.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {program.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
                                     </span>
-                                    <span>
-                                        {program.duration} mins
-                                    </span>
+                                    <span className="text-zinc-500">{program.duration} min</span>
                                 </div>
+
+                                {isCurrent && (
+                                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mt-2">
+                                        <div 
+                                            className="h-full bg-red-600 shadow-[0_0_6px_rgba(239,68,68,0.7)] transition-all duration-1000"
+                                            style={{ width: `${programProgress}%` }}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
                 </div>
-
-                {/* Recommendations */}
-                {recommendations.length > 0 && (
-                    <div className="border-t border-white/5 pt-4 mt-4 text-left select-none">
-                        <h4 className="text-[10px] font-black text-white tracking-widest uppercase mb-3 flex items-center gap-1.5">
-                            <Tv size={12} className="text-red-500" />
-                            Recommended for you
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                            {recommendations.map((recChannel) => (
-                                <div 
-                                    key={recChannel.id}
-                                    onClick={() => {
-                                        if (onChannelChange) onChannelChange(recChannel);
-                                    }}
-                                    className="cursor-pointer transition-all duration-300 flex items-center gap-3.5 group/rec select-none active:scale-95 py-2.5 px-2 rounded-xl hover:bg-white/[0.03]"
-                                >
-                                    <div className="w-12 h-12 bg-zinc-950 rounded-2xl p-1.5 border border-white/5 shrink-0 flex items-center justify-center group-hover/rec:border-red-500/30 group-hover/rec:shadow-[0_0_15px_rgba(220,38,38,0.15)] transition-all duration-300">
-                                        {recChannel.logo ? (
-                                            <img src={recChannel.logo} className="max-w-[95%] max-h-[95%] object-contain filter drop-shadow" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
-                                        ) : (
-                                            <span className="font-black text-sm text-red-500">{recChannel.name.charAt(0)}</span>
-                                        )}
-                                    </div>
-                                    <div className="text-left min-w-0 flex-1">
-                                        <span className="text-[11px] font-bold text-zinc-300 group-hover/rec:text-white transition-colors truncate block">
-                                            {recChannel.name}
-                                        </span>
-                                        {recChannel.group && (
-                                            <span className="text-[8px] font-black text-zinc-500 group-hover/rec:text-red-500/80 transition-colors uppercase tracking-wider block mt-0.5">
-                                                {recChannel.group}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

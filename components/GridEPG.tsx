@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Clock, Tv, AlertCircle, Loader2, Search, Globe } from 'lucide-react';
+import { X, Clock, Tv, AlertCircle, Loader2, Search, Globe, ChevronDown } from 'lucide-react';
 import { LiveChannel } from '../types';
 import { generateEPG } from '../utils/epgGenerator';
+import { cleanChannelName } from '../utils/channelMetadata';
 
 interface GridEPGProps {
     selectedCountry: string;
@@ -10,7 +11,7 @@ interface GridEPGProps {
 }
 
 const HOUR_WIDTH = 280; // px per hour
-const GRID_HEIGHT_ROW = 76; // px per channel row
+const GRID_HEIGHT_ROW = 52; // px per channel row
 
 const CATEGORIES_LIST = [
     { id: 'ALL', name: 'All Categories', icon: '⚡' },
@@ -49,7 +50,7 @@ const renderDropdownIcon = (id: string, icon?: string) => {
         return (
             <img 
                 src={`https://flagcdn.com/w20/${code}.png`} 
-                className="w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0" 
+                className="w-4 h-3 object-cover rounded-sm shadow-sm shrink-0" 
                 alt="" 
                 onError={(e) => {
                     e.currentTarget.style.display = 'none';
@@ -87,15 +88,18 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, options, onChang
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all text-xs font-normal text-zinc-300 hover:text-zinc-100 outline-none tracking-wide"
+                className="h-10 px-4 rounded-full bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all text-xs font-medium text-zinc-200 outline-none flex items-center gap-2.5 active:scale-95"
             >
                 {renderDropdownIcon(activeOption.id, activeOption.icon)}
-                <span className="truncate">{activeOption.name}</span>
-                <span className="text-zinc-600 text-[8px] ml-1 shrink-0">▼</span>
+                <span className="truncate max-w-[130px] sm:max-w-none">{activeOption.name}</span>
+                <ChevronDown size={13} className={`text-zinc-500 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-zinc-300' : ''}`} />
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_15px_35px_rgba(0,0,0,0.7)] p-1 z-50 animate-in zoom-in-95 duration-150 max-h-64 overflow-y-auto custom-scrollbar select-none text-left">
+                <div 
+                    style={{ backgroundColor: '#0f0f14' }}
+                    className="absolute right-0 mt-2 w-52 bg-[#0f0f14] border border-white/15 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.98)] p-1.5 z-[100] animate-in zoom-in-95 duration-150 max-h-64 overflow-y-auto custom-scrollbar select-none text-left"
+                >
                     {options.map(opt => {
                         const isActive = opt.id === value;
                         return (
@@ -106,14 +110,14 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, options, onChang
                                     onChange(opt.id);
                                     setIsOpen(false);
                                 }}
-                                className={`w-full text-left px-3.5 py-2 text-xs rounded-lg transition-all flex items-center gap-2 outline-none ${
+                                className={`w-full text-left px-3.5 py-2.5 text-xs rounded-xl transition-all flex items-center gap-2.5 outline-none ${
                                     isActive
-                                        ? 'bg-red-600 text-white font-medium'
-                                        : 'text-zinc-300 hover:bg-red-600 hover:text-white hover:font-medium'
+                                        ? 'bg-red-600 text-white font-medium shadow-sm'
+                                        : 'text-zinc-300 hover:bg-white/10 hover:text-white'
                                 }`}
                             >
                                 {renderDropdownIcon(opt.id, opt.icon)}
-                                <span className="font-normal truncate">{opt.name}</span>
+                                <span className="truncate">{opt.name}</span>
                             </button>
                         );
                     })}
@@ -152,7 +156,7 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
     useEffect(() => {
         const delayTimer = setTimeout(() => {
             setSearchQuery(searchText);
-        }, 300);
+        }, 250);
         return () => clearTimeout(delayTimer);
     }, [searchText]);
 
@@ -160,7 +164,7 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
     useEffect(() => {
         const timer = setInterval(() => {
             setNow(new Date());
-        }, 30000);
+        }, 15000);
         return () => clearInterval(timer);
     }, []);
 
@@ -173,7 +177,6 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
         const fetchChannels = async () => {
             try {
                 let url = "";
-                // Decide which URL playlist to fetch
                 if (selectedCat !== "ALL") {
                     url = `https://iptv-org.github.io/iptv/categories/${selectedCat.toLowerCase()}.m3u`;
                 } else if (selectedCountryCode !== "ALL") {
@@ -189,12 +192,10 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
 
                 if (!isMounted) return;
 
-                // Post-filter by country if category was loaded first
                 if (selectedCat !== "ALL" && selectedCountryCode !== "ALL") {
                     results = results.filter(c => c.country?.toUpperCase() === selectedCountryCode.toUpperCase());
                 }
 
-                // Deduplicate channels
                 const unique: LiveChannel[] = [];
                 const urls = new Set<string>();
                 results.forEach(c => {
@@ -269,23 +270,6 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
         return diffMins * (HOUR_WIDTH / 60);
     }, [epgStartTime]);
 
-    // Seed program images dynamically based on title hash
-    const getProgramImage = (title: string) => {
-        let hash = 0;
-        for (let i = 0; i < title.length; i++) {
-            hash = title.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const id = Math.abs(hash) % 5;
-        const images = [
-            "https://images.unsplash.com/photo-1574375927938-d5a98e8fed85?w=150&q=80",
-            "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=150&q=80",
-            "https://images.unsplash.com/photo-1508847154043-be12a62861c1?w=150&q=80",
-            "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=150&q=80",
-            "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?w=150&q=80"
-        ];
-        return images[id];
-    };
-
     // Keep horizontal and vertical scrolls in sync
     const handleGridScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const scrollTop = e.currentTarget.scrollTop;
@@ -308,8 +292,9 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
 
     // Filter channels client-side by search query
     const filteredChannels = channels.filter(c => 
+        cleanChannelName(c.name).toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 45); // Limit rendering list size for high performance
+    ).slice(0, 50);
 
     // Render timeline hour headers
     const timelineHours: Date[] = [];
@@ -320,54 +305,59 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
     const currentIndicatorPos = getXPosition(now);
 
     return (
-        <div className="fixed inset-0 z-[120] bg-zinc-950/98 backdrop-blur-2xl flex flex-col text-white animate-in fade-in duration-300 select-none">
+        <div className="fixed inset-0 z-[120] bg-[#07070a]/98 backdrop-blur-3xl flex flex-col text-white animate-in fade-in duration-300 select-none">
             {/* EPG Grid Header */}
-            <div className="h-16 px-6 border-b border-white/10 flex items-center justify-between bg-black/40">
+            <div className="h-16 px-6 border-b border-white/10 flex items-center justify-between bg-black/50">
                 <div className="flex items-center gap-3">
-                    <div className="bg-red-600/10 p-2 rounded-xl border border-red-500/20">
-                        <Tv className="text-red-500" size={20} />
-                    </div>
-                    <div className="text-left">
-                        <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-200">Interactive TV Guide</h2>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">Explore channels and play programs directly from the schedule</p>
+                    <span className="w-1.5 h-5 rounded-full bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+                    <div className="text-left flex items-center gap-3">
+                        <h2 className="text-base font-semibold tracking-tight text-white">Interactive TV Guide</h2>
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-600/20 border border-red-500/30 text-[10px] font-semibold text-red-400 uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            Live Broadcasts
+                        </span>
                     </div>
                 </div>
                 
                 <button 
                     onClick={onClose}
-                    className="text-zinc-400 hover:text-white transition-all active:scale-90 p-1.5 bg-transparent border-none outline-none"
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white transition-all flex items-center justify-center active:scale-95 border border-white/10"
                     title="Close Guide"
                 >
-                    <X size={24} />
+                    <X size={18} />
                 </button>
             </div>
 
-            {/* Filter and Search Bar Row (Clean & Minimalist Selectors) */}
-            <div className="h-14 px-6 border-b border-white/5 bg-zinc-950/60 flex items-center justify-between gap-4 select-none">
-                {/* Clean Search Input */}
-                <div className="flex items-center gap-2.5 flex-1 max-w-xs md:max-w-sm">
+            {/* Filter and Search Bar Row */}
+            <div className="h-16 px-6 border-b border-white/5 bg-[#09090d]/80 backdrop-blur-xl flex items-center justify-between gap-4 select-none relative z-50">
+                {/* Search Input Pill */}
+                <div className="flex items-center gap-2.5 px-4 h-10 rounded-full bg-white/[0.04] border border-white/10 focus-within:border-red-500/50 focus-within:ring-1 focus-within:ring-red-500/20 transition-all flex-1 max-w-xs md:max-w-sm">
                     <Search size={14} className="text-zinc-500 shrink-0" />
                     <input 
                         type="text"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
-                        placeholder="Search guide channels..."
-                        className="bg-transparent border-none outline-none text-sm text-zinc-200 placeholder-zinc-500 w-full font-normal tracking-wide"
+                        placeholder="Search channels or shows..."
+                        className="bg-transparent border-none outline-none text-xs text-zinc-200 placeholder-zinc-500 w-full font-normal tracking-wide"
                     />
+                    {searchText && (
+                        <button 
+                            onClick={() => setSearchText("")} 
+                            className="text-zinc-500 hover:text-zinc-300 text-xs"
+                        >
+                            ✕
+                        </button>
+                    )}
                 </div>
                 
-                {/* Thin Category and Country selectors */}
-                <div className="flex items-center gap-3">
-                    {/* Category Selector Custom Dropdown */}
+                {/* Category and Country selectors */}
+                <div className="flex items-center gap-2.5">
                     <CustomDropdown 
                         value={selectedCat} 
                         options={CATEGORIES_LIST} 
                         onChange={(val) => setSelectedCat(val)} 
                     />
 
-                    <span className="text-zinc-800 text-xs">|</span>
-
-                    {/* Country Selector Custom Dropdown */}
                     <CustomDropdown 
                         value={selectedCountryCode} 
                         options={COUNTRIES_LIST} 
@@ -377,22 +367,24 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
             </div>
 
             {loading ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-zinc-950">
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[#07070a]">
                     <Loader2 size={36} className="text-red-500 animate-spin" />
-                    <p className="text-xs font-light text-zinc-500 uppercase tracking-widest animate-pulse">Loading TV Schedule Grid...</p>
+                    <p className="text-xs font-normal text-zinc-400 tracking-wider">Loading Broadcast Schedule...</p>
                 </div>
             ) : error ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-zinc-950">
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[#07070a]">
                     <AlertCircle size={40} className="text-red-500" />
-                    <p className="text-sm text-zinc-400 font-light">{error}</p>
+                    <p className="text-sm text-zinc-400 font-normal">{error}</p>
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col overflow-hidden relative">
+                <div className="flex-1 flex flex-col overflow-hidden relative z-0">
                     {/* Time Header Bar */}
-                    <div className="h-12 border-b border-white/5 flex bg-black/60 sticky top-0 z-30 select-none">
-                        {/* Empty spacing box over channels column */}
-                        <div className="w-24 md:w-32 shrink-0 border-r border-white/5 h-full bg-zinc-950 flex items-center justify-center">
-                            <Clock size={14} className="text-zinc-500" />
+                    <div className="h-12 border-b border-white/5 flex bg-[#0a0a0e] sticky top-0 z-30 select-none">
+                        {/* Channel column header spacer */}
+                        <div className="w-56 md:w-64 shrink-0 border-r border-white/5 h-full bg-[#0a0a0e] flex items-center px-4 gap-2 text-zinc-400">
+                            <Tv size={14} className="text-red-500" />
+                            <span className="text-xs font-semibold text-zinc-300">Channels</span>
+                            <span className="text-[10px] text-zinc-500 ml-auto font-normal">({filteredChannels.length})</span>
                         </div>
                         {/* Time Grid Timeline ticks */}
                         <div 
@@ -403,10 +395,10 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
                                 {timelineHours.map((hour, idx) => (
                                     <div 
                                         key={idx} 
-                                        className="h-full border-r border-white/5 flex flex-col justify-end pb-2 px-4 relative text-left" 
+                                        className="h-full border-r border-white/5 flex flex-col justify-end pb-2.5 px-4 relative text-left" 
                                         style={{ width: `${HOUR_WIDTH}px` }}
                                     >
-                                        <span className="text-[10px] font-light text-zinc-400">
+                                        <span className="text-[11px] font-medium text-zinc-400">
                                             {hour.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                                         </span>
                                         {/* Half hour tick mark */}
@@ -419,24 +411,33 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
 
                     {/* Main Grid Viewport */}
                     <div className="flex-1 flex overflow-hidden">
-                        {/* Sticky Left Column: Channel Logos (Scrolled programmatically) */}
+                        {/* Sticky Left Column: Channel Logos & Names */}
                         <div 
                             ref={logoScrollContainerRef}
                             onWheel={handleLogosWheel}
-                            className="w-24 md:w-32 shrink-0 flex flex-col border-r border-white/5 bg-zinc-950 overflow-y-hidden z-20 shadow-[8px_0_15px_rgba(0,0,0,0.4)]"
+                            className="w-56 md:w-64 shrink-0 flex flex-col border-r border-white/5 bg-[#09090d] overflow-y-hidden z-20 shadow-[10px_0_20px_rgba(0,0,0,0.5)]"
                         >
                             {filteredChannels.map((channel) => (
                                 <div 
                                     key={channel.id}
-                                    className="h-[76px] border-b border-white/5 flex items-center justify-center p-3 shrink-0 select-none bg-zinc-950"
+                                    onClick={() => onChannelSelect(channel, channels)}
+                                    className="h-[52px] border-b border-white/5 flex items-center gap-2.5 px-3 shrink-0 select-none bg-[#09090d] hover:bg-white/[0.04] transition-colors cursor-pointer group text-left"
+                                    title={`Play ${cleanChannelName(channel.name)}`}
                                 >
-                                    <div className="w-12 h-12 bg-black rounded-xl p-1 border border-white/10 flex items-center justify-center shadow-lg relative overflow-hidden">
-                                        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent" />
+                                    <div className="w-8 h-8 rounded-lg bg-black/80 p-0.5 border border-white/10 flex items-center justify-center shadow-sm relative overflow-hidden shrink-0 group-hover:border-red-500/40 transition-colors">
                                         {channel.logo ? (
                                             <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
                                         ) : (
-                                            <span className="font-light text-sm text-red-500">{channel.name.charAt(0)}</span>
+                                            <span className="font-semibold text-xs text-red-500">{cleanChannelName(channel.name).charAt(0)}</span>
                                         )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="text-xs font-semibold text-zinc-200 group-hover:text-white truncate transition-colors leading-tight">
+                                            {cleanChannelName(channel.name)}
+                                        </h4>
+                                        <p className="text-[9px] text-zinc-500 capitalize truncate font-normal leading-tight mt-0.5">
+                                            {channel.group || channel.country || 'Live TV'}
+                                        </p>
                                     </div>
                                 </div>
                             ))}
@@ -446,20 +447,10 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
                         <div 
                             ref={gridScrollContainerRef}
                             onScroll={handleGridScroll}
-                            className="flex-1 overflow-auto custom-scrollbar relative bg-zinc-950"
+                            className="flex-1 overflow-auto custom-scrollbar relative bg-[#07070a]"
                         >
                             <div className="relative flex flex-col" style={{ width: `${6 * HOUR_WIDTH}px`, height: `${filteredChannels.length * GRID_HEIGHT_ROW}px` }}>
                                 
-                                {/* Vertical Current Time Red pulsing indicator line */}
-                                {currentIndicatorPos >= 0 && currentIndicatorPos <= 6 * HOUR_WIDTH && (
-                                    <div 
-                                        className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-10 pointer-events-none shadow-[0_0_10px_#ef4444]/80"
-                                        style={{ left: `${currentIndicatorPos}px` }}
-                                    >
-                                        <div className="w-2 h-2 rounded-full bg-red-500 absolute top-0 -left-[3px] shadow-[0_0_8px_#ef4444] animate-pulse" />
-                                    </div>
-                                )}
-
                                 {/* Channel Schedule Rows */}
                                 {filteredChannels.map((channel) => {
                                     const schedule = generateEPG(channel);
@@ -473,58 +464,72 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
                                     return (
                                         <div 
                                             key={channel.id}
-                                            className="h-[76px] border-b border-white/5 relative flex items-center overflow-hidden shrink-0 group/row"
+                                            className="h-[52px] border-b border-white/5 relative flex items-center overflow-hidden shrink-0"
                                         >
                                             {visiblePrograms.map((program, pIdx) => {
                                                 const startLeft = getXPosition(program.startTime);
                                                 const endLeft = getXPosition(program.endTime);
                                                 const blockWidth = endLeft - startLeft;
 
-                                                const isPlayingNow = now >= program.startTime && now < program.endTime;
-                                                const isPast = now > program.endTime;
+                                                const nowTime = now.getTime();
+                                                const isPlayingNow = nowTime >= program.startTime.getTime() && nowTime < program.endTime.getTime();
+                                                const isPast = nowTime > program.endTime.getTime();
+                                                const progressPercent = isPlayingNow 
+                                                    ? Math.min(100, Math.max(0, ((nowTime - program.startTime.getTime()) / (program.endTime.getTime() - program.startTime.getTime())) * 100))
+                                                    : 0;
 
                                                 return (
                                                     <div 
                                                         key={pIdx}
                                                         onClick={() => onChannelSelect(channel, channels)}
-                                                        className={`absolute top-1.5 bottom-1.5 rounded-xl border flex items-center gap-3 px-3.5 cursor-pointer transition-all duration-300 overflow-hidden select-none text-left ${
+                                                        className={`absolute top-1 bottom-1 rounded-lg border flex flex-col justify-center px-3 cursor-pointer transition-all duration-200 overflow-hidden select-none text-left group ${
                                                             isPlayingNow
-                                                                ? 'bg-gradient-to-r from-red-700/95 to-rose-600/90 border-red-500/30 text-white z-10 shadow-lg shadow-red-950/40 scale-[1.01]'
+                                                                ? 'bg-gradient-to-r from-red-600/20 via-red-950/30 to-[#121217]/95 border-red-500/40 text-white shadow-[0_2px_14px_rgba(239,68,68,0.18)]'
                                                                 : isPast
-                                                                    ? 'bg-black/40 border-white/5 text-zinc-500 opacity-40 hover:opacity-60'
-                                                                    : 'bg-[#18181b]/50 border-white/5 text-zinc-400 hover:bg-[#1f1f23]/70 hover:text-zinc-200'
+                                                                    ? 'bg-white/[0.015] border-white/[0.03] text-zinc-600/80 hover:text-zinc-500 hover:bg-white/[0.03]'
+                                                                    : 'bg-white/[0.035] hover:bg-white/[0.07] border-white/5 hover:border-white/15 text-zinc-300 hover:text-white'
                                                         }`}
                                                         style={{ 
                                                             left: `${Math.max(0, startLeft)}px`, 
-                                                            width: `${blockWidth}px` 
+                                                            width: `${Math.max(50, blockWidth - 3)}px` 
                                                         }}
                                                         title={`${program.title} (${program.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${program.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
                                                     >
-                                                        {/* Thumbnail for Currently Playing Show */}
-                                                        {isPlayingNow && blockWidth > 140 && (
-                                                            <div className="w-12 h-8 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-md">
-                                                                <img 
-                                                                    src={getProgramImage(program.title)} 
-                                                                    className="w-full h-full object-cover" 
-                                                                    alt="" 
+                                                        {/* Program Title */}
+                                                        <h4 className={`text-[11px] font-medium leading-tight truncate transition-colors ${isPlayingNow ? 'text-white' : 'text-zinc-200 group-hover:text-white'}`}>
+                                                            {program.title}
+                                                        </h4>
+
+                                                        {/* Program Timing */}
+                                                        <p className="text-[9.5px] text-zinc-400/80 font-normal leading-none mt-1 truncate">
+                                                            {program.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} – {program.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                        </p>
+
+                                                        {/* Active Live Broadcast Bottom Progress Bar */}
+                                                        {isPlayingNow && (
+                                                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10">
+                                                                <div 
+                                                                    className="h-full bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.9)]" 
+                                                                    style={{ width: `${progressPercent}%` }} 
                                                                 />
                                                             </div>
                                                         )}
-
-                                                        <div className="min-w-0 flex-1">
-                                                            <h4 className="text-[11px] font-medium leading-tight truncate">
-                                                                {program.title}
-                                                            </h4>
-                                                            <p className="text-[8px] font-light mt-0.5 opacity-60 leading-none truncate">
-                                                                {program.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - {program.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                                            </p>
-                                                        </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     );
                                 })}
+
+                                {/* Vertical Current Time Red indicator line (Renders ON TOP of all program boxes, but under dropdown menu) */}
+                                {currentIndicatorPos >= 0 && currentIndicatorPos <= 6 * HOUR_WIDTH && (
+                                    <div 
+                                        className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-20 pointer-events-none shadow-[0_0_12px_rgba(239,68,68,0.95)]"
+                                        style={{ left: `${currentIndicatorPos}px` }}
+                                    >
+                                        <div className="w-2.5 h-2.5 rounded-full bg-red-500 absolute top-0 -left-[4px] shadow-[0_0_8px_rgba(239,68,68,1)] animate-pulse" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -533,3 +538,4 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
         </div>
     );
 };
+
