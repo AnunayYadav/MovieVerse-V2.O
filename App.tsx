@@ -785,19 +785,21 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
         <div 
             ref={ref}
             key={movie.id} 
-            className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none select-none" 
+            className="relative shrink-0 w-[155px] sm:w-[180px] md:w-[190px] flex items-end group cursor-pointer focus:outline-none select-none" 
             onClick={() => onMovieClick(movie)}
         >
-            <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
-                style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
+            <div 
+                className="absolute -bottom-4 sm:-bottom-5 md:-bottom-6 left-0 z-0 text-[100px] sm:text-[120px] md:text-[140px] font-black leading-none select-none pointer-events-none transition-all duration-500 transform group-hover:scale-105 text-zinc-400/50 group-hover:text-zinc-300/75 tracking-tighter drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
+                style={{ transform: 'translateX(-20%)', fontFamily: 'Outfit, Inter, sans-serif' }}
+            >
                 {idx + 1}
             </div>
-            <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
+            <div className="relative z-10 w-[125px] sm:w-[145px] md:w-[150px] ml-auto aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)]">
                 {(() => {
                     const rawPath = movie.poster_path || (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
                     const posterSrc = rawPath ? (rawPath.startsWith('http://') || rawPath.startsWith('https://') ? rawPath : `${TMDB_IMAGE_BASE}${rawPath.startsWith('/') ? rawPath : `/${rawPath}`}`) : "https://placehold.co/300x450";
                     return (
-                        <img src={posterSrc} className="w-full h-full object-cover" alt={movie.title || movie.name} loading="lazy" />
+                        <img src={posterSrc} className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" alt={movie.title || movie.name} loading="lazy" />
                     );
                 })()}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -4205,30 +4207,31 @@ export default function App() {
                             </div>
                         </div>
 
-                        <div className="flex-1 min-w-0 max-w-full md:w-64 lg:w-80 md:flex-initial mx-1 md:mx-0">
-                            <div className="relative w-full group">
-                                <TvFocusInput
-                                    ref={searchInputRef}
-                                    type="text"
-                                    placeholder={window.innerWidth < 640 ? "Search..." : "Search... (Press /)"}
-                                    className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
-                                    value={searchInput}
-                                    onChange={(e) => setSearchInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchInput); }}
-                                    onSubmit={() => handleSearchSubmit(searchInput)}
-                                />
-                                <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
-                                <button
-                                    onClick={() => setIsAiSearchActive(!isAiSearchActive)}
-                                    className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-300 ${isAiSearchActive ? 'text-purple-400 bg-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:text-purple-300' : 'text-zinc-400 hover:text-zinc-200'}`}
-                                    title="Toggle AI Semantic Search"
-                                >
-                                    <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
-                                </button>
+                        {/* Right side: Search bar and Profile */}
+                        <div className="flex items-center gap-2.5 md:gap-3 shrink-0 ml-auto">
+                            <div className="w-48 sm:w-64 md:w-80 lg:w-96 xl:w-[400px]">
+                                <div className="relative w-full group">
+                                    <TvFocusInput
+                                        ref={searchInputRef}
+                                        type="text"
+                                        placeholder={window.innerWidth < 640 ? "Search..." : "Search... (Press /)"}
+                                        className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
+                                        value={searchInput}
+                                        onChange={(e) => setSearchInput(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchInput); }}
+                                        onSubmit={() => handleSearchSubmit(searchInput)}
+                                    />
+                                    <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
+                                    <button
+                                        onClick={() => setIsAiSearchActive(!isAiSearchActive)}
+                                        className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-300 ${isAiSearchActive ? 'text-purple-400 bg-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:text-purple-300' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                        title="Toggle AI Semantic Search"
+                                    >
+                                        <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 md:gap-3 shrink-0">
                             {/* Profile Dropdown Container */}
                             <div className="relative">
                                 <button
@@ -4812,20 +4815,22 @@ export default function App() {
                                                     {featuredMovie.overview}
                                                 </p>
 
-                                                <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+                                                <div className="flex flex-row items-center gap-2.5 sm:gap-3 w-auto mt-2">
                                                     {isExclusive && (
                                                         <TvFocusButton
                                                             onClick={() => setSelectedMovie(featuredMovie)}
-                                                            className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+                                                            className="px-4 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-base rounded-full font-bold flex items-center justify-center gap-2 sm:gap-2.5 whitespace-nowrap transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                                         >
-                                                            <Play size={18} fill="currentColor" /> Watch Now
+                                                            <Play size={16} className="sm:w-[18px] sm:h-[18px]" fill="currentColor" />
+                                                            <span>Watch Now</span>
                                                         </TvFocusButton>
                                                     )}
                                                     <TvFocusButton
                                                         onClick={() => setSelectedMovie(featuredMovie)}
-                                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-full font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
+                                                        className="px-4 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-base rounded-full font-bold flex items-center justify-center gap-2 sm:gap-2.5 whitespace-nowrap bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
                                                     >
-                                                        <Info size={18} /> More Info
+                                                        <Info size={16} className="sm:w-[18px] sm:h-[18px]" />
+                                                        <span>More Info</span>
                                                     </TvFocusButton>
                                                 </div>
                                             </div>
