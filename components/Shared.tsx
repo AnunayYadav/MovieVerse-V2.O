@@ -116,30 +116,80 @@ export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-6
     );
 };
 
-export const LogoLoader = () => {
+export const LogoLoader = ({ 
+  className = "",
+  onComplete,
+  speed = 1.75
+}: { 
+  className?: string;
+  onComplete?: () => void;
+  speed?: number;
+} = {}) => {
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  React.useEffect(() => {
+  const completedRef = React.useRef(false);
+
+  const applySpeed = React.useCallback(() => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = 1.85;
+      videoRef.current.playbackRate = speed;
     }
-  }, []);
+  }, [speed]);
+
+  const markComplete = React.useCallback(() => {
+    if (!completedRef.current) {
+      completedRef.current = true;
+      if (onComplete) {
+        onComplete();
+      }
+    }
+  }, [onComplete]);
+
+  React.useEffect(() => {
+    applySpeed();
+    // Safety fallback: scaled to playback speed
+    const timeoutDuration = Math.max(1500, Math.round(3000 / speed));
+    const timer = setTimeout(() => {
+      markComplete();
+    }, timeoutDuration);
+
+    return () => clearTimeout(timer);
+  }, [applySpeed, markComplete, speed]);
+
+  const handleEnded = () => {
+    markComplete();
+    // Seamlessly loop if still mounted/loading
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      applySpeed();
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current && videoRef.current.duration) {
+      // Near end of video
+      if (videoRef.current.currentTime >= videoRef.current.duration - 0.12) {
+        markComplete();
+      }
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1 animate-in fade-in duration-500 py-20 font-sans">
-      <div className="relative w-36 h-36 flex items-center justify-center">
+    <div className={`flex flex-col items-center justify-center animate-in fade-in duration-500 py-12 font-sans ${className}`}>
+      <div className="relative w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 flex items-center justify-center">
         <video 
           ref={videoRef}
           src="/loader.mp4" 
           autoPlay 
-          loop 
           muted 
           playsInline 
+          onLoadedMetadata={applySpeed}
+          onPlay={applySpeed}
+          onEnded={handleEnded}
+          onTimeUpdate={handleTimeUpdate}
+          onError={markComplete}
           className="w-full h-full object-contain relative z-10"
         />
       </div>
-      <p className="text-[11px] font-light uppercase tracking-[0.4em] text-zinc-400 -mt-4 select-none">
-        LOADING MOVIEVERSE
-      </p>
     </div>
   );
 };

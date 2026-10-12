@@ -1099,6 +1099,7 @@ export default function App() {
 
 
     const [authChecking, setAuthChecking] = useState(true);
+    const [splashFinished, setSplashFinished] = useState(false);
     const [isCloudSync, setIsCloudSync] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
 
@@ -3888,7 +3889,13 @@ export default function App() {
         { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } }
     ];
 
-    if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
+    if (authChecking || !splashFinished) {
+        return (
+            <div className="fixed inset-0 bg-black flex items-center justify-center z-[9999]">
+                <LogoLoader onComplete={() => setSplashFinished(true)} />
+            </div>
+        );
+    }
     if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} watchlist={watchlist} setWatchlist={(w) => { setWatchlist(w); localStorage.setItem('movieverse_watchlist', JSON.stringify(w)); }} favorites={favorites} setFavorites={(f) => { setFavorites(f); localStorage.setItem('movieverse_favorites', JSON.stringify(f)); }} onSelectMovie={setSelectedMovie} /> </>);
 
     if (isTV) {
@@ -5240,7 +5247,7 @@ export default function App() {
                 </div>
 
 
-            {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
+            {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center"><LogoLoader /></div>}
         </div>
     );
 }
