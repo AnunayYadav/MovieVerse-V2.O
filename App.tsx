@@ -149,15 +149,18 @@ const ComingSoonCard = ({
     reminders,
     toggleReminder,
     setSelectedMovie,
-    formatted,
-    apiKey
+    apiKey,
+    isFirstOfDate,
+    formattedDate
 }: {
     movie: Movie;
     reminders: number[];
     toggleReminder: (id: number) => void;
     setSelectedMovie: (m: Movie) => void;
-    formatted: any;
-    apiKey: string;
+    apiKey?: string;
+    isFirstOfDate?: boolean;
+    formattedDate?: any;
+    formatted?: any;
     key?: string | number;
 }) => {
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -198,98 +201,93 @@ const ComingSoonCard = ({
         };
     }, [movie.id, apiKey]);
 
+    const genreName = movie.genre_ids && movie.genre_ids.length > 0 ? GENRES_MAP[movie.genre_ids[0]] : null;
+
     return (
         <div
             ref={ref}
             onClick={() => setSelectedMovie(movie)}
-            className="w-full flex flex-col bg-[#0f0f12]/70 backdrop-blur-md rounded-2xl border border-white/5 hover:border-zinc-700/40 hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)] cursor-pointer"
+            className="group relative flex flex-col gap-2 w-full cursor-pointer select-none text-left font-sans"
         >
-            {/* Cinematic widescreen backdrop */}
-            <div
-                className="relative w-full aspect-[16/9] rounded-t-2xl overflow-hidden bg-zinc-900 border-b border-white/5 cursor-pointer"
-                onClick={() => setSelectedMovie(movie)}
-            >
+            {/* Big Date Number behind the left of the poster (clearly visible, only a little hidden behind the poster) */}
+            {isFirstOfDate && formattedDate && formattedDate.day && formattedDate.day !== 'TBA' && (
+                <div className="absolute -left-16 sm:-left-20 md:-left-24 top-3 md:top-5 z-0 pointer-events-none select-none flex flex-col items-start leading-none">
+                    <span
+                        className="text-6xl sm:text-7xl md:text-8xl font-black text-white/85 group-hover:text-white transition-colors tracking-tighter leading-none select-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
+                        style={{ fontFamily: 'Outfit, Inter, sans-serif' }}
+                    >
+                        {formattedDate.day}
+                    </span>
+                    <div className="flex flex-col items-start leading-tight mt-1.5 pl-1 z-10">
+                        <span className="text-[11px] sm:text-xs font-black text-red-500 uppercase tracking-wider drop-shadow-sm">
+                            {formattedDate.month}
+                        </span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-zinc-300 drop-shadow-sm">
+                            {formattedDate.year}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {/* Clean Vertical 2:3 Movie Poster */}
+            <div className="relative z-10 w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-300">
                 <img
-                    src={movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/600x338/111/FFF?text=No+Preview")}
-                    alt={movie.title}
+                    src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : (movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : "https://placehold.co/500x750/111/FFF?text=No+Poster")}
+                    alt={movie.title || movie.name}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-85 transition-opacity duration-300" />
 
-                {/* Logo overlay on poster */}
-                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-                    <div className="min-h-[25px] flex items-end">
+                {/* Logo overlay on poster bottom */}
+                <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
+                    <div className="min-h-[22px] flex items-end">
                         {!logoLoading && logoUrl ? (
                             <img
                                 src={logoUrl}
-                                alt={movie.title}
-                                className="max-h-[26px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] transition-transform duration-300 origin-left group-hover:scale-105"
+                                alt={movie.title || movie.name}
+                                className="max-h-[24px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] transition-transform duration-300 origin-left group-hover:scale-105"
                             />
                         ) : null}
                     </div>
                 </div>
 
-                <span className="absolute top-2.5 left-2.5 font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm font-sans bg-red-600/90 text-white">
+                <span className="absolute top-2 left-2 font-bold text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm font-sans bg-red-600/90 text-white backdrop-blur-sm">
                     Soon
                 </span>
+
+                {/* Bell Reminder toggle button */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); toggleReminder(movie.id); }}
+                    className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md shadow-md transition-all duration-200 active:scale-95 z-20 ${
+                        reminders.includes(movie.id)
+                            ? 'bg-red-600 text-white opacity-100'
+                            : 'bg-black/60 text-zinc-300 hover:bg-white hover:text-black opacity-0 group-hover:opacity-100'
+                    }`}
+                    title={reminders.includes(movie.id) ? "Reminder Set" : "Notify Me"}
+                >
+                    <Bell size={11} fill={reminders.includes(movie.id) ? "currentColor" : "none"} />
+                </button>
             </div>
 
-            {/* Details */}
-            <div className="p-3.5 flex-1 flex flex-col justify-between">
-                <div>
-                    <div className="flex items-start justify-between gap-3">
-                        <h3
-                            className="text-xs md:text-sm font-bold text-white tracking-tight hover:text-red-500 cursor-pointer transition-colors line-clamp-1 flex-1"
-                            onClick={() => setSelectedMovie(movie)}
-                            title={movie.title}
-                        >
-                            {movie.title}
-                        </h3>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); toggleReminder(movie.id); }}
-                                className={`p-1.5 rounded-full border transition-all duration-300 active:scale-90 ${reminders.includes(movie.id) ? 'bg-red-600 border-red-600 text-white' : 'border-white/10 hover:border-white/20 bg-white/5 text-zinc-400 hover:text-white'}`}
-                                title={reminders.includes(movie.id) ? "Reminder Set" : "Notify Me"}
-                            >
-                                <Bell size={10} fill={reminders.includes(movie.id) ? "currentColor" : "none"} />
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedMovie(movie); }}
-                                className="p-1.5 rounded-full border border-white/10 hover:border-white/20 bg-white/5 text-zinc-400 hover:text-white transition-all duration-300 active:scale-90"
-                                title="View Details"
-                            >
-                                <Info size={10} />
-                            </button>
-                        </div>
-                    </div>
-
-                    <p className="text-zinc-400 text-[11px] leading-normal mt-2 line-clamp-2 font-normal">
-                        {movie.overview || "No synopsis available for this upcoming title yet. Check back closer to release."}
-                    </p>
-                </div>
-
-                {/* Metadata pills */}
-                <div className="flex flex-wrap items-center gap-1 mt-3 pt-2 border-t border-white/5">
-                    {movie.genre_ids?.slice(0, 2).map((genreId) => {
-                        const genreName = GENRES_MAP[genreId];
-                        if (!genreName) return null;
-                        return (
-                            <span
-                                key={genreId}
-                                className="text-[7.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 font-sans"
-                            >
-                                {genreName}
-                            </span>
-                        );
-                    })}
-                    {movie.vote_average > 0 && (
-                        <span className="flex items-center gap-0.5 text-[7.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border font-sans transition-all duration-300 bg-yellow-500/10 border-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20">
-                            <Star size={6.5} fill="currentColor" /> {movie.vote_average.toFixed(1)} Expected
+            {/* Clean Details directly underneath poster (home tab row style) */}
+            <div className="flex flex-col px-0.5">
+                <h4
+                    className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-1 group-hover:text-red-500 transition-colors duration-200 leading-snug"
+                    title={movie.title || movie.name}
+                >
+                    {movie.title || movie.name}
+                </h4>
+                <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 font-medium">
+                    <span className="truncate">
+                        {genreName || (movie.release_date ? movie.release_date.split('-')[0] : 'Upcoming')}
+                    </span>
+                    {movie.vote_average > 0 ? (
+                        <span className="flex items-center gap-1 font-semibold text-white/90 shrink-0">
+                            <Star size={9} fill="currentColor" className="text-yellow-400" />
+                            {movie.vote_average.toFixed(1)}
                         </span>
-                    )}
+                    ) : null}
                 </div>
             </div>
         </div>
@@ -3022,16 +3020,95 @@ export default function App() {
                 const todayStr = today.toISOString().split('T')[0];
                 const future = new Date();
                 future.setFullYear(future.getFullYear() + 2);
-                params.delete("region");
-                if (!isStrictFilter) {
-                    params.delete("certification_country");
-                    params.delete("certification.lte");
+                const futureStr = future.toISOString().split('T')[0];
+
+                const pagesToFetch = pageNum === 1 ? [1, 2, 3, 4] : [pageNum];
+
+                // 1. Fetch from /movie/upcoming to capture curated upcoming theatrical and digital releases
+                const upcomingPromises = pagesToFetch.map(p => {
+                    const uParams = new URLSearchParams({
+                        api_key: apiKey,
+                        page: p.toString(),
+                        language: "en-US",
+                        include_adult: "false"
+                    });
+                    if (selectedRegion !== "Global") uParams.append("region", selectedRegion);
+                    return fetchWithRetry(`${TMDB_BASE_URL}/movie/upcoming?${uParams.toString()}`, controller.signal)
+                        .then(r => r.ok ? r.json() : { results: [] })
+                        .catch(() => ({ results: [] }));
+                });
+
+                // 2. Fetch from /discover/movie sorted chronologically by primary_release_date.asc to capture all dates in between
+                const discoverPromises = pagesToFetch.map(p => {
+                    const dParams = new URLSearchParams({
+                        api_key: apiKey,
+                        page: p.toString(),
+                        language: "en-US",
+                        include_adult: "false",
+                        "primary_release_date.gte": todayStr,
+                        "primary_release_date.lte": futureStr,
+                        sort_by: "primary_release_date.asc"
+                    });
+                    if (selectedRegion !== "Global") dParams.append("with_origin_country", selectedRegion);
+                    return fetchWithRetry(`${TMDB_BASE_URL}/discover/movie?${dParams.toString()}`, controller.signal)
+                        .then(r => r.ok ? r.json() : { results: [] })
+                        .catch(() => ({ results: [] }));
+                });
+
+                // 3. Fetch from /discover/movie sorted by popularity.desc to include major blockbusters
+                const popPromises = pagesToFetch.slice(0, 2).map(p => {
+                    const pParams = new URLSearchParams({
+                        api_key: apiKey,
+                        page: p.toString(),
+                        language: "en-US",
+                        include_adult: "false",
+                        "primary_release_date.gte": todayStr,
+                        "primary_release_date.lte": futureStr,
+                        sort_by: "popularity.desc"
+                    });
+                    if (selectedRegion !== "Global") pParams.append("with_origin_country", selectedRegion);
+                    return fetchWithRetry(`${TMDB_BASE_URL}/discover/movie?${pParams.toString()}`, controller.signal)
+                        .then(r => r.ok ? r.json() : { results: [] })
+                        .catch(() => ({ results: [] }));
+                });
+
+                const allResponses = await Promise.all([...upcomingPromises, ...discoverPromises, ...popPromises]);
+                const combinedList: any[] = [];
+                const seenIds = new Set<number>();
+
+                allResponses.forEach(data => {
+                    (data.results || []).forEach((m: any) => {
+                        if (m && m.id && !seenIds.has(m.id)) {
+                            const rDate = m.release_date;
+                            if (rDate && rDate >= todayStr && m.poster_path) {
+                                seenIds.add(m.id);
+                                combinedList.push({
+                                    ...m,
+                                    media_type: 'movie',
+                                    title: m.title || m.name
+                                });
+                            }
+                        }
+                    });
+                });
+
+                combinedList.sort((a, b) => {
+                    const dA = a.release_date || "9999-99-99";
+                    const dB = b.release_date || "9999-99-99";
+                    return dA.localeCompare(dB);
+                });
+
+                if (isLoadMore) {
+                    setMovies(prev => {
+                        const existing = new Set(prev.map(p => p.id));
+                        return [...prev, ...combinedList.filter(m => !existing.has(m.id))];
+                    });
+                } else {
+                    setMovies(combinedList);
                 }
-                params.set("primary_release_date.gte", todayStr);
-                params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
-                params.set("sort_by", "popularity.desc");
-                params.set("popularity.gte", "5");
-                if (selectedRegion !== "Global") params.set("with_origin_country", selectedRegion);
+                setLoading(false);
+                setHasMore(true);
+                return;
             }
             else {
                 params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
@@ -4602,7 +4679,7 @@ export default function App() {
                             </div>
                         </div>
                     ) : selectedCategory === "Coming" ? (
-                        <div className="animate-in fade-in duration-750 px-4 md:px-12 py-8 md:py-10">
+                        <div className="animate-in fade-in duration-750 pl-20 sm:pl-24 md:pl-28 pr-4 sm:pr-8 md:pr-12 py-8 md:py-10">
                             {/* Clean Minimalist Header */}
                             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 pb-5 border-b border-white/5 text-left">
                                 <div>
@@ -4635,48 +4712,50 @@ export default function App() {
                                 </div>
                             </div>
 
-                            {/* 4-Column Responsive Grid (Fills row edge-to-edge without empty gaps) */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-5 md:gap-6">
-                                {[...movies]
-                                    .sort((a, b) => {
+                            {/* Each Date Starts on a New Line */}
+                            <div className="flex flex-col gap-10 md:gap-14 pt-4">
+                                {(() => {
+                                    const sorted = [...movies].sort((a, b) => {
                                         const dateA = a.release_date || "9999-99-99";
                                         const dateB = b.release_date || "9999-99-99";
                                         return dateA.localeCompare(dateB);
-                                    })
-                                    .map((movie) => {
-                                        const formatted = formatReleaseDate(movie.release_date || "");
-                                        return (
-                                            <div key={movie.id} className="flex flex-col gap-2.5 w-full">
-                                                {/* Date Tag */}
-                                                <div className="flex items-center gap-2 pb-1 border-b border-white/[0.08]">
-                                                    <span
-                                                        className="text-2xl md:text-3xl font-black tracking-tight leading-none text-white select-none"
-                                                        style={{ fontFamily: 'Outfit, Inter, sans-serif' }}
-                                                    >
-                                                        {formatted.day}
-                                                    </span>
-                                                    <div className="flex flex-col leading-none">
-                                                        <span className="text-[10px] font-bold text-red-500 tracking-wider uppercase">
-                                                            {formatted.month}
-                                                        </span>
-                                                        <span className="text-[9px] text-zinc-500 font-medium tracking-wider mt-0.5">
-                                                            {formatted.year}
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                    });
 
-                                                {/* Movie Card */}
+                                    const groups: { date: string; formatted: any; list: Movie[] }[] = [];
+                                    sorted.forEach((m) => {
+                                        const d = m.release_date || "TBA";
+                                        const last = groups[groups.length - 1];
+                                        if (last && last.date === d) {
+                                            last.list.push(m);
+                                        } else {
+                                            groups.push({
+                                                date: d,
+                                                formatted: formatReleaseDate(d),
+                                                list: [m]
+                                            });
+                                        }
+                                    });
+
+                                    return groups.map((group) => (
+                                        <div
+                                            key={group.date}
+                                            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-x-6 sm:gap-x-8 md:gap-x-10 gap-y-10 md:gap-y-12"
+                                        >
+                                            {group.list.map((movie, idx) => (
                                                 <ComingSoonCard
+                                                    key={movie.id}
                                                     movie={movie}
                                                     reminders={reminders}
                                                     toggleReminder={toggleReminder}
                                                     setSelectedMovie={setSelectedMovie}
-                                                    formatted={formatted}
                                                     apiKey={apiKey}
+                                                    isFirstOfDate={idx === 0}
+                                                    formattedDate={group.formatted}
                                                 />
-                                            </div>
-                                        );
-                                    })}
+                                            ))}
+                                        </div>
+                                    ));
+                                })()}
                             </div>
 
                             {movies.length === 0 && !loading && (
