@@ -24,7 +24,7 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
         setTimeout(() => {
             setIsClosing(false);
             onClose();
-        }, 320);
+        }, 240);
     }, [onClose]);
 
     useEffect(() => {
@@ -42,7 +42,7 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
     if (!isOpen && !isClosing) return null;
 
     return (
-        <div className={`fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+        <div className={`fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
             {/* Sticky Header with Back Button, Title, and Count */}
             <div className="sticky top-0 z-30 px-4 md:px-8 py-3.5 md:py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0a0a0a]/95 backdrop-blur-2xl">
                 <div className="flex items-center gap-3 md:gap-4">
@@ -549,7 +549,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
 
     const handleClose = () => {
         setIsClosing(true);
-        setTimeout(onClose, 350);
+        setTimeout(onClose, 240);
     };
   
     useEffect(() => {
@@ -772,7 +772,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
     };
   
     return (
-      <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+      <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
           {loading ? (
              <div className="h-screen flex items-center justify-center flex-col gap-4">
                  <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
@@ -1504,7 +1504,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
 
     const handleClose = () => {
         setIsClosing(true);
-        setTimeout(onClose, 350);
+        setTimeout(onClose, 240);
     };
 
     useEffect(() => {
@@ -1795,7 +1795,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
     if (!characterId) return null;
 
     return (
-        <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+        <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
             {loading ? (
                 <div className="h-screen flex items-center justify-center flex-col gap-4">
                     <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
@@ -1978,7 +1978,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
 
     const handleClose = () => {
         setIsClosing(true);
-        setTimeout(onClose, 350);
+        setTimeout(onClose, 240);
     };
 
     useEffect(() => {
@@ -2189,7 +2189,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
     if (!studioId && !studioName) return null;
 
     return (
-        <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+        <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
             {loading ? (
                 <div className="h-screen flex items-center justify-center flex-col gap-4">
                     <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>

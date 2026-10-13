@@ -1196,7 +1196,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   }
 
   return (
-    <div className={`min-h-screen bg-[#030303] text-white pb-16 relative ${disableEntryAnimation ? 'disable-animations' : ''}`}>
+    <div className="min-h-screen bg-[#030303] text-white pb-16 relative">
       
       {/* 1. Hero Spotlight Carousel (Catalog Only) */}
       {!searchQuery && activeTab === 'catalog' && featured && (

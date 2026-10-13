@@ -1412,7 +1412,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [isClosing, setIsClosing] = useState(false);
     const handleClose = () => {
         setIsClosing(true);
-        setTimeout(onClose, 350);
+        setTimeout(onClose, 240);
     };
 
     const handleShare = () => {
@@ -2680,7 +2680,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
                     <TvFocusButton onClick={handleClose} className="absolute top-20 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">

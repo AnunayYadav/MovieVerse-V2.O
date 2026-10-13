@@ -510,7 +510,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
         return (
           <div 
             ref={combinedRef}
-            className="group relative w-full aspect-[16/9] rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none"
+            className="group relative w-full aspect-[16/9] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:z-20 hover:scale-[1.03] active:scale-[0.965] hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)] border border-white/5 hover:border-red-500/50 font-sans select-none gpu-layer"
             onClick={() => onClick(movie)}
           >
             <div className="w-full h-full relative bg-white/5">
@@ -574,11 +574,11 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     return (
       <div 
         ref={combinedRef}
-        className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left font-sans"
+        className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left font-sans transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.965] gpu-layer"
         onClick={() => onClick(movie)}
       >
         {/* Vertical Poster Container */}
-        <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
+        <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_8px_25px_rgba(239,68,68,0.22)] group-hover:scale-[1.03] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]">
           <img 
             src={posterUrl} 
             alt={movie.title || movie.name || "Movie Poster"} 
@@ -655,7 +655,7 @@ export const PersonCard = React.memo(React.forwardRef<HTMLDivElement, PersonCard
     return (
         <div 
             ref={combinedRef}
-            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl font-sans"
+            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-105 active:scale-95 hover:z-20 hover:shadow-xl font-sans gpu-layer"
             onClick={() => onClick(person.id)}
         >
             <div className="aspect-square md:aspect-[2/3] overflow-hidden bg-white/5 relative">

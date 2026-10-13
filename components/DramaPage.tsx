@@ -479,7 +479,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   }
 
   return (
-    <div className={`min-h-screen bg-[#030303] text-white pb-24 relative select-none font-sans ${disableEntryAnimation ? '' : 'animate-in fade-in duration-700'}`}>
+    <div className="min-h-screen bg-[#030303] text-white pb-24 relative select-none font-sans">
       
       {/* TMDB Matching Loader Overlay */}
       {matchingStatus.isActive && (

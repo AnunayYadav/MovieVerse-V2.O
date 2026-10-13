@@ -289,7 +289,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return (
         <div className={`fixed inset-0 z-[100] bg-black/90 backdrop-blur-3xl overflow-y-auto font-sans transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}`}>
             {/* Inner Content Centered Wrapper */}
-            <div className="max-w-3xl mx-auto px-5 py-8 md:py-14 relative">
+            <div className={`max-w-3xl mx-auto px-5 py-8 md:py-14 relative ${isOpen ? 'ios-sheet-enter' : ''}`}>
                 
                 {/* Header Title band */}
                 <div className="flex justify-between items-center pb-6 border-b border-white/[0.08] mb-8">

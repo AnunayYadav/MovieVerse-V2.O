@@ -99,7 +99,7 @@ const MovieRowCard = ({
         <div
             ref={ref}
             onClick={onClick}
-            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group"
+            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 active:scale-[0.965] hover:border-white/15 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group gpu-layer"
         >
             <img
                 src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`)}
@@ -230,7 +230,7 @@ const ComingSoonCard = ({
             )}
 
             {/* Clean Vertical 2:3 Movie Poster */}
-            <div className="relative z-10 w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-300">
+            <div className="relative z-10 w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_8px_25px_rgba(239,68,68,0.22)] group-hover:scale-[1.03] group-active:scale-[0.965] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] gpu-layer">
                 <img
                     src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : (movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : "https://placehold.co/500x750/111/FFF?text=No+Poster")}
                     alt={movie.title || movie.name}
@@ -1368,6 +1368,9 @@ export default function App() {
             const newIdx = window.history.state?.idx || 0;
             const isBack = newIdx < prevIdx;
             setIsNavigatingBack(isBack);
+            if (isBack) {
+                setTimeout(() => setIsNavigatingBack(false), 350);
+            }
             currentHistoryIdxRef.current = newIdx;
 
             const path = window.location.pathname || '/';
@@ -1451,7 +1454,7 @@ export default function App() {
                 if (mangaId) {
                     mangaIdToSelect = mangaId;
                     if (parts[3] === 'chapter') {
-                        mangaChapterIdToSelect = parts[4] || null;
+                        mangaChapterIdToSelect = decodeURIComponent(parts.slice(4).join('/')) || null;
                     }
                 }
 
@@ -1669,6 +1672,8 @@ export default function App() {
 
     const handlePopState = useCallback(() => {
         isPopStateNavigating.current = true;
+        setIsNavigatingBack(true);
+        setTimeout(() => setIsNavigatingBack(false), 350);
 
         if (isWatchingRef.current) {
             setIsWatching(false);
@@ -4118,7 +4123,7 @@ export default function App() {
               </>
             )}
 
-            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && !showDetailsCast && !showDetailsCrew && (
+            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && !showDetailsCast && !showDetailsCrew && !activeMangaChapterId && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
                         (selectedMovie ? isMovieDetailsScrolled : isScrolled)
                             ? 'bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b-0 border-transparent shadow-lg'
@@ -4143,16 +4148,16 @@ export default function App() {
                             </div>
 
                             <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-1.5`}>
-                                <TvFocusButton onClick={resetToHome} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={resetToHome} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Home</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "Anime" ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "Anime" ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Anime</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "Manga" ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "Manga" ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Manga</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "Dramas" ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Dramas</span>
                                 </TvFocusButton>
                                 <div
@@ -4160,7 +4165,7 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-300 ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
                                             ? "bg-white/10 text-white font-medium shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-gray-300 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -4386,7 +4391,7 @@ export default function App() {
                 </nav>
             )}
 
-            <div className={`flex ${(hasHeroBanner || (activeWatchPartyRoom && watchPartyMovie)) ? 'pt-0' : 'pt-16'}`}>
+            <div className={`flex ${(hasHeroBanner || (activeWatchPartyRoom && watchPartyMovie) || (selectedCategory === "Manga" && activeMangaChapterId)) ? 'pt-0' : 'pt-16'}`}>
                 <main className={`flex-1 w-full ${(activeWatchPartyRoom && watchPartyMovie)
                         ? 'h-screen overflow-hidden'
                         : `min-h-[calc(100vh-4rem)] ${isTV ? 'pb-0' : 'pb-20 md:pb-0'}`
@@ -4467,7 +4472,12 @@ export default function App() {
                                 />
                             </div>
                         </div>
-                    ) : selectedCategory === "WatchParty" ? (
+                    ) : (
+                        <div
+                            key={selectedCategory + (currentCollection || '') + (activeCountry?.code || '') + (activeKeyword?.id || '') + (tmdbCollectionId || '') + (searchQuery ? `_search_${searchQuery}` : '')}
+                            className={`w-full min-h-full ${isNavigatingBack ? 'ios-page-enter-back' : 'ios-page-enter'}`}
+                        >
+                            {selectedCategory === "WatchParty" ? (
                         <WatchPartyRoomsPage
                             apiKey={apiKey}
                             onJoinRoom={handleJoinWatchParty}
@@ -5069,6 +5079,8 @@ export default function App() {
                             )}
                         </>
                     )}
+                </div>
+            )}
                 </main>
             </div>
 
@@ -5320,7 +5332,7 @@ export default function App() {
             </div>
 
             {/* Mobile Bottom Navigation Bar */}
-            <div className={`fixed bottom-0 left-0 right-0 z-[80] ${isTV ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
+            <div className={`fixed bottom-0 left-0 right-0 z-[80] ${(isTV || activeMangaChapterId) ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
                 <div className="h-16 flex items-center justify-around px-2">
                     {[
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
@@ -5334,11 +5346,11 @@ export default function App() {
                                 <button
                                     key={tab.id}
                                     onClick={tab.action}
-                                    className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-all duration-300 active:scale-90 relative ${isActive ? 'text-red-500 font-medium' : 'text-gray-300 hover:text-white'
+                                    className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.88] relative gpu-layer ${isActive ? 'text-red-500 font-medium' : 'text-zinc-400 hover:text-white'
                                         }`}
                                 >
-                                    <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
-                                    <span className={`text-[10px] mt-1 tracking-normal transition-colors ${isActive ? 'font-medium text-white' : 'font-normal text-gray-300'}`}>{tab.label}</span>
+                                    <Icon size={18} className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.25,0.64,1)] ${isActive ? 'scale-110 -translate-y-0.5' : ''}`} />
+                                    <span className={`text-[10px] mt-1 tracking-normal transition-colors ${isActive ? 'font-medium text-white' : 'font-normal text-zinc-400'}`}>{tab.label}</span>
                                     {isActive && (
                                         <span className="absolute -top-1 w-1 h-1 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
                                     )}

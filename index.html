@@ -84,40 +84,259 @@
 
 
 
-    /* Custom Animations */
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-    @keyframes slideInBottom {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-    @keyframes slideOutBottom {
-      from { transform: translateY(0); }
-      to { transform: translateY(100%); }
+    /* iOS Spring Curves & Physics Variables */
+    :root {
+      --ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+      --ios-spring: cubic-bezier(0.16, 1, 0.3, 1);
+      --ios-bounce: cubic-bezier(0.34, 1.25, 0.64, 1);
+      --ios-out: cubic-bezier(0.25, 1, 0.5, 1);
     }
 
+    /* Subpixel & Typography Smoothing (Prevents flicker/jitter during transforms) */
+    *, *::before, *::after {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      overflow-x: hidden;
+      text-rendering: optimizeLegibility;
+      overscroll-behavior-y: none;
+    }
+
+    /* GPU-Accelerated Hardware Layers */
+    .gpu-layer, .ios-page-enter, .ios-page-enter-back, .ios-sheet-enter, .ios-sheet-exit {
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      -webkit-perspective: 1000px;
+      perspective: 1000px;
+      transform: translateZ(0);
+    }
+
+    /* =========================================================
+       iOS SILKY SMOOTH PAGE NAVIGATION & MODAL ANIMATIONS
+       ========================================================= */
+
+    /* 1. iOS Page Transitions (Tab & Category Navigation) */
+    @keyframes iosPageEnter {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 10px, 0) scale(0.994);
+      }
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    @keyframes iosPageEnterBack {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, -6px, 0) scale(1.006);
+      }
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    .ios-page-enter {
+      animation: iosPageEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      will-change: transform, opacity;
+    }
+
+    .ios-page-enter-back {
+      animation: iosPageEnterBack 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      will-change: transform, opacity;
+    }
+
+    /* 2. iOS Modal Sheet Presentation (Movie Details, Person, etc.) */
+    @keyframes iosSheetEnter {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 24px, 0) scale(0.985);
+      }
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    @keyframes iosSheetExit {
+      0% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(0, 20px, 0) scale(0.985);
+      }
+    }
+
+    .ios-sheet-enter {
+      animation: iosSheetEnter 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+      will-change: transform, opacity;
+    }
+
+    .ios-sheet-exit {
+      animation: iosSheetExit 240ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* Backward compatibility mapping with enhanced iOS curves */
     .animate-fade-in {
-      animation: fadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: iosFadeIn 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      will-change: opacity, transform;
     }
     .animate-fade-out {
-      animation: fadeOut 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: iosFadeOut 220ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      will-change: opacity, transform;
     }
     .animate-slide-in-bottom {
-      animation: slideInBottom 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: iosSheetEnter 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+      will-change: transform, opacity;
     }
     .animate-slide-out-bottom {
-      animation: slideOutBottom 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: iosSheetExit 240ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      will-change: transform, opacity;
     }
-    .disable-animations *, .disable-animations {
-      animation: none !important;
-      transition: none !important;
+
+    @keyframes iosFadeIn {
+      0% { opacity: 0; transform: scale(0.992); }
+      100% { opacity: 1; transform: scale(1); }
     }
+    @keyframes iosFadeOut {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.992); }
+    }
+
+    /* =========================================================
+       TAILWIND-ANIMATE ENGINE (Zero-dependency native CSS implementation)
+       ========================================================= */
+    :root {
+      --tw-enter-opacity: 1;
+      --tw-enter-scale: 1;
+      --tw-enter-translate-x: 0;
+      --tw-enter-translate-y: 0;
+      --tw-exit-opacity: 1;
+      --tw-exit-scale: 1;
+      --tw-exit-translate-x: 0;
+      --tw-exit-translate-y: 0;
+    }
+
+    @keyframes enter {
+      from {
+        opacity: var(--tw-enter-opacity, 1);
+        transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale(var(--tw-enter-scale, 1));
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    @keyframes exit {
+      from {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      to {
+        opacity: var(--tw-exit-opacity, 1);
+        transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale(var(--tw-exit-scale, 1));
+      }
+    }
+
+    .animate-in {
+      animation-name: enter;
+      animation-duration: 280ms;
+      animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+      animation-fill-mode: both;
+      will-change: transform, opacity;
+    }
+
+    .animate-out {
+      animation-name: exit;
+      animation-duration: 220ms;
+      animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+      animation-fill-mode: forwards;
+      will-change: transform, opacity;
+    }
+
+    .fade-in { --tw-enter-opacity: 0; }
+    .fade-in-0 { --tw-enter-opacity: 0; }
+    .fade-in-50 { --tw-enter-opacity: 0.5; }
+    .fade-out { --tw-exit-opacity: 0; }
+    .fade-out-0 { --tw-exit-opacity: 0; }
+
+    .zoom-in-90 { --tw-enter-scale: 0.9; }
+    .zoom-in-95 { --tw-enter-scale: 0.95; }
+    .zoom-in-97 { --tw-enter-scale: 0.97; }
+    .zoom-out-95 { --tw-exit-scale: 0.95; }
+    .zoom-out-90 { --tw-exit-scale: 0.9; }
+
+    .slide-in-from-bottom { --tw-enter-translate-y: 100%; }
+    .slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
+    .slide-in-from-bottom-4 { --tw-enter-translate-y: 1rem; }
+    .slide-in-from-bottom-5 { --tw-enter-translate-y: 1.25rem; }
+    .slide-in-from-bottom-6 { --tw-enter-translate-y: 1.5rem; }
+    .slide-in-from-bottom-8 { --tw-enter-translate-y: 2rem; }
+    .slide-in-from-bottom-10 { --tw-enter-translate-y: 2.5rem; }
+
+    .slide-in-from-top { --tw-enter-translate-y: -100%; }
+    .slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
+    .slide-in-from-top-4 { --tw-enter-translate-y: -1rem; }
+    .slide-in-from-top-6 { --tw-enter-translate-y: -1.5rem; }
+    .slide-in-from-top-8 { --tw-enter-translate-y: -2rem; }
+
+    .slide-in-from-left-4 { --tw-enter-translate-x: -1rem; }
+    .slide-in-from-left-6 { --tw-enter-translate-x: -1.5rem; }
+    .slide-in-from-right-4 { --tw-enter-translate-x: 1rem; }
+    .slide-in-from-right-6 { --tw-enter-translate-x: 1.5rem; }
+
+    .slide-out-to-bottom { --tw-exit-translate-y: 100%; }
+    .slide-out-to-bottom-4 { --tw-exit-translate-y: 1rem; }
+    .slide-out-to-top { --tw-exit-translate-y: -100%; }
+
+    /* Duration Overrides */
+    .duration-150 { animation-duration: 150ms; }
+    .duration-200 { animation-duration: 200ms; }
+    .duration-250 { animation-duration: 250ms; }
+    .duration-300 { animation-duration: 300ms; }
+    .duration-400 { animation-duration: 400ms; }
+    .duration-500 { animation-duration: 500ms; }
+    .duration-700 { animation-duration: 700ms; }
+    .duration-750 { animation-duration: 750ms; }
+    .duration-1000 { animation-duration: 1000ms; }
+
+    /* iOS Tactile Micro-Interactions */
+    .ios-tactile {
+      transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 240ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms ease;
+    }
+    .ios-tactile:active {
+      transform: scale(0.96) !important;
+      transition-duration: 100ms;
+    }
+
+    /* iOS Fluid Hover */
+    .ios-card {
+      transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 320ms cubic-bezier(0.32, 0.72, 0, 1), border-color 320ms cubic-bezier(0.32, 0.72, 0, 1);
+      will-change: transform;
+    }
+    .ios-card:hover {
+      transform: scale(1.035) translate3d(0, -2px, 0);
+    }
+    .ios-card:active {
+      transform: scale(0.965) translate3d(0, 0, 0);
+      transition-duration: 100ms;
+    }
+
     @keyframes shimmer {
       100% { transform: translateX(100%); }
     }
