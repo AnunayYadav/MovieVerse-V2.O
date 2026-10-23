@@ -79,6 +79,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } else if (targetUrl.includes('hexa')) {
         referer = "https://hexa.su/";
         origin = "https://hexa.su";
+      } else if (targetUrl.includes('echovideo') || targetUrl.includes('dpopdrop')) {
+        referer = "https://play.echovideo.ru/";
+        origin = "https://play.echovideo.ru";
       }
     }
 

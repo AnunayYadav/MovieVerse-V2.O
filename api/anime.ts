@@ -678,6 +678,196 @@ async function resolveMegaPlayStream({
   return finalUrl;
 }
 
+// ── Aniwave / Vidplay Stream Resolver ─────────────────────────────────────────
+
+interface AniwaveCacheEntry {
+  animeId: string;
+  url: string;
+  title: string;
+}
+
+const aniwaveAnimeCache = new Map<string, { entry: AniwaveCacheEntry; expiresAt: number }>();
+const aniwaveEpisodeCache = new Map<string, { episodes: any[]; expiresAt: number }>();
+const aniwaveStreamCache = new Map<string, { data: { type: string; m3u8?: string; playerUrl: string }; expiresAt: number }>();
+
+async function resolveAniwaveStream({
+  title,
+  episode,
+  server = 'vidplay',
+  lang = 'sub'
+}: {
+  title: string;
+  episode: number;
+  server?: string;
+  lang?: string;
+}): Promise<{ type: string; m3u8?: string; playerUrl: string }> {
+  const normTitle = title.trim();
+  const cacheKey = `${normTitle.toLowerCase()}-${episode}-${server}-${lang}`;
+  const cached = aniwaveStreamCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  // Step 1: Search on Aniwave
+  let animeInfo = aniwaveAnimeCache.get(normTitle.toLowerCase());
+  if (!animeInfo || animeInfo.expiresAt <= Date.now()) {
+    const searchUrl = `https://aniwaves.ru/ajax/anime/search?keyword=${encodeURIComponent(normTitle)}`;
+    const searchRes = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    if (!searchRes.ok) throw new Error(`Aniwave search failed: HTTP ${searchRes.status}`);
+    const searchJson = await searchRes.json() as any;
+    const searchHtml = searchJson?.result?.html || '';
+
+    const items = [...searchHtml.matchAll(/<a\s+class="item"\s+href="([^"]+)"[\s\S]*?<div\s+class="name[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)].map(m => ({
+      url: m[1],
+      title: m[2].trim(),
+      id: m[1].match(/[-/](\d+)$/)?.[1]
+    }));
+
+    if (!items.length) {
+      throw new Error(`Anime not found on Aniwave for "${normTitle}"`);
+    }
+
+    let chosen = items[0];
+    const cleanNorm = normTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const matched = items.find(i => {
+      const itemClean = i.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return itemClean.includes(cleanNorm) || cleanNorm.includes(itemClean);
+    });
+    if (matched) chosen = matched;
+
+    animeInfo = {
+      entry: { animeId: chosen.id || '', url: chosen.url, title: chosen.title },
+      expiresAt: Date.now() + 3600 * 1000 // 1 hour cache
+    };
+    aniwaveAnimeCache.set(normTitle.toLowerCase(), animeInfo);
+  }
+
+  const { animeId, url: animePageUrl } = animeInfo.entry;
+
+  // Step 2: Fetch episode list
+  let epCache = aniwaveEpisodeCache.get(animeId);
+  if (!epCache || epCache.expiresAt <= Date.now()) {
+    const epRes = await fetch(`https://aniwaves.ru/ajax/episode/list/${animeId}`, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': `https://aniwaves.ru${animePageUrl}`
+      }
+    });
+    if (!epRes.ok) throw new Error(`Failed to fetch Aniwave episodes`);
+    const epJson = await epRes.json() as any;
+    const epHtml = epJson?.result || '';
+
+    const epMatches = [...epHtml.matchAll(/<a\s+[^>]*>/gi)].map(m => m[0]);
+    const episodes: any[] = [];
+    for (const tag of epMatches) {
+      const num = tag.match(/data-num="([^"]*)"/)?.[1] || tag.match(/data-slug="([^"]*)"/)?.[1];
+      const ids = tag.match(/data-ids="([^"]*)"/)?.[1]?.replace(/&amp;/g, '&');
+      const sub = tag.match(/data-sub="([^"]*)"/)?.[1];
+      const dub = tag.match(/data-dub="([^"]*)"/)?.[1];
+      if (ids) {
+        episodes.push({ num, ids, sub, dub });
+      }
+    }
+    epCache = { episodes, expiresAt: Date.now() + 1800 * 1000 };
+    aniwaveEpisodeCache.set(animeId, epCache);
+  }
+
+  const episodes = epCache.episodes;
+  const targetEp = episodes.find(e => e.num === String(episode)) || episodes[episode - 1] || episodes[0];
+  if (!targetEp) throw new Error(`Episode ${episode} not found on Aniwave`);
+
+  // Step 3: Fetch server list
+  const sRes = await fetch(`https://aniwaves.ru/ajax/server/list?servers=${targetEp.ids}`, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Referer': `https://aniwaves.ru${animePageUrl}`
+    }
+  });
+  if (!sRes.ok) throw new Error(`Failed to fetch Aniwave servers`);
+  const sJson = await sRes.json() as any;
+  const sHtml = sJson?.result || '';
+
+  const isDub = (lang || '').toLowerCase() === 'dub';
+  const targetType = isDub ? 'dub' : 'sub';
+
+  const typeMatches = [...sHtml.matchAll(/<div class="type" data-type="([^"]*)">([\s\S]*?)<\/ul>/gi)];
+  let selectedTypeBlock = typeMatches.find(m => m[1] === targetType) || typeMatches[0];
+
+  const serverLis = [...(selectedTypeBlock?.[2] || '').matchAll(/<li\s+([^>]*)>([\s\S]*?)<\/li>/gi)].map(m => {
+    const attrs = m[1];
+    const linkId = attrs.match(/data-link-id="([^"]*)"/)?.[1] || '';
+    const svId = attrs.match(/data-sv-id="([^"]*)"/)?.[1] || '';
+    return {
+      linkId,
+      svId,
+      name: m[2].replace(/<[^>]*>/g, '').trim()
+    };
+  });
+
+  if (!serverLis.length) {
+    throw new Error(`No active servers found on Aniwave for episode ${episode}`);
+  }
+
+  const chosenServer = serverLis.find(s => s.svId === '4') || serverLis.find(s => s.svId === '14') || serverLis.find(s => s.svId === '1') || serverLis[0];
+
+  // Step 4: Fetch sources
+  const srcRes = await fetch(`https://aniwaves.ru/ajax/sources?id=${encodeURIComponent(chosenServer.linkId)}&asi=0&autoPlay=1`, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Referer': `https://aniwaves.ru${animePageUrl}`
+    }
+  });
+  if (!srcRes.ok) throw new Error(`Failed to get Aniwave player sources`);
+  const srcJson = await srcRes.json() as any;
+  const playerUrl = srcJson?.result?.url;
+  if (!playerUrl) throw new Error(`Aniwave player URL not returned`);
+
+  // Step 5: If EchoVideo player, extract direct m3u8
+  let resultData: { type: string; m3u8?: string; playerUrl: string } = {
+    type: 'embed',
+    playerUrl
+  };
+
+  if (playerUrl.includes('echovideo')) {
+    const sourceId = playerUrl.match(/embed-\d+\/([a-zA-Z0-9_-]+)/)?.[1];
+    const embedKind = playerUrl.match(/embed-\d+/)?.[0] || 'embed-1';
+    if (sourceId) {
+      try {
+        const getSrcRes = await fetch(`https://play.echovideo.ru/${embedKind}/getSources?id=${encodeURIComponent(sourceId)}`, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Referer': `https://play.echovideo.ru/${embedKind}/${sourceId}`,
+            'Accept': 'application/json'
+          }
+        });
+        if (getSrcRes.ok) {
+          const sourcesJson = await getSrcRes.json() as any;
+          if (sourcesJson?.sources) {
+            resultData = {
+              type: 'hls',
+              m3u8: sourcesJson.sources,
+              playerUrl
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to extract direct EchoVideo m3u8, falling back to embed:", err);
+      }
+    }
+  }
+
+  aniwaveStreamCache.set(cacheKey, { data: resultData, expiresAt: Date.now() + 900 * 1000 });
+  return resultData;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -866,6 +1056,135 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <div>
             <h3 style="margin-bottom:8px;">Stream Loading Error</h3>
             <p style="color:#a1a1aa;font-size:14px;">${err.message || "Unable to connect to stream server"}</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+  }
+
+  // VidPlay / Aniwave Stream Resolver
+  if (action === 'aniwave-embed' || action === 'aniwave-source') {
+    const epNum = episode ? parseInt(String(episode), 10) : 1;
+    const animeLang = typeof req.query.lang === 'string' ? req.query.lang : (lang ? String(lang) : 'sub');
+
+    if (!cleanTitle) {
+      return res.status(400).send("Anime title could not be resolved.");
+    }
+
+    try {
+      const streamResult = await resolveAniwaveStream({
+        title: cleanTitle,
+        episode: epNum,
+        lang: animeLang
+      });
+
+      if (action === 'aniwave-source' || req.query.format === 'json') {
+        return res.status(200).json({ success: true, ...streamResult });
+      }
+
+      // If we have direct m3u8, route it through m3u8-proxy and serve native HLS player shell
+      let finalEmbedUrl = streamResult.playerUrl;
+      if (streamResult.m3u8) {
+        const proxiedM3u8 = `/api/m3u8-proxy?url=${encodeURIComponent(streamResult.m3u8)}&referer=${encodeURIComponent('https://play.echovideo.ru/')}`;
+        const hlsHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VidPlay HD</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+    #video-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    video { width: 100%; height: 100%; object-fit: contain; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+</head>
+<body>
+  <div id="video-container">
+    <video id="player" controls autoplay playsinline></video>
+  </div>
+  <script>
+    var video = document.getElementById('player');
+    var hlsUrl = "${proxiedM3u8}";
+
+    if (Hls.isSupported()) {
+      var hls = new Hls({ maxBufferLength: 30 });
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, function() {
+        video.play().catch(function(){});
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsUrl;
+      video.addEventListener('loadedmetadata', function() {
+        video.play().catch(function(){});
+      });
+    }
+
+    // PostMessage bridge with MovieVerse parent player
+    window.addEventListener('message', function(e) {
+      try {
+        var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (!data) return;
+        if (data.type === 'seek' || data.command === 'seek') {
+          video.currentTime = Number(data.time || data.value || 0);
+        } else if (data.type === 'pause' || data.command === 'pause') {
+          video.pause();
+        } else if (data.type === 'play' || data.command === 'play') {
+          video.play();
+        }
+      } catch (_) {}
+    });
+
+    video.addEventListener('timeupdate', function() {
+      try {
+        if (window.parent) {
+          window.parent.postMessage({
+            type: 'timeupdate',
+            currentTime: video.currentTime,
+            duration: video.duration
+          }, '*');
+        }
+      } catch (_) {}
+    });
+  </script>
+</body>
+</html>`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=120');
+        return res.status(200).send(hlsHtml);
+      }
+
+      // If iframe fallback URL:
+      const fallbackHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VidPlay HD</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body, iframe { width:100%; height:100%; border:none; background:#000; overflow:hidden; }
+  </style>
+</head>
+<body>
+  <iframe src="${finalEmbedUrl}" allow="autoplay; fullscreen" allowfullscreen="true"></iframe>
+</body>
+</html>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(fallbackHtml);
+    } catch (err: any) {
+      console.error("VidPlay Stream Error:", err);
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+        <body style="background:#09090b;color:#f43f5e;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;">
+          <div>
+            <h3 style="margin-bottom:8px;">VidPlay Loading Error</h3>
+            <p style="color:#a1a1aa;font-size:14px;">${err.message || "Unable to load stream"}</p>
           </div>
         </body>
         </html>
