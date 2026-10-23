@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        strictPort: false,
         proxy: {
           '/api/tmdb': {
             target: 'https://api.themoviedb.org/3',

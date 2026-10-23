@@ -350,7 +350,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     const defaultProvider = isAnime ? 'auto' : 'vidstuck';
     let chosen = providerId;
-    if (!isAnime && (chosen === 'vidnest_animepahe' || chosen === 'megaplay' || chosen === 'encdec_animekai')) {
+    if (!isAnime && (chosen === 'vidnest_animepahe' || chosen?.startsWith('megaplay') || chosen === 'encdec_animekai')) {
       chosen = undefined;
     }
     if (typeof window !== 'undefined') {
@@ -359,7 +359,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (!preferred || preferred === 'auto_select' || (!chosen && preferred === 'auto' && !isAnime)) {
         preferred = defaultProvider;
       }
-      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'megaplay' || preferred === 'encdec_animekai')) {
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred?.startsWith('megaplay') || preferred === 'encdec_animekai')) {
         preferred = 'vidstuck';
       }
       if (isWatchParty) {
@@ -406,7 +406,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [anilistLoading, setAnilistLoading] = useState(false);
 
   const getEffectiveTmdbId = useCallback((provId: string) => {
-    const isNativeAnime = provId === 'megaplay' || provId === 'vidnest_animepahe' || provId === 'vidnest';
+    const isNativeAnime = provId.startsWith('megaplay') || provId === 'vidnest_animepahe' || provId === 'vidnest';
     if (isNativeAnime) {
       return anilistId || tmdbId;
     }
@@ -579,7 +579,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   useEffect(() => {
     if (providerId) {
-      if (!isAnime && (providerId === 'vidnest_animepahe' || providerId === 'megaplay' || providerId === 'encdec_animekai')) {
+      if (!isAnime && (providerId === 'vidnest_animepahe' || providerId?.startsWith('megaplay') || providerId === 'encdec_animekai')) {
         return;
       }
       const prov = PROVIDERS.find(p => p.id === providerId);
@@ -592,7 +592,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Ensure non-anime never stays on anime-only providers
   useEffect(() => {
-    if (!isAnime && (selectedProviderId === 'vidnest_animepahe' || selectedProviderId === 'megaplay' || selectedProviderId === 'encdec_animekai')) {
+    if (!isAnime && (selectedProviderId === 'vidnest_animepahe' || selectedProviderId?.startsWith('megaplay') || selectedProviderId === 'encdec_animekai')) {
       setSelectedProviderId('vidstuck');
     }
   }, [isAnime, selectedProviderId]);
@@ -2584,18 +2584,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const getEmbedUrlForProvider = (providerId: string, progress: number = 0) => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
-    if (providerId === 'megaplay') {
-      const domain = useMegaplayBackup ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
-      const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
-      return isTvShow
-        ? `${domain}/stream/ani/${anilistId || tmdbId}/${currentEpisode}/${lang}`
-        : `${domain}/stream/ani/${anilistId || tmdbId}/1/${lang}`;
-    }
     const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
     const targetTmdbId = getEffectiveTmdbId(providerId);
     let url = isTvShow
-      ? provider.getTvUrl(targetTmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-      : provider.getMovieUrl(targetTmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+      ? provider.getTvUrl(targetTmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, title)
+      : provider.getMovieUrl(targetTmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, title);
 
     return url;
   };
@@ -4037,7 +4030,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                   </button>
 
                                   {/* Server Row (Conditional) */}
-                                  {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId === 'megaplay' || selectedProviderId === 'videasy_adfree') && (
+                                  {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId.startsWith('megaplay') || selectedProviderId === 'videasy_adfree') && (
                                     <button
                                       onClick={() => setSettingsView('servers')}
                                       className="w-full py-2 px-3 rounded-xl text-xs font-normal text-zinc-200 hover:text-white hover:bg-white/[0.08] active:bg-white/[0.12] flex items-center justify-between transition-colors group"
@@ -4048,8 +4041,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       </div>
                                       <div className="flex items-center gap-1.5 text-xs text-zinc-400 group-hover:text-zinc-300">
                                         <span className="truncate max-w-[100px]">
-                                          {selectedProviderId === 'megaplay'
-                                            ? (useMegaplayBackup ? 'Backup' : 'Primary')
+                                          {selectedProviderId.startsWith('megaplay')
+                                            ? (selectedProviderId === 'megaplay_mirror' ? 'Mirror' : selectedProviderId === 'megaplay_rapid' ? 'Rapid' : 'HD')
                                             : selectedProviderId === 'videasy_adfree'
                                               ? selectedVideasyServer
                                               : (selectedEncDecServer || 'Auto')}
@@ -4308,21 +4301,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                   })
                                 )}
 
-                                {selectedProviderId === 'megaplay' && (
-                                  ['Primary (animeplay.cfd)', 'Backup (megaplay.buzz)'].map((srv) => {
-                                    const isBackup = srv.includes('buzz');
-                                    const isActive = useMegaplayBackup === isBackup;
+                                {selectedProviderId.startsWith('megaplay') && (
+                                  [
+                                    { id: 'megaplay_hd', label: 'MegaPlay HD (Primary CDN)' },
+                                    { id: 'megaplay_rapid', label: 'MegaPlay Rapid (Vidstream CDN)' },
+                                    { id: 'megaplay_mirror', label: 'MegaPlay Mirror (Backup CDN)' }
+                                  ].map((srv) => {
+                                    const isActive = selectedProviderId === srv.id || (selectedProviderId === 'megaplay' && srv.id === 'megaplay_hd');
                                     return (
                                       <button
-                                        key={srv}
+                                        key={srv.id}
                                         onClick={() => {
-                                          setUseMegaplayBackup(isBackup);
+                                          setSelectedProviderId(srv.id);
                                           setSettingsView('main');
                                         }}
-                                        className={`w-full py-2 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/[0.08] ${isActive ? 'text-white bg-white/[0.08] font-medium' : 'text-zinc-400'
-                                          }`}
+                                        className={`w-full py-2 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/[0.08] ${isActive ? 'text-white bg-white/[0.08] font-medium' : 'text-zinc-400'}`}
                                       >
-                                        <span>{srv}</span>
+                                        <span>{srv.label}</span>
                                         {isActive && <Check size={14} className="text-white" />}
                                       </button>
                                     );
@@ -5350,7 +5345,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (id === 'auto') return { label: 'Fast', isFast: true };
     if (id === 'cinesrc' || id === 'vidfast' || id === 'vidstuck') return { label: 'Fast', isFast: true };
     if (id === 'videasy_adfree' || id === 'vidsrc' || id === 'peachify') return { label: 'HD' };
-    if (id === 'vidnest_animepahe' || id === 'megaplay') return { label: 'Fast', isFast: true };
+    if (id === 'megaplay_hd') return { label: 'HD', isFast: true };
+    if (id === 'megaplay_rapid') return { label: 'Fast', isFast: true };
+    if (id === 'megaplay_mirror') return { label: 'Backup' };
+    if (id === 'vidnest_animepahe' || id.startsWith('megaplay')) return { label: 'Fast', isFast: true };
     if (id === '2embed') return { label: 'Backup' };
     return index % 2 === 0 ? { label: 'HD' } : { label: 'Fast', isFast: true };
   };

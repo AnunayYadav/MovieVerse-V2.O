@@ -500,7 +500,183 @@ async function resolveAnikai(
   return matchedVideoUrl;
 }
 
+// ── MegaPlay Stream Resolver (via AnimeSuge Network) ──────────────────────────
 
+interface AnimeSugeCacheEntry {
+  animeId: string;
+  url: string;
+  title: string;
+}
+
+const animeSugeAnimeCache = new Map<string, { entry: AnimeSugeCacheEntry; expiresAt: number }>();
+const animeSugeEpisodeCache = new Map<string, { episodes: any[]; expiresAt: number }>();
+const animeSugeStreamCache = new Map<string, { url: string; expiresAt: number }>();
+
+async function resolveMegaPlayStream({
+  title,
+  episode,
+  server = 'hd-1',
+  lang = 'sub'
+}: {
+  title: string;
+  episode: number;
+  server?: string;
+  lang?: string;
+}): Promise<string> {
+  const normTitle = title.trim();
+  const cacheKey = `${normTitle.toLowerCase()}-${episode}-${server}-${lang}`;
+  const cachedStream = animeSugeStreamCache.get(cacheKey);
+  if (cachedStream && cachedStream.expiresAt > Date.now()) {
+    return cachedStream.url;
+  }
+
+  // Step 1: Find Anime on stream network
+  let animeInfo = animeSugeAnimeCache.get(normTitle.toLowerCase());
+  if (!animeInfo || animeInfo.expiresAt <= Date.now()) {
+    const searchUrl = `https://animesuge.cz/ajax/anime/search?keyword=${encodeURIComponent(normTitle)}`;
+    const searchRes = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    if (!searchRes.ok) throw new Error(`Stream search failed: HTTP ${searchRes.status}`);
+    const searchData = await searchRes.json() as any;
+    const searchHtml = searchData?.result?.html || '';
+
+    const items = [...searchHtml.matchAll(/<a\s+class="item"\s+href="([^"]+)"[\s\S]*?<div\s+class="name"[^>]*>([\s\S]*?)<\/div>/gi)].map(m => ({
+      url: m[1],
+      name: m[2].trim()
+    }));
+
+    if (items.length === 0) {
+      throw new Error(`Anime not found on stream network for "${normTitle}"`);
+    }
+
+    let chosen = items[0];
+    const cleanNorm = normTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const matched = items.find(i => {
+      const itemClean = i.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return itemClean.includes(cleanNorm) || cleanNorm.includes(itemClean);
+    });
+    if (matched) chosen = matched;
+
+    const pageRes = await fetch(chosen.url, {
+      headers: { 'User-Agent': USER_AGENT }
+    });
+    if (!pageRes.ok) throw new Error(`Failed to load anime info page`);
+    const pageHtml = await pageRes.text();
+    const dataId = pageHtml.match(/data-id="(\d+)"/)?.[1] || pageHtml.match(/data-manga-id="(\d+)"/)?.[1];
+    if (!dataId) throw new Error(`Could not parse anime metadata identifier`);
+
+    animeInfo = {
+      entry: { animeId: dataId, url: chosen.url, title: chosen.name },
+      expiresAt: Date.now() + 3600 * 1000 // 1 hour cache
+    };
+    animeSugeAnimeCache.set(normTitle.toLowerCase(), animeInfo);
+  }
+
+  const { animeId, url: animePageUrl } = animeInfo.entry;
+
+  // Step 2: Fetch Episode List
+  let epCache = animeSugeEpisodeCache.get(animeId);
+  if (!epCache || epCache.expiresAt <= Date.now()) {
+    const epListRes = await fetch(`https://animesuge.cz/ajax/episode/list/${animeId}`, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': animePageUrl
+      }
+    });
+    if (!epListRes.ok) throw new Error(`Failed to fetch episode list`);
+    const epListData = await epListRes.json() as any;
+    const epHtml = epListData?.result || '';
+
+    const epMatches = [...epHtml.matchAll(/<a\s+[^>]*>/gi)].map(m => m[0]);
+    const episodes: any[] = [];
+    for (const tag of epMatches) {
+      const numStr = tag.match(/data-num="([^"]*)"/)?.[1] || tag.match(/data-slug="([^"]*)"/)?.[1];
+      const slug = tag.match(/data-slug="([^"]*)"/)?.[1];
+      const ids = tag.match(/data-ids="([^"]*)"/)?.[1];
+      if (ids && (numStr || slug)) {
+        episodes.push({ numStr, slug, ids });
+      }
+    }
+    epCache = { episodes, expiresAt: Date.now() + 1800 * 1000 };
+    animeSugeEpisodeCache.set(animeId, epCache);
+  }
+
+  const episodes = epCache.episodes;
+  const targetEp = episodes.find(e =>
+    e.slug === String(episode) ||
+    e.numStr === `Episode ${episode}` ||
+    e.numStr === String(episode)
+  ) || episodes[episode - 1] || episodes[0];
+
+  if (!targetEp) throw new Error(`Episode ${episode} not found on stream network`);
+
+  // Step 3: Fetch servers for this episode
+  const serversRes = await fetch(`https://animesuge.cz/ajax/server/list?servers=${encodeURIComponent(targetEp.ids)}`, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Referer': animePageUrl
+    }
+  });
+  if (!serversRes.ok) throw new Error(`Failed to fetch stream servers`);
+  const serversData = await serversRes.json() as any;
+  const serverHtml = serversData?.result || '';
+
+  // Parse servers grouped by sub/dub type
+  const parsedServers: { type: string; name: string; linkId: string }[] = [];
+  const typeRe = /<div class="server-type[^"]*type[^"]*" data-type="([^"]*)"[\s\S]*?(?=<div class="server-type|<\/div>\s*<\/div>\s*$)/gi;
+  let tm;
+  while ((tm = typeRe.exec(serverHtml)) !== null) {
+    const type = tm[1];
+    const serverBlock = tm[0];
+    const sm = [...serverBlock.matchAll(/<div class="server"[^>]*data-link-id="([^"]*)"[^>]*>[\s\S]*?<span>([^<]*)<\/span>/gi)];
+    for (let s of sm) {
+      parsedServers.push({ type, name: s[2].trim(), linkId: s[1] });
+    }
+  }
+
+  // Filter by requested lang (sub vs dub)
+  const isDub = (lang || '').toLowerCase() === 'dub';
+  let filteredServers = parsedServers.filter(s => isDub ? s.type === 'dub' : s.type === 'sub');
+  if (filteredServers.length === 0) {
+    filteredServers = parsedServers;
+  }
+  if (filteredServers.length === 0) {
+    throw new Error(`No active stream servers found for episode ${episode}`);
+  }
+
+  // Step 4: Pick server (hd-1, rapid/vidstream, mirror/hd-2)
+  let chosenServer = filteredServers[0];
+  const sNorm = (server || '').toLowerCase();
+  if (sNorm.includes('hd-1') || sNorm.includes('megaplay_hd')) {
+    chosenServer = filteredServers.find(s => s.name.toLowerCase().includes('hd-1')) || filteredServers[0];
+  } else if (sNorm.includes('rapid') || sNorm.includes('vidstream')) {
+    chosenServer = filteredServers.find(s => s.name.toLowerCase().includes('vidstream')) || filteredServers[1] || filteredServers[0];
+  } else if (sNorm.includes('mirror') || sNorm.includes('hd-2')) {
+    chosenServer = filteredServers.find(s => s.name.toLowerCase().includes('hd-2')) || filteredServers[2] || filteredServers[0];
+  }
+
+  // Step 5: Get final embed URL
+  const embedRes = await fetch(`https://animesuge.cz/ajax/server?get=${encodeURIComponent(chosenServer.linkId)}`, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'X-Requested-With': 'XMLHttpRequest',
+      'Referer': animePageUrl
+    }
+  });
+  if (!embedRes.ok) throw new Error(`Failed to resolve embed player stream`);
+  const embedData = await embedRes.json() as any;
+  const finalUrl = embedData?.result?.url;
+  if (!finalUrl) throw new Error(`Stream embed URL not returned`);
+
+  animeSugeStreamCache.set(cacheKey, { url: finalUrl, expiresAt: Date.now() + 900 * 1000 });
+  return finalUrl;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -613,6 +789,87 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } catch (err) {
       console.error("Failed AniList lookup in api/anime.ts:", err);
+    }
+  }
+
+  // MegaPlay Stream Resolver (Handles MegaPlay HD, MegaPlay Rapid, MegaPlay Mirror)
+  if (action === 'megaplay-embed' || action === 'megaplay-source') {
+    const srv = typeof req.query.server === 'string' ? req.query.server : 'hd-1';
+    const epNum = episode ? parseInt(String(episode), 10) : 1;
+    const animeLang = typeof req.query.lang === 'string' ? req.query.lang : (lang ? String(lang) : 'sub');
+
+    if (!cleanTitle) {
+      return res.status(400).send("Anime title could not be resolved.");
+    }
+
+    try {
+      const embedUrl = await resolveMegaPlayStream({
+        title: cleanTitle,
+        episode: epNum,
+        server: srv,
+        lang: animeLang
+      });
+
+      if (action === 'megaplay-source' || req.query.format === 'json') {
+        return res.status(200).json({ success: true, url: embedUrl });
+      }
+
+      // Serve sleek, zero-margin dark HTML player iframe shell with postMessage forwarding
+      const htmlShell = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MegaPlay</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    iframe { width: 100%; height: 100%; border: none; display: block; }
+  </style>
+</head>
+<body>
+  <iframe
+    id="megaplay-frame"
+    src="${embedUrl}"
+    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+    allowfullscreen="true"
+    webkitallowfullscreen="true"
+    mozallowfullscreen="true">
+  </iframe>
+  <script>
+    window.addEventListener('message', function(e) {
+      try {
+        var frame = document.getElementById('megaplay-frame');
+        if (frame && frame.contentWindow && e.source !== frame.contentWindow) {
+          frame.contentWindow.postMessage(e.data, '*');
+        } else if (window.parent && e.source === frame.contentWindow) {
+          window.parent.postMessage(e.data, '*');
+        }
+      } catch (_) {}
+    });
+  </script>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=120');
+      return res.status(200).send(htmlShell);
+    } catch (err: any) {
+      console.error("MegaPlay Stream Error:", err);
+      if (action === 'megaplay-source' || req.query.format === 'json') {
+        return res.status(500).json({ error: err.message || "Failed to load stream" });
+      }
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+        <body style="background:#09090b;color:#f43f5e;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;">
+          <div>
+            <h3 style="margin-bottom:8px;">Stream Loading Error</h3>
+            <p style="color:#a1a1aa;font-size:14px;">${err.message || "Unable to connect to stream server"}</p>
+          </div>
+        </body>
+        </html>
+      `);
     }
   }
 

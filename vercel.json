@@ -41,7 +41,7 @@
       "destination": "/api/anime.ts?action=nyaa"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|@|.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/index.html"
     }
   ]
