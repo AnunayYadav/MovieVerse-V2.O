@@ -350,7 +350,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     const defaultProvider = isAnime ? 'auto' : 'vidstuck';
     let chosen = providerId;
-    if (!isAnime && (chosen === 'vidnest_animepahe' || chosen?.startsWith('megaplay') || chosen === 'vidplay' || chosen === 'encdec_animekai')) {
+    if (!isAnime && (chosen === 'vidnest_animepahe' || chosen?.startsWith('megaplay') || chosen === 'encdec_animekai')) {
       chosen = undefined;
     }
     if (typeof window !== 'undefined') {
@@ -359,7 +359,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (!preferred || preferred === 'auto_select' || (!chosen && preferred === 'auto' && !isAnime)) {
         preferred = defaultProvider;
       }
-      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred?.startsWith('megaplay') || preferred === 'vidplay' || preferred === 'encdec_animekai')) {
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred?.startsWith('megaplay') || preferred === 'encdec_animekai')) {
         preferred = 'vidstuck';
       }
       if (isWatchParty) {
@@ -406,7 +406,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [anilistLoading, setAnilistLoading] = useState(false);
 
   const getEffectiveTmdbId = useCallback((provId: string) => {
-    const isNativeAnime = provId.startsWith('megaplay') || provId === 'vidplay' || provId === 'vidnest_animepahe' || provId === 'vidnest';
+    const isNativeAnime = provId.startsWith('megaplay') || provId === 'vidnest_animepahe' || provId === 'vidnest';
     if (isNativeAnime) {
       return anilistId || tmdbId;
     }
@@ -579,7 +579,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   useEffect(() => {
     if (providerId) {
-      if (!isAnime && (providerId === 'vidnest_animepahe' || providerId?.startsWith('megaplay') || providerId === 'vidplay' || providerId === 'encdec_animekai')) {
+      if (!isAnime && (providerId === 'vidnest_animepahe' || providerId?.startsWith('megaplay') || providerId === 'encdec_animekai')) {
         return;
       }
       const prov = PROVIDERS.find(p => p.id === providerId);
@@ -592,7 +592,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Ensure non-anime never stays on anime-only providers
   useEffect(() => {
-    if (!isAnime && (selectedProviderId === 'vidnest_animepahe' || selectedProviderId?.startsWith('megaplay') || selectedProviderId === 'vidplay' || selectedProviderId === 'encdec_animekai')) {
+    if (!isAnime && (selectedProviderId === 'vidnest_animepahe' || selectedProviderId?.startsWith('megaplay') || selectedProviderId === 'encdec_animekai')) {
       setSelectedProviderId('vidstuck');
     }
   }, [isAnime, selectedProviderId]);
@@ -5346,7 +5346,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (id === 'cinesrc' || id === 'vidfast' || id === 'vidstuck') return { label: 'Fast', isFast: true };
     if (id === 'videasy_adfree' || id === 'vidsrc' || id === 'peachify') return { label: 'HD' };
     if (id === 'megaplay_hd') return { label: 'HD', isFast: true };
-    if (id === 'vidplay') return { label: 'HD', isFast: true };
     if (id === 'megaplay_rapid') return { label: 'Fast', isFast: true };
     if (id === 'megaplay_mirror') return { label: 'Backup' };
     if (id === 'vidnest_animepahe' || id.startsWith('megaplay')) return { label: 'Fast', isFast: true };

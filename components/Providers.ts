@@ -132,19 +132,6 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
   {
-    id: 'vidplay',
-    name: 'VidPlay HD',
-    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub', language, subtitle, title) => {
-      const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
-      return `/api/anime?action=aniwave-embed&episode=1&lang=${lang}&anilistId=${anilistId || ''}&tmdbId=${tmdbId || ''}&title=${encodeURIComponent(title || '')}`;
-    },
-    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub', language, subtitle, title) => {
-      const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
-      return `/api/anime?action=aniwave-embed&episode=${episode}&lang=${lang}&anilistId=${anilistId || ''}&tmdbId=${tmdbId || ''}&title=${encodeURIComponent(title || '')}`;
-    },
-    supportsPostMessage: true
-  },
-  {
     id: 'megaplay',
     name: 'MegaPlay',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub', language, subtitle, title) => {
@@ -262,7 +249,7 @@ export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = f
   let list = PROVIDERS.filter(p => {
     if (isWatchParty && !p.supportsPostMessage) return false;
     if (!isAnime && !isAnimeDirect) {
-      return p.id !== 'vidnest_animepahe' && !p.id.startsWith('megaplay') && p.id !== 'vidplay';
+      return p.id !== 'vidnest_animepahe' && !p.id.startsWith('megaplay');
     }
     return true;
   });
@@ -273,7 +260,6 @@ export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = f
         if (id === 'auto') return 1000;
         if (id === 'vidnest_animepahe') return 950;
         if (id === 'megaplay_hd') return 940;
-        if (id === 'vidplay') return 935;
         if (id === 'megaplay_rapid') return 930;
         if (id === 'megaplay_mirror') return 920;
         if (id === 'megaplay') return 910;
