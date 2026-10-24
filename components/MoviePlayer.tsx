@@ -5448,11 +5448,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] px-4 sm:px-6'} mx-auto pt-4 pb-2 flex items-center justify-between gap-3`}>
         <button
           onClick={onClose}
-          className="group inline-flex items-center gap-2 text-zinc-400 hover:text-white text-xs font-normal transition-colors active:scale-95 py-1"
+          className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm"
           title="Go back"
         >
-          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
-          <span className="truncate max-w-[240px] sm:max-w-md text-zinc-300 group-hover:text-white font-medium">{displayTitle}</span>
+          <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
+          <span className="truncate max-w-[240px] sm:max-w-md font-medium text-zinc-200 group-hover:text-white">{displayTitle}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -5502,10 +5502,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setAutoPlayState(!autoPlayState)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-normal transition-all active:scale-95 ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal transition-all active:scale-95 ${
                   autoPlayState
-                    ? 'bg-white/10 text-white font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                    ? 'bg-white/[0.14] text-white font-medium'
+                    : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
                 }`}
                 title="Toggle Auto Play"
               >
@@ -5517,10 +5517,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 <>
                   <button
                     onClick={() => setAutoNextState(!autoNextState)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-normal transition-all active:scale-95 ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal transition-all active:scale-95 ${
                       autoNextState
-                        ? 'bg-white/10 text-white font-medium'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                        ? 'bg-white/[0.14] text-white font-medium'
+                        : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
                     }`}
                     title="Toggle Auto Next"
                   >
@@ -5530,10 +5530,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                   <button
                     onClick={() => setAutoSkipState(!autoSkipState)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-normal transition-all active:scale-95 ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal transition-all active:scale-95 ${
                       autoSkipState
-                        ? 'bg-white/10 text-white font-medium'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                        ? 'bg-white/[0.14] text-white font-medium'
+                        : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
                     }`}
                     title="Toggle Auto Skip"
                   >
@@ -5541,18 +5541,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     <span>Auto Skip</span>
                   </button>
 
-                  <div className="flex items-center gap-0.5 pl-1 border-l border-white/10">
+                  <div className="flex items-center gap-1 pl-1 border-l border-white/10">
                     <button
                       disabled={currentEpisode <= 1}
                       onClick={handlePrevEpisode}
-                      className="p-1 rounded-lg hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none text-zinc-400 hover:text-zinc-200 text-xs font-normal transition-all active:scale-95"
+                      className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] disabled:opacity-30 disabled:pointer-events-none text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95"
                       title="Previous Episode"
                     >
                       <ChevronLeft size={16} />
                     </button>
                     <button
                       onClick={handleNextEpisode}
-                      className="p-1 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-zinc-200 text-xs font-normal transition-all active:scale-95"
+                      className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95"
                       title="Next Episode"
                     >
                       <ChevronRight size={16} />
@@ -5563,7 +5563,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
               <button
                 onClick={toggleFullscreen}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all active:scale-95"
+                className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white transition-all active:scale-95"
                 title="Expand / Fullscreen"
               >
                 <Maximize size={15} />
@@ -5779,44 +5779,43 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           }
                           onProviderChange?.(prov.id);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left group border ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all text-left group ${
                           isSelected
-                            ? 'bg-white/10 border-white/20 text-white shadow-sm'
-                            : 'bg-white/[0.02] hover:bg-white/[0.05] border-white/5 text-zinc-300'
+                            ? 'bg-white/[0.12] text-white shadow-sm'
+                            : 'bg-white/[0.035] hover:bg-white/[0.07] text-zinc-300 hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-                            isSelected ? 'border-white bg-white/20' : 'border-white/25 group-hover:border-white/40'
-                          }`}>
-                            {isSelected && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
-                            )}
-                          </div>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
+                            isSelected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-zinc-600 group-hover:bg-zinc-400'
+                          }`} />
                           <div className="flex flex-col min-w-0">
-                            <span className="truncate font-normal">
-                              Server {idx + 1} <span className="text-zinc-500 text-[11px] font-light">({prov.name})</span>
+                            <span className="truncate font-normal flex items-center gap-1.5">
+                              <span className={isSelected ? 'text-white font-medium' : 'text-zinc-300'}>
+                                Server {idx + 1}
+                              </span>
+                              <span className="text-zinc-600 text-xs">•</span>
+                              <span className="text-zinc-400 font-light text-[11px] truncate">{prov.name}</span>
                             </span>
                             {prov.id === 'auto' && isSelected && (
-                              <span className="text-[10px] text-zinc-300 font-light flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping inline-block" />
+                              <span className="text-[10px] text-zinc-400 font-light flex items-center gap-1 mt-0.5">
                                 Playing: {PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'AnimePahe'}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="shrink-0 flex items-center gap-1.5">
+                        <div className="shrink-0 flex items-center gap-2">
                           {isActuallyPlaying && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/15 text-white font-normal border border-white/20">
+                            <span className="text-[10px] text-emerald-400 font-medium">
                               Playing
                             </span>
                           )}
                           {badge.isFast ? (
-                            <span className="text-zinc-300 text-[10px] font-normal flex items-center gap-0.5">
-                              <Zap size={10} className="fill-white text-white" /> Fast
+                            <span className="text-zinc-400 group-hover:text-zinc-300 text-[11px] font-normal flex items-center gap-0.5">
+                              <Zap size={11} className={isSelected ? "text-amber-400 fill-amber-400" : "text-zinc-500"} /> Fast
                             </span>
                           ) : (
-                            <span className="text-zinc-500 text-[10px] font-normal uppercase tracking-wider">
+                            <span className="text-zinc-500 text-[11px] font-normal">
                               {badge.label}
                             </span>
                           )}
@@ -5828,8 +5827,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                 {/* Audio Language row if supported */}
                 {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto', 'vidfast', 'vidstuck'].includes(selectedProviderId)) && (
-                  <div className="pt-2 border-t border-white/[0.04] space-y-1.5">
-                    <span className="text-[10px] font-normal text-zinc-500 uppercase tracking-wider">Language</span>
+                  <div className="pt-2.5 border-t border-white/[0.06] space-y-1.5 px-0.5">
+                    <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Audio Language</span>
                     <div className="flex flex-wrap gap-1">
                       {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German'].map((lang) => {
                         const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
@@ -5840,10 +5839,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               setAudioLanguage(lang);
                               localStorage.setItem('movieverse_preferred_audio_language', lang);
                             }}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-normal transition-all border ${
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-normal transition-all ${
                               isActive
-                                ? 'bg-red-500/15 text-red-300 border-red-500/30'
-                                : 'bg-white/5 hover:bg-white/10 text-zinc-400 border-white/5'
+                                ? 'bg-white/[0.14] text-white font-medium shadow-sm'
+                                : 'bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white'
                             }`}
                           >
                             {lang}
@@ -5907,10 +5906,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         }
                         onProviderChange?.(prov.id);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left group ${
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all text-left group ${
                         isSelected
-                          ? 'bg-white/10 text-white shadow-sm'
-                          : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
+                          ? 'bg-white/[0.12] text-white shadow-sm'
+                          : 'bg-white/[0.035] hover:bg-white/[0.07] text-zinc-300 hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 pr-2">
@@ -5969,8 +5968,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           }}
                           className={`px-2.5 py-1 rounded-md text-[11px] font-normal transition-all ${
                             isActive
-                              ? 'bg-white/15 text-white font-medium shadow-sm'
-                              : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                              ? 'bg-white/[0.14] text-white font-medium shadow-sm'
+                              : 'bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white'
                           }`}
                         >
                           {lang}
