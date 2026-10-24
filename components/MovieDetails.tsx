@@ -2699,8 +2699,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
-            <div className="relative w-full min-h-screen flex flex-col">
+        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] ${showPlayer ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
+            <div className={`relative w-full ${showPlayer ? 'h-full overflow-hidden' : 'min-h-screen'} flex flex-col`}>
                 {!showPlayer && (
                     <TvFocusButton onClick={handleClose} className="absolute top-20 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
                         <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
@@ -2710,7 +2710,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 {loading && !details ? (
                     <MovieDetailsSkeleton />
                 ) : showPlayer ? (
-                    <div className="fixed inset-0 z-[150] bg-black animate-in fade-in duration-300 select-none">
+                    <div className="fixed inset-0 z-[150] bg-black overflow-hidden select-none">
                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={32}/></div>}>
                              <MoviePlayer 
                                 tmdbId={displayData.id} 

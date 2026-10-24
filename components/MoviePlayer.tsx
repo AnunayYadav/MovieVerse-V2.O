@@ -5429,33 +5429,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   return (
     <div 
-      className="w-full h-full min-h-screen bg-[#07080b] text-zinc-100 select-none overflow-y-auto custom-scrollbar relative"
+      className="w-full h-full min-h-screen bg-[#07080b] text-zinc-100 select-none overflow-x-hidden overflow-y-auto custom-scrollbar relative"
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Outfit", system-ui, sans-serif' }}
     >
       {/* Ambient background glow from backdrop */}
       {details?.backdrop_path && (
-        <div
-          className="fixed inset-0 pointer-events-none opacity-10 blur-3xl -z-10 scale-110"
-          style={{
-            backgroundImage: `url(${details.backdrop_path.startsWith('http') ? details.backdrop_path : `${TMDB_IMAGE_BASE}${details.backdrop_path}`})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+          <div
+            className="w-full h-full opacity-10 blur-3xl scale-105"
+            style={{
+              backgroundImage: `url(${details.backdrop_path.startsWith('http') ? details.backdrop_path : `${TMDB_IMAGE_BASE}${details.backdrop_path}`})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        </div>
       )}
 
       {/* Top Navbar */}
-      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] px-4 sm:px-6'} mx-auto pt-4 pb-2 flex items-center justify-between gap-3`}>
+      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] px-3 sm:px-6'} mx-auto pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 overflow-hidden`}>
         <button
           onClick={onClose}
-          className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm"
+          className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm min-w-0"
           title="Go back"
         >
-          <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
-          <span className="truncate max-w-[240px] sm:max-w-md font-medium text-zinc-200 group-hover:text-white">{displayTitle}</span>
+          <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5 shrink-0" />
+          <span className="truncate max-w-[200px] sm:max-w-md font-medium text-zinc-200 group-hover:text-white">{displayTitle}</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isWatchParty && (
             <span className="px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-300 text-xs font-normal flex items-center gap-1.5 shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -5466,10 +5468,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       </div>
 
       {/* Main Split Layout: Player on Left + Sidebar (Episodes, Details, Servers) on Right */}
-      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] p-3 sm:p-5'} mx-auto flex-1 flex flex-col ${!isWatchParty && (sidebarPosition === 'right' ? 'lg:flex-row' : 'lg:flex-row-reverse')} gap-5 items-start justify-center`}>
+      <div className={`w-full ${isWatchParty ? 'max-w-none px-3 sm:px-6' : 'max-w-[1700px] px-3 py-2 sm:p-5'} mx-auto flex-1 flex flex-col ${!isWatchParty && (sidebarPosition === 'right' ? 'lg:flex-row' : 'lg:flex-row-reverse')} gap-4 lg:gap-5 items-start justify-center overflow-x-hidden`}>
 
         {/* LEFT PANEL: VIDEO STREAMING CONTENT & CONTROLS */}
-        <div className="flex-1 min-w-0 flex flex-col w-full space-y-3.5">
+        <div className="flex-1 min-w-0 flex flex-col w-full space-y-3.5 overflow-hidden">
           {/* Video Player Frame Container */}
           <div
             ref={playerVideoFrameRef}
@@ -5482,92 +5484,94 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {renderVideoPlayerCore()}
           </div>
 
-          {/* Under-Player Metadata & Quick Controls Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 pt-1">
-            {/* Left: Title & Metadata Tags */}
-            <div className="flex flex-col gap-1 min-w-0">
-              <h2 className="text-base sm:text-lg font-normal text-white tracking-tight truncate">
-                {displayTitle}
-              </h2>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400 font-normal">
-                {releaseYear && <span>{releaseYear}</span>}
-                {releaseYear && <span className="text-zinc-600 font-bold">•</span>}
-                <span>{details?.adult ? '18+' : 'PG-13'}</span>
-                <span className="text-zinc-600 font-bold">•</span>
-                <span>{isTvShow ? `Season ${currentSeason} • Episode ${currentEpisode}` : formattedRuntime || 'Movie'}</span>
+          {/* Under-Player Metadata & Quick Controls */}
+          <div className="flex flex-col gap-1.5 px-1 pt-1">
+            {/* Title */}
+            <h2 className="text-base sm:text-lg font-normal text-white tracking-tight truncate">
+              {displayTitle}
+            </h2>
+
+            {/* Metadata (Left) & Controls (Right) in ONE Clean Line */}
+            <div className="flex items-center justify-between gap-2 w-full min-w-0 overflow-hidden">
+              <div className="flex items-center gap-x-1.5 sm:gap-x-2 text-[11px] sm:text-xs text-zinc-400 font-normal min-w-0 truncate">
+                {releaseYear && <span className="shrink-0">{releaseYear}</span>}
+                {releaseYear && <span className="text-zinc-600 font-bold shrink-0">•</span>}
+                <span className="shrink-0">{details?.adult ? '18+' : 'PG-13'}</span>
+                <span className="text-zinc-600 font-bold shrink-0">•</span>
+                <span className="truncate">{isTvShow ? `S${currentSeason} • E${currentEpisode}` : formattedRuntime || 'Movie'}</span>
               </div>
-            </div>
 
-            {/* Right: Quick Action Buttons */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={() => setAutoPlayState(!autoPlayState)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal transition-all active:scale-95 ${
-                  autoPlayState
-                    ? 'bg-white/[0.14] text-white font-medium'
-                    : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
-                }`}
-                title="Toggle Auto Play"
-              >
-                <Zap size={12} className={autoPlayState ? "text-amber-400 fill-amber-400" : "text-zinc-400"} />
-                <span>Auto Play</span>
-              </button>
+              {/* Right: Quick Action Buttons */}
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <button
+                  onClick={() => setAutoPlayState(!autoPlayState)}
+                  className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-normal transition-all active:scale-95 ${
+                    autoPlayState
+                      ? 'bg-white/[0.14] text-white font-medium'
+                      : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
+                  }`}
+                  title="Toggle Auto Play"
+                >
+                  <Zap size={11} className={autoPlayState ? "text-amber-400 fill-amber-400 shrink-0" : "text-zinc-400 shrink-0"} />
+                  <span className="shrink-0">Auto Play</span>
+                </button>
 
-              {isTvShow && (
-                <>
-                  <button
-                    onClick={() => setAutoNextState(!autoNextState)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal transition-all active:scale-95 ${
-                      autoNextState
-                        ? 'bg-white/[0.14] text-white font-medium'
-                        : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
-                    }`}
-                    title="Toggle Auto Next"
-                  >
-                    <SkipForward size={12} />
-                    <span>Auto Next</span>
-                  </button>
-
-                  <button
-                    onClick={() => setAutoSkipState(!autoSkipState)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-normal transition-all active:scale-95 ${
-                      autoSkipState
-                        ? 'bg-white/[0.14] text-white font-medium'
-                        : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
-                    }`}
-                    title="Toggle Auto Skip"
-                  >
-                    <RotateCcw size={12} />
-                    <span>Auto Skip</span>
-                  </button>
-
-                  <div className="flex items-center gap-1 pl-1 border-l border-white/10">
+                {isTvShow && (
+                  <>
                     <button
-                      disabled={currentEpisode <= 1}
-                      onClick={handlePrevEpisode}
-                      className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] disabled:opacity-30 disabled:pointer-events-none text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95"
-                      title="Previous Episode"
+                      onClick={() => setAutoNextState(!autoNextState)}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] sm:text-xs font-normal transition-all active:scale-95 ${
+                        autoNextState
+                          ? 'bg-white/[0.14] text-white font-medium'
+                          : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
+                      }`}
+                      title="Toggle Auto Next"
                     >
-                      <ChevronLeft size={16} />
+                      <SkipForward size={11} className="shrink-0" />
+                      <span className="hidden sm:inline">Next</span>
                     </button>
-                    <button
-                      onClick={handleNextEpisode}
-                      className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95"
-                      title="Next Episode"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </>
-              )}
 
-              <button
-                onClick={toggleFullscreen}
-                className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white transition-all active:scale-95"
-                title="Expand / Fullscreen"
-              >
-                <Maximize size={15} />
-              </button>
+                    <button
+                      onClick={() => setAutoSkipState(!autoSkipState)}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] sm:text-xs font-normal transition-all active:scale-95 ${
+                        autoSkipState
+                          ? 'bg-white/[0.14] text-white font-medium'
+                          : 'bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white'
+                      }`}
+                      title="Toggle Auto Skip"
+                    >
+                      <RotateCcw size={11} className="shrink-0" />
+                      <span className="hidden sm:inline">Skip</span>
+                    </button>
+
+                    <div className="flex items-center gap-0.5 pl-1 border-l border-white/10 shrink-0">
+                      <button
+                        disabled={currentEpisode <= 1}
+                        onClick={handlePrevEpisode}
+                        className="p-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] disabled:opacity-30 disabled:pointer-events-none text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95"
+                        title="Previous Episode"
+                      >
+                        <ChevronLeft size={15} />
+                      </button>
+                      <button
+                        onClick={handleNextEpisode}
+                        className="p-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95"
+                        title="Next Episode"
+                      >
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <button
+                  onClick={toggleFullscreen}
+                  className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white transition-all active:scale-95 shrink-0"
+                  title="Expand / Fullscreen"
+                >
+                  <Maximize size={14} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -5858,7 +5862,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           {/* Tab 2: SERVER CONTENT */}
           {activeSidebarTab === 'servers' && (
-            <div className="p-3.5 space-y-3 overflow-y-auto custom-scrollbar max-h-[calc(100vh-8rem)] animate-in fade-in duration-200">
+            <div className="p-3.5 space-y-3 lg:overflow-y-auto lg:custom-scrollbar lg:max-h-[calc(100vh-8rem)] animate-in fade-in duration-200">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Servers</span>
                 {selectedProviderId === 'auto' && (
