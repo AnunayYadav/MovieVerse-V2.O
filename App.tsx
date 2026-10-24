@@ -4967,7 +4967,6 @@ export default function App() {
                     }}
                     apiKey={apiKey}
                     onPersonClick={(id, name, isAniList) => {
-                        setSelectedMovie(null);
                         setSelectedPersonId(id);
                         setSelectedPersonName(name || null);
                         setIsPersonAniListStaff(!!isAniList);
@@ -4977,7 +4976,9 @@ export default function App() {
                         setSelectedStudioName(name);
                         setIsAnimeStudio(!!isAnime);
                     }}
-                    onCharacterClick={(id) => { setSelectedMovie(null); setSelectedCharacterId(id); }}
+                    onCharacterClick={(id) => { 
+                        setSelectedCharacterId(id); 
+                    }}
                     onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
                     isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
                     onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
@@ -5023,10 +5024,6 @@ export default function App() {
                     setSelectedPersonId(null);
                     setSelectedPersonName(null);
                     setIsPersonAniListStaff(false);
-                    const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
-                    if (canGoBack) {
-                        window.history.back();
-                    }
                 }}
                 apiKey={apiKey} 
                 onMovieClick={(m) => { setSelectedPersonId(null); setSelectedPersonName(null); setIsPersonAniListStaff(false); setSelectedMovie(m); }} 
@@ -5038,10 +5035,6 @@ export default function App() {
                     characterId={selectedCharacterId}
                     onClose={() => {
                         setSelectedCharacterId(null);
-                        const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
-                        if (canGoBack) {
-                            window.history.back();
-                        }
                     }}
                     apiKey={apiKey}
                     onMovieClick={(m) => {
@@ -5063,10 +5056,6 @@ export default function App() {
                         setSelectedStudioId(null);
                         setSelectedStudioName(null);
                         setIsAnimeStudio(false);
-                        const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
-                        if (canGoBack) {
-                            window.history.back();
-                        }
                     }}
                     apiKey={apiKey}
                     onMovieClick={(m) => {

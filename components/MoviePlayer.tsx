@@ -5832,7 +5832,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 {/* Audio Language row if supported */}
                 {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto', 'vidfast', 'vidstuck'].includes(selectedProviderId)) && (
                   <div className="pt-2.5 border-t border-white/[0.06] space-y-1.5 px-0.5">
-                    <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Audio Language</span>
+                    <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Audio Language <span className="text-[9px] font-normal normal-case text-zinc-500 tracking-normal">(Subject to availability)</span></span>
                     <div className="flex flex-wrap gap-1">
                       {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German'].map((lang) => {
                         const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
@@ -5959,7 +5959,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               {/* Audio Language row if supported */}
               {(currentProvider?.supportsLanguage || ['peachify', 'zxcstream', 'videasy_adfree', 'auto', 'vidfast', 'vidstuck'].includes(selectedProviderId)) && (
                 <div className="pt-2.5 border-t border-white/[0.06] space-y-1.5 px-0.5">
-                  <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Audio Language</span>
+                  <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Audio Language <span className="text-[9px] font-normal normal-case text-zinc-500 tracking-normal">(Subject to availability)</span></span>
                   <div className="flex flex-wrap gap-1">
                     {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German'].map((lang) => {
                       const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();

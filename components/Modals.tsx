@@ -202,23 +202,23 @@ const ActorMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void;
             
             {/* Content overlay */}
             <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
-                <h4 className="text-xs font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                <h4 className="text-xs font-medium text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
                     {movie.title || movie.name}
                 </h4>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 font-medium">
+                <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 font-normal">
                     <span>{year || 'TBA'}</span>
                     {rating > 0 && (
-                        <div className="flex items-center gap-0.5 text-yellow-500 font-bold">
+                        <div className="flex items-center gap-0.5 text-yellow-500 font-medium">
                             <Star size={10} fill="currentColor"/> {rating.toFixed(1)}
                         </div>
                     )}
                 </div>
                 {(movie as any).character ? (
-                    <p className="text-[9px] text-red-400 font-semibold truncate mt-0.5 opacity-90">
+                    <p className="text-[10px] text-red-400/90 font-normal truncate mt-0.5 opacity-90">
                         as {(movie as any).character}
                     </p>
                 ) : (movie as any).job ? (
-                    <p className="text-[9px] text-amber-500 font-semibold truncate mt-0.5 opacity-90">
+                    <p className="text-[10px] text-amber-500/90 font-normal truncate mt-0.5 opacity-90">
                         {(movie as any).job}
                     </p>
                 ) : null}
@@ -239,7 +239,7 @@ const TimelineMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => vo
         <div className="flex flex-col items-center shrink-0">
             {/* Timeline node */}
             <div className="relative mb-3 flex flex-col items-center">
-                <span className="bg-red-600/10 border border-red-500/30 text-red-500 font-extrabold text-[9px] px-2.5 py-0.5 rounded-full mb-1.5 shadow relative z-10 backdrop-blur-md">
+                <span className="bg-red-600/10 border border-red-500/30 text-red-500 font-medium text-[10px] px-2.5 py-0.5 rounded-full mb-1.5 shadow relative z-10 backdrop-blur-md">
                     {year}
                 </span>
                 <div className="w-2.5 h-2.5 rounded-full bg-red-600 ring-4 ring-red-500/20 z-10" />
@@ -259,10 +259,10 @@ const TimelineMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => vo
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 
                 <div className="absolute inset-0 p-2.5 flex flex-col justify-end select-none pointer-events-none">
-                    <h4 className="text-xs font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                    <h4 className="text-xs font-medium text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
                         {movie.title || movie.name}
                     </h4>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 font-medium">
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 font-normal">
                         <span>{rating > 0 ? `⭐ ${rating.toFixed(1)}` : 'NR'}</span>
                     </div>
                 </div>
@@ -301,9 +301,9 @@ const HorizontalScrollRow = ({
     };
 
     return (
-        <div className="mb-10 text-left animate-in fade-in duration-500">
-            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-red-600 rounded-full" />
+        <div className="mb-8 text-left animate-in fade-in duration-500">
+            <h3 className="text-sm md:text-base font-semibold text-white mb-3.5 flex items-center gap-2">
+                <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
                 {title}
             </h3>
             <div 
@@ -374,18 +374,18 @@ const TimelineScrollRow = ({
     };
 
     return (
-        <div className="mb-10 text-left animate-in fade-in duration-500">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
-                    <span className="w-1 h-5 bg-red-600 rounded-full" />
+        <div className="mb-8 text-left animate-in fade-in duration-500">
+            <div className="flex items-center justify-between mb-3.5">
+                <h3 className="text-sm md:text-base font-semibold text-white flex items-center gap-2">
+                    <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
                     {title}
                 </h3>
                 <button
                     onClick={onToggle}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-300 transition-all active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-zinc-300 transition-all active:scale-95"
                 >
                     <span>{isDescending ? "Newest First" : "Oldest First"}</span>
-                    {isDescending ? <ArrowDown size={15} className="text-red-500" /> : <ArrowUp size={15} className="text-red-500" />}
+                    {isDescending ? <ArrowDown size={14} className="text-red-500" /> : <ArrowUp size={14} className="text-red-500" />}
                 </button>
             </div>
             <div className="relative">
@@ -497,6 +497,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
     const [isClosing, setIsClosing] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [isTimelineDescending, setIsTimelineDescending] = useState(false);
+    const [isBioExpanded, setIsBioExpanded] = useState(false);
 
     // Row pagination limits and loading states
     const [boxOfficeLimit, setBoxOfficeLimit] = useState(15);
@@ -539,6 +540,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
             setProducingLimit(15);
             setUpcomingLimit(15);
             setIsTimelineDescending(false);
+            setIsBioExpanded(false);
 
             setLoadingBoxOffice(false);
             setLoadingTimeline(false);
@@ -855,44 +857,70 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
       <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
           {loading ? (
              <div className="h-screen flex items-center justify-center flex-col gap-4">
-                 <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
-                 <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Details...</p>
+                 <div className="w-16 h-16 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
+                 <p className="text-zinc-500 text-xs animate-pulse uppercase tracking-wider font-medium">Loading Details...</p>
              </div>
           ) : details ? (
              <div className="w-full flex flex-col pb-20">
                  {/* Top Hero Banner with Blurred Backdrop */}
-                 <div className="relative w-full h-[35vh] sm:h-[45vh] md:h-[50vh] overflow-hidden bg-[#0c0c0e]">
+                 <div className="relative w-full h-[32vh] sm:h-[40vh] md:h-[46vh] overflow-hidden bg-[#0c0c0e]">
                      {heroBackdrop ? (
                          <img 
                              src={`${TMDB_BACKDROP_BASE}${heroBackdrop}`} 
-                             className="w-full h-full object-cover opacity-35 filter blur-[2px]" 
+                             className="w-full h-full object-cover opacity-25 filter blur-[2px]" 
                              alt=""
                          />
                      ) : (
                          <div className="w-full h-full bg-gradient-to-br from-red-950/20 to-zinc-950" />
                      )}
                      {/* Gradient Overlays */}
-                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent" />
+                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
                      <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent h-24" />
                      
                      {/* Back Button */}
-                     <button onClick={handleClose} className="absolute top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all shadow-xl"><ArrowLeft size={18}/> Back</button>
+                     <button 
+                         onClick={handleClose} 
+                         className="absolute top-5 left-5 md:top-6 md:left-8 z-[120] bg-black/50 hover:bg-black/80 backdrop-blur-md px-3.5 py-1.5 rounded-full text-zinc-300 hover:text-white flex items-center gap-2 border border-white/10 text-xs font-medium active:scale-95 transition-all shadow-md cursor-pointer"
+                     >
+                         <ArrowLeft size={16}/> Back
+                     </button>
                      
                      {/* Hero Floating Card Content */}
-                     <div className="absolute bottom-6 left-6 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-6 z-10 w-[calc(100%-3rem)] md:w-[calc(100%-6rem)]">
-                         <div className="w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white/10 shadow-2xl bg-zinc-900 shrink-0 transform hover:scale-[1.02] transition-transform duration-500 shadow-black/80">
+                     <div className="absolute bottom-5 left-5 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-5 z-10 w-[calc(100%-2.5rem)] md:w-[calc(100%-6rem)]">
+                         <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-zinc-900 shrink-0 transform hover:scale-[1.02] transition-transform duration-500 shadow-black/80">
                              <img 
-                                 src={details.profile_path ? (details.profile_path.startsWith('http') ? details.profile_path : `${TMDB_IMAGE_BASE}${details.profile_path}`) : `https://ui-avatars.com/api/?name=${details.name}&background=333&color=fff`} 
+                                 src={details.profile_path ? (details.profile_path.startsWith('http') ? details.profile_path : `${TMDB_IMAGE_BASE}${details.profile_path}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=222&color=fff`} 
                                  alt={details.name} 
                                  className="w-full h-full object-cover"
                              />
                          </div>
                          <div className="text-center md:text-left flex-1 min-w-0">
-                             <p className="text-red-500 text-xs font-black tracking-[0.25em] uppercase mb-1.5">{details.known_for_department}</p>
-                             <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md mb-3">{details.name}</h2>
+                             {details.known_for_department && (
+                                 <p className="text-red-500 text-xs font-medium tracking-wide uppercase mb-1">{details.known_for_department}</p>
+                             )}
+                             <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight mb-2">{details.name}</h2>
                              
+                             {/* Personal Info Clean Metadata in Header */}
+                             {(details.birthday || details.place_of_birth || details.deathday) && (
+                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-xs text-zinc-400 font-normal mb-3">
+                                     {details.birthday && <span>Born: <span className="text-zinc-200">{details.birthday}</span></span>}
+                                     {details.place_of_birth && (
+                                         <>
+                                             <span className="text-zinc-600">•</span>
+                                             <span>From: <span className="text-zinc-200">{details.place_of_birth}</span></span>
+                                         </>
+                                     )}
+                                     {details.deathday && (
+                                         <>
+                                             <span className="text-zinc-600">•</span>
+                                             <span>Died: <span className="text-zinc-200">{details.deathday}</span></span>
+                                         </>
+                                     )}
+                                 </div>
+                             )}
+
                              {/* Social Links */}
-                             <div className="flex justify-center md:justify-start gap-3">
+                             <div className="flex justify-center md:justify-start gap-2.5">
                                  {details.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/name/${details.external_ids.imdb_id}`} icon={Film} color="hover:text-yellow-400 hover:border-yellow-400/30"/>}
                                  {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="hover:text-pink-400 hover:border-pink-400/30"/>}
                                  {details.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${details.external_ids.twitter_id}`} icon={Twitter} color="hover:text-sky-400 hover:border-sky-400/30"/>}
@@ -903,135 +931,124 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                      </div>
                  </div>
 
-                 {/* Content Section */}
-                 <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 w-full">
-                     <div className="flex flex-col lg:flex-row gap-10">
-                          {/* Left Column: Personal info & Bio on Desktop */}
-                          <div className="w-full lg:w-80 shrink-0 space-y-6">
-                              <div className="bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md">
-                                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4 border-b border-white/5 pb-2">Personal Info</h3>
-                                  <div className="space-y-4 text-left">
-                                      <div>
-                                          <span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Born</span>
-                                          <span className="text-zinc-200 font-semibold text-sm">{details.birthday || 'N/A'}</span>
-                                      </div>
-                                      <div>
-                                          <span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Place of Birth</span>
-                                          <span className="text-zinc-200 font-semibold text-sm leading-relaxed">{details.place_of_birth || 'N/A'}</span>
-                                      </div>
-                                  </div>
-                              </div>
-                              
-                              <div className="hidden lg:block bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md text-left">
-                                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-3 border-b border-white/5 pb-2">Biography</h3>
-                                  <p className="text-gray-400 text-xs leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto custom-scrollbar pr-1">{details.biography || "No biography available."}</p>
-                              </div>
-                          </div>
+                 {/* Content Section - Clean Full Width Layout */}
+                 <div className="w-full px-5 md:px-12 py-8">
+                     {/* Clean Unboxed Biography - Collapsible */}
+                     {details.biography && (
+                         <div className="text-left space-y-2 mb-8 w-full">
+                             <div className="flex items-center gap-2 mb-2">
+                                 <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
+                                 <h3 className="text-sm md:text-base font-semibold text-white tracking-tight">Biography</h3>
+                             </div>
+                             <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line w-full ${isBioExpanded ? '' : 'line-clamp-3 sm:line-clamp-4'}`}>
+                                 {details.biography}
+                             </p>
+                             {details.biography.length > 200 && (
+                                 <button
+                                     onClick={() => setIsBioExpanded(!isBioExpanded)}
+                                     className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors flex items-center gap-1 cursor-pointer pt-0.5 active:scale-95"
+                                 >
+                                     <span>{isBioExpanded ? 'Read less' : 'Read more'}</span>
+                                     <ChevronDown size={14} className={`transition-transform duration-300 ${isBioExpanded ? 'rotate-180' : ''}`} />
+                                 </button>
+                             )}
+                         </div>
+                     )}
 
-                          {/* Right Column: Bio (on mobile) & Scrollable Lists */}
-                          <div className="flex-1 min-w-0">
-                              {/* Mobile Biography */}
-                              <div className="lg:hidden bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md mb-8 text-left">
-                                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-3 border-b border-white/5 pb-2">Biography</h3>
-                                  <p className="text-gray-400 text-xs leading-relaxed whitespace-pre-line">{details.biography || "No biography available."}</p>
-                              </div>
+                     {/* Horizontal Rows */}
+                     <div className="space-y-4">
+                         {/* Box Office Hits */}
+                         <HorizontalScrollRow 
+                             title="Box Office Hits" 
+                             movies={categories.boxOffice} 
+                             limit={boxOfficeLimit} 
+                             loadingMore={loadingBoxOffice}
+                             onLoadMore={handleLoadMoreBoxOffice} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                              {/* Horizontal Rows */}
-                              <div className="space-y-4">
-                                  {/* Box Office Hits */}
-                                  <HorizontalScrollRow 
-                                      title="Box Office Hits" 
-                                      movies={categories.boxOffice} 
-                                      limit={boxOfficeLimit} 
-                                      loadingMore={loadingBoxOffice}
-                                      onLoadMore={handleLoadMoreBoxOffice} 
-                                      onMovieClick={onMovieClick} 
-                                  />
+                         {/* Career Timeline */}
+                         <TimelineScrollRow 
+                             title="Career Timeline" 
+                             movies={categories.timeline} 
+                             limit={timelineLimit} 
+                             loadingMore={loadingTimeline}
+                             isDescending={isTimelineDescending}
+                             onToggle={() => setIsTimelineDescending(prev => !prev)}
+                             onLoadMore={handleLoadMoreTimeline} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                                  {/* Career Timeline */}
-                                  <TimelineScrollRow 
-                                      title="Career Timeline" 
-                                      movies={categories.timeline} 
-                                      limit={timelineLimit} 
-                                      loadingMore={loadingTimeline}
-                                      isDescending={isTimelineDescending}
-                                      onToggle={() => setIsTimelineDescending(prev => !prev)}
-                                      onLoadMore={handleLoadMoreTimeline} 
-                                      onMovieClick={onMovieClick} 
-                                  />
+                         {/* Main Acting Roles */}
+                         <HorizontalScrollRow 
+                             title="Main Acting Roles" 
+                             movies={categories.acting} 
+                             limit={actingLimit} 
+                             loadingMore={loadingActing}
+                             onLoadMore={handleLoadMoreActing} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                                  {/* Main Acting Roles */}
-                                  <HorizontalScrollRow 
-                                      title="Main Acting Roles" 
-                                      movies={categories.acting} 
-                                      limit={actingLimit} 
-                                      loadingMore={loadingActing}
-                                      onLoadMore={handleLoadMoreActing} 
-                                      onMovieClick={onMovieClick} 
-                                  />
+                         {/* Directing & Writing */}
+                         <HorizontalScrollRow 
+                             title="Directing & Writing" 
+                             movies={categories.directingWriting} 
+                             limit={directingWritingLimit} 
+                             loadingMore={loadingDirectingWriting}
+                             onLoadMore={handleLoadMoreDirectingWriting} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                                  {/* Directing & Writing */}
-                                  <HorizontalScrollRow 
-                                      title="Directing & Writing" 
-                                      movies={categories.directingWriting} 
-                                      limit={directingWritingLimit} 
-                                      loadingMore={loadingDirectingWriting}
-                                      onLoadMore={handleLoadMoreDirectingWriting} 
-                                      onMovieClick={onMovieClick} 
-                                  />
+                         {/* Producer Roles */}
+                         <HorizontalScrollRow 
+                             title="Production Credits" 
+                             movies={categories.producing} 
+                             limit={producingLimit} 
+                             loadingMore={loadingProducing}
+                             onLoadMore={handleLoadMoreProducing} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                                  {/* Producer Roles */}
-                                  <HorizontalScrollRow 
-                                      title="Production Credits" 
-                                      movies={categories.producing} 
-                                      limit={producingLimit} 
-                                      loadingMore={loadingProducing}
-                                      onLoadMore={handleLoadMoreProducing} 
-                                      onMovieClick={onMovieClick} 
-                                  />
+                         {/* Cameos & Self Appearances */}
+                         <HorizontalScrollRow 
+                             title="Cameos & Self Appearances" 
+                             movies={categories.cameos} 
+                             limit={cameosLimit} 
+                             loadingMore={loadingCameos}
+                             onLoadMore={handleLoadMoreCameos} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                                  {/* Cameos & Self Appearances */}
-                                  <HorizontalScrollRow 
-                                      title="Cameos & Self Appearances" 
-                                      movies={categories.cameos} 
-                                      limit={cameosLimit} 
-                                      loadingMore={loadingCameos}
-                                      onLoadMore={handleLoadMoreCameos} 
-                                      onMovieClick={onMovieClick} 
-                                  />
+                         {/* Voice Acting Portfolio (Characters) */}
+                         {!vaLoading && voicedCharacters.length > 0 && (
+                             <CharacterScrollRow 
+                                 title="Anime Characters Voiced" 
+                                 characters={voicedCharacters} 
+                                 onCharacterClick={(charId) => {
+                                     onCharacterClick?.(charId);
+                                 }} 
+                             />
+                         )}
 
-                                  {/* Voice Acting Portfolio (Characters) */}
-                                   {!vaLoading && voicedCharacters.length > 0 && (
-                                       <CharacterScrollRow 
-                                           title="Anime Characters Voiced" 
-                                           characters={voicedCharacters} 
-                                           onCharacterClick={(charId) => {
-                                               onCharacterClick?.(charId);
-                                           }} 
-                                       />
-                                   )}
+                         {/* Voice Roles */}
+                         <HorizontalScrollRow 
+                             title="Voice Roles" 
+                             movies={categories.voice} 
+                             limit={voiceLimit} 
+                             loadingMore={loadingVoice}
+                             onLoadMore={handleLoadMoreVoice} 
+                             onMovieClick={onMovieClick} 
+                         />
 
-                                  {/* Voice Roles */}
-                                  <HorizontalScrollRow 
-                                      title="Voice Roles" 
-                                      movies={categories.voice} 
-                                      limit={voiceLimit} 
-                                      loadingMore={loadingVoice}
-                                      onLoadMore={handleLoadMoreVoice} 
-                                      onMovieClick={onMovieClick} 
-                                  />
-
-                                  {/* Upcoming Projects */}
-                                  <HorizontalScrollRow 
-                                      title="Upcoming Projects" 
-                                      movies={categories.upcoming} 
-                                      limit={upcomingLimit} 
-                                      loadingMore={loadingUpcoming}
-                                      onLoadMore={handleLoadMoreUpcoming} 
-                                      onMovieClick={onMovieClick} 
-                                  />
-                              </div>
-                          </div>
+                         {/* Upcoming Projects */}
+                         <HorizontalScrollRow 
+                             title="Upcoming Projects" 
+                             movies={categories.upcoming} 
+                             limit={upcomingLimit} 
+                             loadingMore={loadingUpcoming}
+                             onLoadMore={handleLoadMoreUpcoming} 
+                             onMovieClick={onMovieClick} 
+                         />
                      </div>
                  </div>
              </div>
@@ -1581,6 +1598,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
     const [isClosing, setIsClosing] = useState(false);
     const [voiceActors, setVoiceActors] = useState<any[]>([]);
     const [matchingAnimeId, setMatchingAnimeId] = useState<number | null>(null);
+    const [isBioExpanded, setIsBioExpanded] = useState(false);
 
     const handleClose = () => {
         setIsClosing(true);
@@ -1599,6 +1617,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
         setError(null);
         setVoiceActors([]);
         setIsClosing(false);
+        setIsBioExpanded(false);
 
         const query = `
             query ($id: Int) {
@@ -1891,134 +1910,129 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
             ) : details ? (
                 <div className="w-full flex flex-col pb-20">
                     {/* Top Header */}
-                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-6 border-b border-white/5 flex items-center justify-between w-full">
-                        <button onClick={handleClose} className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"><ArrowLeft size={14}/> Back</button>
-                        <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Character Profile</span>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-5 flex items-center justify-between w-full">
+                        <button onClick={handleClose} className="flex items-center gap-2 text-zinc-300 hover:text-white transition-all text-xs font-medium active:scale-95 bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-full border border-white/10 shadow-sm"><ArrowLeft size={15}/> Back</button>
+                        <span className="text-zinc-500 text-xs font-medium">Character Profile</span>
                     </div>
 
-                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 flex flex-col md:flex-row gap-10 w-full text-left">
-                        {/* Left column: Image & Stats */}
-                        <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start font-sans">
-                            <div className="w-[200px] md:w-full aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-white/5 group hover:scale-[1.01] transition-transform duration-500">
-                                <img src={details.image?.large} alt={details.name?.full} className="w-full h-full object-cover" />
+                    {/* Header Area */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 py-4 flex flex-col sm:flex-row items-center sm:items-end gap-6 w-full text-left">
+                        <div className="w-28 h-36 sm:w-32 sm:h-44 md:w-36 md:h-48 aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-white/10 shrink-0">
+                            <img src={details.image?.large} alt={details.name?.full} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0 text-center sm:text-left">
+                            <div className="flex flex-wrap items-baseline gap-2 mb-1 justify-center sm:justify-start">
+                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight">{details.name?.full}</h1>
+                                {details.name?.native && <span className="text-sm font-normal text-red-500">{details.name.native}</span>}
                             </div>
+                            {(details.name?.alternative?.length > 0 || details.name?.alternativeSpoiler?.length > 0) && (
+                                <p className="text-xs text-zinc-400 font-normal mb-2">
+                                    <span className="text-zinc-500">Also known as:</span> {[...(details.name.alternative || []), ...(details.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
+                                </p>
+                            )}
 
-                            {/* Profile Dossier Stats */}
-                            <div className="w-full mt-8 bg-[#121214]/60 border border-white/5 rounded-2xl p-6 space-y-4 text-xs shadow-lg">
-                                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2">Profile Dossier</h4>
-                                {details.gender && (
-                                    <div>
-                                        <span className="text-zinc-500 font-normal block mb-0.5">Gender</span>
-                                        <span className="text-zinc-300 text-sm font-medium">{details.gender}</span>
-                                    </div>
-                                )}
-                                {details.age && (
-                                    <div>
-                                        <span className="text-zinc-500 font-normal block mb-0.5">Age</span>
-                                        <span className="text-zinc-300 text-sm font-medium">{details.age}</span>
-                                    </div>
-                                )}
+                            {/* Clean Info in Header */}
+                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 text-xs text-zinc-400 font-normal mt-2">
+                                {details.gender && <span>Gender: <span className="text-zinc-200">{details.gender}</span></span>}
+                                {details.age && (<><span className="text-zinc-600">•</span><span>Age: <span className="text-zinc-200">{details.age}</span></span></>)}
                                 {(details.dateOfBirth?.day || details.dateOfBirth?.month) && (
-                                    <div>
-                                        <span className="text-zinc-500 font-normal block mb-0.5">Birthday</span>
-                                        <span className="text-zinc-300 text-sm font-medium font-sans">
-                                            {details.dateOfBirth.month ? new Date(2000, details.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {details.dateOfBirth.day || ''}
-                                            {details.dateOfBirth.year ? `, ${details.dateOfBirth.year}` : ''}
-                                        </span>
-                                    </div>
+                                    <>
+                                        <span className="text-zinc-600">•</span>
+                                        <span>Birthday: <span className="text-zinc-200">
+                                            {details.dateOfBirth.month ? new Date(2000, details.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {details.dateOfBirth.day || ''}{details.dateOfBirth.year ? `, ${details.dateOfBirth.year}` : ''}
+                                        </span></span>
+                                    </>
                                 )}
-                                {details.bloodType && (
-                                    <div>
-                                        <span className="text-zinc-500 font-normal block mb-0.5">Blood Type</span>
-                                        <span className="text-zinc-300 text-sm font-medium">{details.bloodType}</span>
-                                    </div>
-                                )}
+                                {details.bloodType && (<><span className="text-zinc-600">•</span><span>Blood: <span className="text-zinc-200">{details.bloodType}</span></span></>)}
                             </div>
                         </div>
+                    </div>
 
-                        {/* Right column: Bio & Media / VAs */}
-                        <div className="flex-1 min-w-0 flex flex-col font-sans space-y-10">
-                            <div className="space-y-6">
-                                <div>
-                                    <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-none mb-2">{details.name?.full}</h1>
-                                    {details.name?.native && <h3 className="text-xl font-bold text-red-500 mt-1">{details.name.native}</h3>}
-                                    {(details.name?.alternative?.length > 0 || details.name?.alternativeSpoiler?.length > 0) && (
-                                        <p className="text-xs text-zinc-500 mt-2">
-                                            <span className="font-semibold text-zinc-400">Alternative Names:</span> {[...(details.name.alternative || []), ...(details.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
-                                        </p>
-                                    )}
+                    {/* Content Section - Full Width, No Split UI */}
+                    <div className="w-full px-5 md:px-12 py-8 space-y-8 text-left">
+                        {/* Biography Clean Unboxed - Collapsible */}
+                        {details.description && (
+                            <div className="space-y-2 w-full">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
+                                    <h3 className="text-sm md:text-base font-semibold text-white tracking-tight">Biography</h3>
                                 </div>
-
-                                <div className="space-y-3.5">
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Biography</h3>
-                                    <div className="text-gray-300 leading-relaxed text-sm sm:text-base font-light whitespace-pre-line bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03] shadow-inner max-h-[300px] overflow-y-auto custom-scrollbar">
-                                        {details.description || 'No biography available for this character.'}
-                                    </div>
-                                </div>
+                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line w-full ${isBioExpanded ? '' : 'line-clamp-3 sm:line-clamp-4'}`}>
+                                    {details.description}
+                                </p>
+                                {details.description.length > 200 && (
+                                    <button
+                                        onClick={() => setIsBioExpanded(!isBioExpanded)}
+                                        className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors flex items-center gap-1 cursor-pointer pt-0.5 active:scale-95"
+                                    >
+                                        <span>{isBioExpanded ? 'Read less' : 'Read more'}</span>
+                                        <ChevronDown size={14} className={`transition-transform duration-300 ${isBioExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                )}
                             </div>
+                        )}
 
-                            {/* Voice Actors Section */}
-                            {voiceActors.length > 0 && (
-                                <div className="space-y-5">
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
-                                        <User size={16} className="text-red-500" />
-                                        <span>Voice Actors ({voiceActors.length})</span>
-                                    </h3>
-                                    <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar">
-                                        {voiceActors.map((va: any) => (
-                                            <div 
-                                                key={va.id} 
-                                                onClick={() => handleVoiceActorClick(va.name.full)}
-                                                className="shrink-0 w-24 sm:w-28 md:w-32 flex flex-col items-center text-center group cursor-pointer"
-                                            >
-                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg bg-zinc-900">
-                                                    <img src={va.image?.large} alt={va.name.full} className="w-full h-full object-cover" />
-                                                </div>
-                                                <h4 className="text-[11px] sm:text-xs font-bold text-white leading-tight mb-1 line-clamp-2 group-hover:text-red-500 transition-colors">{va.name.full}</h4>
-                                                <p className="text-[9px] text-gray-500">Japanese</p>
+                        {/* Voice Actors Section */}
+                        {voiceActors.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-sm md:text-base font-semibold text-white flex items-center gap-2">
+                                    <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
+                                    <span>Voice Actors ({voiceActors.length})</span>
+                                </h3>
+                                <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar">
+                                    {voiceActors.map((va: any) => (
+                                        <div 
+                                            key={va.id} 
+                                            onClick={() => handleVoiceActorClick(va.name.full)}
+                                            className="shrink-0 w-24 sm:w-28 md:w-32 flex flex-col items-center text-center group cursor-pointer"
+                                        >
+                                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-2.5 border border-white/10 group-hover:border-red-500/50 transition-all shadow-md bg-zinc-900">
+                                                <img src={va.image?.large} alt={va.name.full} className="w-full h-full object-cover" />
                                             </div>
-                                        ))}
-                                    </div>
+                                            <h4 className="text-xs font-medium text-zinc-200 leading-tight mb-1 line-clamp-2 group-hover:text-red-500 transition-colors">{va.name.full}</h4>
+                                            <p className="text-[10px] text-zinc-500 font-normal">Japanese</p>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {/* Appears In Section */}
-                            {details.media?.edges?.length > 0 && (
-                                <div className="space-y-5">
-                                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
-                                        <Film size={16} className="text-red-500" />
-                                        <span>Appears In ({details.media.edges.length})</span>
-                                    </h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
-                                        {details.media.edges.map((edge: any) => {
-                                            const mediaNode = edge.node;
-                                            const mediaTitle = mediaNode.title?.userPreferred || mediaNode.title?.english || mediaNode.title?.romaji;
-                                            const isMatching = matchingAnimeId === mediaNode.id;
-                                            return (
-                                                <div 
-                                                    key={mediaNode.id} 
-                                                    onClick={() => {
-                                                        if (!isMatching) handleAnimeClick(mediaNode);
-                                                    }}
-                                                    className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
-                                                >
-                                                    <img src={mediaNode.coverImage?.large} alt={mediaTitle} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-                                                    {isMatching && (
-                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
-                                                            <Loader2 className="animate-spin text-red-600" size={20} />
-                                                        </div>
-                                                    )}
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-                                                    <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
-                                                        <h5 className="text-[10px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{mediaTitle}</h5>
+                        {/* Appears In Section */}
+                        {details.media?.edges?.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-sm md:text-base font-semibold text-white flex items-center gap-2">
+                                    <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
+                                    <span>Appears In ({details.media.edges.length})</span>
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    {details.media.edges.map((edge: any) => {
+                                        const mediaNode = edge.node;
+                                        const mediaTitle = mediaNode.title?.userPreferred || mediaNode.title?.english || mediaNode.title?.romaji;
+                                        const isMatching = matchingAnimeId === mediaNode.id;
+                                        return (
+                                            <div 
+                                                key={mediaNode.id} 
+                                                onClick={() => {
+                                                    if (!isMatching) handleAnimeClick(mediaNode);
+                                                }}
+                                                className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-md"
+                                            >
+                                                <img src={mediaNode.coverImage?.large} alt={mediaTitle} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                {isMatching && (
+                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                        <Loader2 className="animate-spin text-red-600" size={20} />
                                                     </div>
+                                                )}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
+                                                    <h5 className="text-[11px] font-medium text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{mediaTitle}</h5>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : null}
