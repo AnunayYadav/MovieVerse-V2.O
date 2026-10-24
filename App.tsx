@@ -1139,7 +1139,6 @@ export default function App() {
     const [featuredLogo, setFeaturedLogo] = useState<string | null>(null);
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: Movie[]; endpoint?: string; mediaType?: 'movie' | 'tv' } | null>(null);
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
@@ -1279,7 +1278,7 @@ export default function App() {
 
     // Scroll Lock Controller
     useEffect(() => {
-        const isAnyModalOpen = Boolean(selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen || isSidebarOpen);
+        const isAnyModalOpen = Boolean(selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen);
         if (isAnyModalOpen) {
             document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
@@ -1291,7 +1290,7 @@ export default function App() {
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
         };
-    }, [selectedMovie, isSettingsOpen, selectedPersonId, selectedCharacterId, isNotificationOpen, isComparisonOpen, isSidebarOpen]);
+    }, [selectedMovie, isSettingsOpen, selectedPersonId, selectedCharacterId, isNotificationOpen, isComparisonOpen]);
 
     const [isScrolled, setIsScrolled] = useState(false);
 
@@ -1389,7 +1388,6 @@ export default function App() {
             setTmdbCollectionId(null);
             setActiveKeyword(null);
             setActiveCountry(null);
-            setIsSidebarOpen(false);
             setSelectedMangaId(null);
             setActiveMangaChapterId(null);
             setSelectedDramaSlug(null);
@@ -2115,7 +2113,6 @@ export default function App() {
                 if (selectedPersonId) return setSelectedPersonId(null);
                 if (isSettingsOpen) return setIsSettingsOpen(false);
                 if (isNotificationOpen) return setIsNotificationOpen(false);
-                if (isSidebarOpen) return setIsSidebarOpen(false);
                 if (selectedMovie) return setSelectedMovie(null);
             }
 
@@ -2139,7 +2136,7 @@ export default function App() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isComparisonOpen, selectedPersonId, selectedCharacterId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie, isWatching, isTV]);
+    }, [isComparisonOpen, selectedPersonId, selectedCharacterId, isSettingsOpen, isNotificationOpen, selectedMovie, isWatching, isTV]);
 
     const resetAuthState = useCallback(() => {
         loadedUserIdRef.current = null;
@@ -2169,7 +2166,6 @@ export default function App() {
         setTmdbCollectionId(null);
         setActiveKeyword(null);
         setActiveCountry(null);
-        setIsSidebarOpen(false);
         setIsNavigatingBack(false);
         setSelectedMovie(null);
         setIsWatching(false);
@@ -2207,8 +2203,7 @@ export default function App() {
     const handleBrowseAction = (action: () => void) => {
         action();
         setIsBrowseOpen(false);
-        setIsSidebarOpen(false);
-    };
+        };
 
     useEffect(() => {
         let authListener: any = null;
@@ -3229,8 +3224,8 @@ export default function App() {
     }, [fetchMovies, franchiseSearchQuery, selectedCategory]);
 
     const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
-    const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); setIsSidebarOpen(false); };
-    const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); setIsSidebarOpen(false); };
+    const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); };
+    const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); };
     const handleKeywordClick = (keyword: Keyword) => {
         setSelectedMovie(null);
         resetFilters();
@@ -3244,9 +3239,8 @@ export default function App() {
             setActiveKeyword(keyword);
             setSelectedCategory("Deep Dive");
         }
-        setIsSidebarOpen(false);
-    };
-    const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); setIsSidebarOpen(false); };
+        };
+    const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); };
     const handleSearchSubmit = (query: string) => {
         resetFilters();
         if (selectedCategory === "Manga") {
@@ -3256,8 +3250,6 @@ export default function App() {
         setSearchQuery(query);
         setSearchInput(query);
         addToSearchHistory(query);
-        setIsSidebarOpen(false);
-
         if (isAiSearchActive) {
             fetchMovies(1, false, query);
         }
@@ -4003,131 +3995,9 @@ export default function App() {
         );
     }
 
-    const getSidebarItemClass = (isActive: boolean) => {
-        return `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-normal tracking-normal transition-all duration-200 relative group/item select-none ${isActive
-                ? "bg-white/10 text-white font-medium shadow-sm"
-                : "text-gray-300 hover:text-white hover:bg-white/[0.04]"
-            }`;
-    };
-
-    const getSidebarLibraryClass = (isActive: boolean) => {
-        return `w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-normal tracking-normal transition-all duration-200 relative group/item select-none ${isActive
-                ? "bg-white/10 text-white font-medium shadow-sm"
-                : "text-gray-300 hover:text-white hover:bg-white/[0.04]"
-            }`;
-    };
-
     return (
         <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
-            {!isTV && (
-              <>
-                {/* Dynamic Sidebar */}
-                <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-[#090a0f]/90 backdrop-blur-3xl border-r border-white/[0.08] shadow-[0_0_50px_rgba(0,0,0,0.8)] transform transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <div className="flex flex-col h-full p-5">
-                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/[0.06]">
-                            <div className="flex items-center gap-2.5 cursor-pointer group select-none" onClick={() => { setIsSidebarOpen(false); resetToHome(); }}>
-                                <BrandLogo size={32} accentColor={accentText} className="relative z-10 transition-transform duration-300 group-hover:scale-105" />
-                                <span className="text-sm font-bold tracking-tight text-white">MovieVerse</span>
-                            </div>
-                            <button
-                                onClick={() => setIsSidebarOpen(false)}
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                                aria-label="Close sidebar"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-5 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
-                            <div className="space-y-1">
-                                <p className="px-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Discover</p>
-                                <button onClick={() => { setIsSidebarOpen(false); resetToHome(); }} className={getSidebarItemClass(selectedCategory === "All" && !searchQuery)}>
-                                    <Home size={17} /> <span>Home</span> <span className="ml-auto text-[9px] font-mono text-zinc-600 hidden lg:inline">Alt+H</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Anime"); }} className={getSidebarItemClass(selectedCategory === "Anime")}>
-                                    <Ghost size={17} /> <span>Anime</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={getSidebarItemClass(selectedCategory === "Manga")}>
-                                    <BookOpen size={17} /> <span>Manga</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={getSidebarItemClass(selectedCategory === "Dramas")}>
-                                    <Drama size={17} /> <span>Dramas</span>
-                                </button>
-                            </div>
-
-                            <div className="space-y-1">
-                                <p className="px-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Entertainment</p>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("TV Shows"); }} className={getSidebarItemClass(selectedCategory === "TV Shows")}>
-                                    <Tv size={17} /> <span>TV Shows</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
-                                    <Radio size={17} /> <span>Live TV</span> <span className="ml-auto text-[9px] font-mono text-zinc-600 hidden lg:inline">Alt+T</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
-                                    <Layers size={17} /> <span>Franchises</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("WatchParty"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-normal tracking-normal transition-all duration-200 select-none ${
-                                    selectedCategory === "WatchParty"
-                                        ? "bg-purple-600/20 text-purple-300 font-medium border border-purple-500/20"
-                                        : "text-gray-300 hover:text-white hover:bg-white/[0.04]"
-                                }`}>
-                                    <div className="flex items-center gap-3">
-                                        <Users size={17} className={selectedCategory === "WatchParty" ? "text-purple-400" : ""} />
-                                        <span>Watch Party</span>
-                                    </div>
-                                    <span className="text-[9px] font-semibold tracking-wider uppercase text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded-md border border-purple-500/20">Live</span>
-                                </button>
-                            </div>
-
-                            <div className="space-y-1">
-                                <p className="px-3 text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5">Library</p>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Watchlist"); }} className={getSidebarLibraryClass(selectedCategory === "Watchlist")}>
-                                    <div className="flex items-center gap-3"><Bookmark size={17} /> <span>Watchlist</span> <span className="text-[9px] font-mono text-zinc-600 hidden lg:inline ml-1">Alt+W</span></div>
-                                    <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.06] px-2 py-0.5 rounded-full">{watchlist.length}</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("Favorites"); }} className={getSidebarLibraryClass(selectedCategory === "Favorites")}>
-                                    <div className="flex items-center gap-3"><Heart size={17} /> <span>Favorites</span></div>
-                                    <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.06] px-2 py-0.5 rounded-full">{favorites.length}</span>
-                                </button>
-                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("History"); }} className={getSidebarLibraryClass(selectedCategory === "History")}>
-                                    <div className="flex items-center gap-3"><History size={17} /> <span>History</span></div>
-                                    <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.06] px-2 py-0.5 rounded-full">{watched.length}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mt-auto pt-4 border-t border-white/[0.06] space-y-1">
-                            <a
-                                href="/movieverse.apk"
-                                download
-                                onClick={() => setIsSidebarOpen(false)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 active:scale-[0.99] transition-all duration-200"
-                            >
-                                <Download size={16} /> <span>Download APK</span>
-                            </a>
-                            <button
-                                onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }}
-                                className={getSidebarItemClass(isSettingsOpen)}
-                            >
-                                <Settings size={16} /> <span>Settings</span> <span className="ml-auto text-[9px] font-mono text-zinc-600 hidden lg:inline">Alt+S</span>
-                            </button>
-                            <button
-                                onClick={() => { setIsSidebarOpen(false); handleLogout(); }}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 active:scale-[0.99] transition-all duration-200"
-                            >
-                                <LogOut size={16} /> <span>Sign Out</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Sidebar Backdrop Overlay */}
-                <div
-                    className={`fixed inset-0 z-[95] transition-all duration-500 ${isSidebarOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-md' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-              </>
-            )}
+            
 
             {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && !showDetailsCast && !showDetailsCrew && !activeMangaChapterId && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
@@ -4137,15 +4007,7 @@ export default function App() {
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl gap-2 md:gap-4">
                         <div className="flex items-center gap-2 md:gap-8 shrink-0">
-                            {!isTV && (
-                                <button
-                                    onClick={() => setIsSidebarOpen(true)}
-                                    className="md:hidden p-2 -ml-1 hover:bg-white/10 active:bg-white/15 rounded-full transition-colors text-white"
-                                    aria-label="Open navigation menu"
-                                >
-                                    <Menu size={22} />
-                                </button>
-                            )}
+                            
 
                             <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                                 <div className="relative group flex items-center justify-center">
