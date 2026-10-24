@@ -489,11 +489,14 @@ interface PersonPageProps {
     apiKey: string;
     onMovieClick: (m: Movie) => void;
     onCharacterClick?: (id: number) => void;
+    onMangaSelect?: (id: string | number, title?: string) => void;
 }
 
-export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, isAniListStaff, onClose, apiKey, onMovieClick, onCharacterClick }) => {
+export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, isAniListStaff, onClose, apiKey, onMovieClick, onCharacterClick, onMangaSelect }) => {
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [fetchAttempts, setFetchAttempts] = useState(0);
     const [isClosing, setIsClosing] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [isTimelineDescending, setIsTimelineDescending] = useState(false);
@@ -634,33 +637,316 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
         setTimeout(onClose, 240);
     };
   
-    useEffect(() => {
-      if (!personId || !apiKey) return;
-      setLoading(true);
+    const handleMediaClick = (m: Movie) => {
+        if ((m as any).isMangaDirect || m.media_type === 'manga') {
+            if (onMangaSelect) {
+                handleClose();
+                onMangaSelect(m.id, m.title || m.name);
+                return;
+            }
+        }
+        onMovieClick(m);
+    };
 
-      const fetchPersonDetails = (targetId: number) => {
-          return fetch(`${TMDB_BASE_URL}/person/${targetId}?api_key=${apiKey}&append_to_response=combined_credits,images,external_ids`)
-              .then(res => { if (!res.ok) throw new Error("Fetch failed"); return res.json(); })
-              .then(data => { setDetails(data); setLoading(false); });
+    useEffect(() => {
+      if ((!personId && !personName) || !apiKey) return;
+      let isMounted = true;
+      setLoading(true);
+      setError(null);
+
+      const fetchAniListStaffDetails = async (staffId?: number, searchName?: string) => {
+          const query = `
+              query ($id: Int, $search: String) {
+                  Staff(id: $id, search: $search) {
+                      id
+                      name {
+                          full
+                          native
+                          alternative
+                      }
+                      image {
+                          large
+                      }
+                      description(asHtml: false)
+                      primaryOccupations
+                      gender
+                      dateOfBirth {
+                          year
+                          month
+                          day
+                      }
+                      dateOfDeath {
+                          year
+                          month
+                          day
+                      }
+                      age
+                      homeTown
+                      language
+                      staffMedia(sort: POPULARITY_DESC, perPage: 40) {
+                          nodes {
+                              id
+                              title {
+                                  english
+                                  romaji
+                                  userPreferred
+                              }
+                              coverImage {
+                                  large
+                                  extraLarge
+                              }
+                              bannerImage
+                              format
+                              type
+                              startDate {
+                                  year
+                                  month
+                                  day
+                              }
+                              popularity
+                              averageScore
+                          }
+                      }
+                      characters(sort: FAVOURITES_DESC, perPage: 25) {
+                          edges {
+                              role
+                              node {
+                                  id
+                                  name {
+                                      full
+                                  }
+                                  image {
+                                      large
+                                  }
+                                  media(perPage: 1) {
+                                      nodes {
+                                          title {
+                                              userPreferred
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          `;
+
+          const vars: any = {};
+          if (staffId && staffId > 0) vars.id = staffId;
+          if (searchName) vars.search = searchName;
+
+          const res = await fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query, variables: vars })
+          });
+          if (!res.ok) throw new Error("Failed to load AniList staff profile");
+          const json = await res.json();
+          const staff = json?.data?.Staff;
+          if (!staff) throw new Error("Staff member not found on AniList");
+          return staff;
       };
 
-      if (isAniListStaff && personName) {
-          fetch(`${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(personName)}`)
-              .then(res => res.json())
-              .then(searchData => {
-                  const tmdbPerson = searchData.results?.[0];
-                  if (tmdbPerson?.id) {
-                      return fetchPersonDetails(tmdbPerson.id);
-                  } else {
-                      throw new Error("No TMDB person found for name: " + personName);
+      const fetchPersonDetails = async (targetId: number) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+          try {
+              let res = await fetch(`${TMDB_BASE_URL}/person/${targetId}?api_key=${apiKey}&append_to_response=combined_credits,images,external_ids`, {
+                  signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+
+              // If proxy chokes on images payload or 500 error, fall back to fetching without images
+              if (!res.ok) {
+                  console.warn(`Initial person fetch returned status ${res.status}, retrying without images payload...`);
+                  res = await fetch(`${TMDB_BASE_URL}/person/${targetId}?api_key=${apiKey}&append_to_response=combined_credits,external_ids`);
+              }
+
+              if (!res.ok) {
+                  throw new Error(`Failed to load profile (status ${res.status})`);
+              }
+
+              const data = await res.json();
+              if (isMounted) {
+                  setDetails(data);
+                  setLoading(false);
+                  setError(null);
+              }
+          } catch (err: any) {
+              clearTimeout(timeoutId);
+              console.error("Person fetch error:", err);
+              if (isMounted) {
+                  // If TMDB failed but we have personName, try AniList staff before erroring out
+                  if (personName) {
+                      try {
+                          const staff = await fetchAniListStaffDetails(undefined, personName);
+                          if (isMounted && staff) {
+                              const bDay = staff.dateOfBirth?.year 
+                                  ? `${staff.dateOfBirth.year}-${String(staff.dateOfBirth.month || 1).padStart(2, '0')}-${String(staff.dateOfBirth.day || 1).padStart(2, '0')}`
+                                  : (staff.dateOfBirth?.month 
+                                      ? `${new Date(2000, staff.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' })} ${staff.dateOfBirth.day || ''}` 
+                                      : '');
+                              const dDay = staff.dateOfDeath?.year
+                                  ? `${staff.dateOfDeath.year}-${String(staff.dateOfDeath.month || 1).padStart(2, '0')}-${String(staff.dateOfDeath.day || 1).padStart(2, '0')}`
+                                  : '';
+                              const mediaList: Movie[] = (staff.staffMedia?.nodes || []).map((m: any) => ({
+                                  id: m.id,
+                                  title: m.title?.english || m.title?.userPreferred || m.title?.romaji,
+                                  name: m.title?.english || m.title?.userPreferred || m.title?.romaji,
+                                  poster_path: m.coverImage?.large || m.coverImage?.extraLarge,
+                                  backdrop_path: m.bannerImage || m.coverImage?.extraLarge,
+                                  release_date: m.startDate?.year ? `${m.startDate.year}-${String(m.startDate.month || 1).padStart(2, '0')}-${String(m.startDate.day || 1).padStart(2, '0')}` : '',
+                                  first_air_date: m.startDate?.year ? `${m.startDate.year}-${String(m.startDate.month || 1).padStart(2, '0')}-${String(m.startDate.day || 1).padStart(2, '0')}` : '',
+                                  vote_average: m.averageScore ? m.averageScore / 10 : 0,
+                                  vote_count: m.popularity || 0,
+                                  popularity: m.popularity || 0,
+                                  media_type: m.type === 'MANGA' ? 'manga' : (m.format === 'MOVIE' ? 'movie' : 'tv'),
+                                  isAnimeDirect: m.type !== 'MANGA',
+                                  isMangaDirect: m.type === 'MANGA'
+                              } as any));
+
+                              if (staff.characters?.edges?.length > 0) {
+                                  setVoicedCharacters(staff.characters.edges);
+                              }
+
+                              setDetails({
+                                  id: staff.id,
+                                  name: staff.name?.full || personName || '',
+                                  native_name: staff.name?.native || undefined,
+                                  alternative_names: staff.name?.alternative?.filter(Boolean) || undefined,
+                                  biography: staff.description || '',
+                                  birthday: bDay,
+                                  deathday: dDay || undefined,
+                                  place_of_birth: staff.homeTown || '',
+                                  language: staff.language || undefined,
+                                  gender: staff.gender || undefined,
+                                  profile_path: staff.image?.large || null,
+                                  known_for_department: staff.primaryOccupations?.join(', ') || 'Creator / Staff',
+                                  combined_credits: {
+                                      cast: [],
+                                      crew: mediaList
+                                  }
+                              });
+                              setLoading(false);
+                              setError(null);
+                              return;
+                          }
+                      } catch (_) {}
                   }
+                  setDetails(null);
+                  setLoading(false);
+                  const isAbort = err.name === 'AbortError';
+                  setError(isAbort ? "Connection timed out due to slow network." : (err.message || "Unable to connect to the server."));
+              }
+          }
+      };
+
+      if (isAniListStaff) {
+          fetchAniListStaffDetails(personId > 0 ? personId : undefined, personName || undefined)
+              .then(staff => {
+                  if (!isMounted) return;
+                  const bDay = staff.dateOfBirth?.year 
+                      ? `${staff.dateOfBirth.year}-${String(staff.dateOfBirth.month || 1).padStart(2, '0')}-${String(staff.dateOfBirth.day || 1).padStart(2, '0')}`
+                      : (staff.dateOfBirth?.month 
+                          ? `${new Date(2000, staff.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' })} ${staff.dateOfBirth.day || ''}` 
+                          : '');
+                  const dDay = staff.dateOfDeath?.year
+                      ? `${staff.dateOfDeath.year}-${String(staff.dateOfDeath.month || 1).padStart(2, '0')}-${String(staff.dateOfDeath.day || 1).padStart(2, '0')}`
+                      : '';
+
+                  const mediaList: Movie[] = (staff.staffMedia?.nodes || []).map((m: any) => ({
+                      id: m.id,
+                      title: m.title?.english || m.title?.userPreferred || m.title?.romaji,
+                      name: m.title?.english || m.title?.userPreferred || m.title?.romaji,
+                      poster_path: m.coverImage?.large || m.coverImage?.extraLarge,
+                      backdrop_path: m.bannerImage || m.coverImage?.extraLarge,
+                      release_date: m.startDate?.year ? `${m.startDate.year}-${String(m.startDate.month || 1).padStart(2, '0')}-${String(m.startDate.day || 1).padStart(2, '0')}` : '',
+                      first_air_date: m.startDate?.year ? `${m.startDate.year}-${String(m.startDate.month || 1).padStart(2, '0')}-${String(m.startDate.day || 1).padStart(2, '0')}` : '',
+                      vote_average: m.averageScore ? m.averageScore / 10 : 0,
+                      vote_count: m.popularity || 0,
+                      popularity: m.popularity || 0,
+                      media_type: m.type === 'MANGA' ? 'manga' : (m.format === 'MOVIE' ? 'movie' : 'tv'),
+                      isAnimeDirect: m.type !== 'MANGA',
+                      isMangaDirect: m.type === 'MANGA'
+                  } as any));
+
+                  if (staff.characters?.edges?.length > 0) {
+                      setVoicedCharacters(staff.characters.edges);
+                  }
+
+                  setDetails({
+                      id: staff.id,
+                      name: staff.name?.full || personName || '',
+                      native_name: staff.name?.native || undefined,
+                      alternative_names: staff.name?.alternative?.filter(Boolean) || undefined,
+                      biography: staff.description || '',
+                      birthday: bDay,
+                      deathday: dDay || undefined,
+                      place_of_birth: staff.homeTown || '',
+                      language: staff.language || undefined,
+                      gender: staff.gender || undefined,
+                      profile_path: staff.image?.large || null,
+                      known_for_department: staff.primaryOccupations?.join(', ') || 'Creator / Staff',
+                      combined_credits: {
+                          cast: [],
+                          crew: mediaList
+                      }
+                  });
+                  setLoading(false);
+                  setError(null);
               })
-              .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
+              .catch(err => {
+                  if (!isMounted) return;
+                  console.warn("AniList staff fetch failed, checking fallback:", err);
+                  if (personName) {
+                      fetch(`${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(personName)}`)
+                          .then(r => r.ok ? r.json() : { results: [] })
+                          .then(data => {
+                              const tmdbPerson = data.results?.[0];
+                              if (tmdbPerson?.id) {
+                                  fetchPersonDetails(tmdbPerson.id);
+                              } else {
+                                  setDetails({
+                                      id: 0,
+                                      name: personName,
+                                      biography: `Creator dossier for "${personName}".`,
+                                      birthday: '',
+                                      place_of_birth: '',
+                                      profile_path: null,
+                                      known_for_department: 'Creator',
+                                      combined_credits: { cast: [], crew: [] }
+                                  });
+                                  setLoading(false);
+                              }
+                          })
+                          .catch(() => {
+                              setDetails({
+                                  id: 0,
+                                  name: personName,
+                                  biography: `Creator dossier for "${personName}".`,
+                                  birthday: '',
+                                  place_of_birth: '',
+                                  profile_path: null,
+                                  known_for_department: 'Creator',
+                                  combined_credits: { cast: [], crew: [] }
+                              });
+                              setLoading(false);
+                          });
+                  } else {
+                      setError("Creator details could not be found.");
+                      setLoading(false);
+                  }
+              });
       } else {
-          fetchPersonDetails(personId)
-              .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
+          fetchPersonDetails(personId);
       }
-    }, [personId, personName, isAniListStaff, apiKey]);
+
+      return () => {
+          isMounted = false;
+      };
+    }, [personId, personName, isAniListStaff, apiKey, fetchAttempts]);
 
     useEffect(() => {
         if (details?.name) {
@@ -810,10 +1096,10 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
             return char.includes("voice");
         });
 
-        // 7. Directing / Writing
+        // 7. Directing / Writing / Author / Artist
         const directingWriting = sortedByPop.filter(m => {
-            const job = ((m as any).job || "").toLowerCase();
-            return job.includes("director") || job.includes("writer") || job.includes("screenplay");
+            const job = (((m as any).job || "") + " " + ((m as any).media_type || "")).toLowerCase();
+            return job.includes("director") || job.includes("writer") || job.includes("screenplay") || job.includes("author") || job.includes("artist") || job.includes("story") || job.includes("art") || job.includes("manga") || job.includes("illustrator") || (m as any).isMangaDirect;
         });
 
         // 8. Producer Roles
@@ -842,7 +1128,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
         return withBackdrop[0]?.backdrop_path || null;
     }, [mergedCredits]);
   
-    if (!personId) return null;
+    if (!personId && !personName) return null;
 
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
@@ -856,7 +1142,13 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
     return (
       <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
           {loading ? (
-             <div className="h-screen flex items-center justify-center flex-col gap-4">
+             <div className="h-screen flex items-center justify-center flex-col gap-4 relative">
+                 <button 
+                     onClick={handleClose} 
+                     className="absolute top-5 left-5 md:top-6 md:left-8 z-[120] bg-black/60 hover:bg-black/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-zinc-300 hover:text-white flex items-center gap-2 border border-white/10 text-xs font-medium active:scale-95 transition-all shadow-md cursor-pointer"
+                 >
+                     <ArrowLeft size={16}/> Back
+                 </button>
                  <div className="w-16 h-16 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
                  <p className="text-zinc-500 text-xs animate-pulse uppercase tracking-wider font-medium">Loading Details...</p>
              </div>
@@ -898,16 +1190,39 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                              {details.known_for_department && (
                                  <p className="text-red-500 text-xs font-medium tracking-wide uppercase mb-1">{details.known_for_department}</p>
                              )}
-                             <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight mb-2">{details.name}</h2>
+                             <div className="flex flex-wrap items-baseline gap-2 mb-1 justify-center md:justify-start">
+                                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight">{details.name}</h2>
+                                 {details.native_name && (
+                                     <span className="text-base sm:text-lg font-normal text-red-500">{details.native_name}</span>
+                                 )}
+                             </div>
+
+                             {(details.alternative_names && details.alternative_names.length > 0) && (
+                                 <p className="text-xs text-zinc-400 font-normal mb-2">
+                                     <span className="text-zinc-500">Alternative Names:</span> {details.alternative_names.join(', ')}
+                                 </p>
+                             )}
                              
                              {/* Personal Info Clean Metadata in Header */}
-                             {(details.birthday || details.place_of_birth || details.deathday) && (
+                             {(details.birthday || details.place_of_birth || details.deathday || details.language || details.gender) && (
                                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-xs text-zinc-400 font-normal mb-3">
-                                     {details.birthday && <span>Born: <span className="text-zinc-200">{details.birthday}</span></span>}
+                                     {details.gender && <span>Gender: <span className="text-zinc-200">{details.gender}</span></span>}
+                                     {details.birthday && (
+                                         <>
+                                             {details.gender && <span className="text-zinc-600">•</span>}
+                                             <span>Born: <span className="text-zinc-200">{details.birthday}</span></span>
+                                         </>
+                                     )}
                                      {details.place_of_birth && (
                                          <>
                                              <span className="text-zinc-600">•</span>
                                              <span>From: <span className="text-zinc-200">{details.place_of_birth}</span></span>
+                                         </>
+                                     )}
+                                     {details.language && (
+                                         <>
+                                             <span className="text-zinc-600">•</span>
+                                             <span>Language: <span className="text-zinc-200">{details.language}</span></span>
                                          </>
                                      )}
                                      {details.deathday && (
@@ -957,14 +1272,14 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
 
                      {/* Horizontal Rows */}
                      <div className="space-y-4">
-                         {/* Box Office Hits */}
+                         {/* Box Office Hits / Notable Works */}
                          <HorizontalScrollRow 
-                             title="Box Office Hits" 
+                             title={(details.known_for_department?.toLowerCase().includes('manga') || details.known_for_department?.toLowerCase().includes('art') || details.known_for_department?.toLowerCase().includes('writ') || details.known_for_department?.toLowerCase().includes('creator')) ? "Notable Works" : "Box Office Hits"} 
                              movies={categories.boxOffice} 
                              limit={boxOfficeLimit} 
                              loadingMore={loadingBoxOffice}
                              onLoadMore={handleLoadMoreBoxOffice} 
-                             onMovieClick={onMovieClick} 
+                             onMovieClick={handleMediaClick} 
                          />
 
                          {/* Career Timeline */}
@@ -976,7 +1291,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                              isDescending={isTimelineDescending}
                              onToggle={() => setIsTimelineDescending(prev => !prev)}
                              onLoadMore={handleLoadMoreTimeline} 
-                             onMovieClick={onMovieClick} 
+                             onMovieClick={handleMediaClick} 
                          />
 
                          {/* Main Acting Roles */}
@@ -986,7 +1301,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                              limit={actingLimit} 
                              loadingMore={loadingActing}
                              onLoadMore={handleLoadMoreActing} 
-                             onMovieClick={onMovieClick} 
+                             onMovieClick={handleMediaClick} 
                          />
 
                          {/* Directing & Writing */}
@@ -996,7 +1311,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                              limit={directingWritingLimit} 
                              loadingMore={loadingDirectingWriting}
                              onLoadMore={handleLoadMoreDirectingWriting} 
-                             onMovieClick={onMovieClick} 
+                             onMovieClick={handleMediaClick} 
                          />
 
                          {/* Producer Roles */}
@@ -1006,7 +1321,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                              limit={producingLimit} 
                              loadingMore={loadingProducing}
                              onLoadMore={handleLoadMoreProducing} 
-                             onMovieClick={onMovieClick} 
+                             onMovieClick={handleMediaClick} 
                          />
 
                          {/* Cameos & Self Appearances */}
@@ -1016,7 +1331,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                              limit={cameosLimit} 
                              loadingMore={loadingCameos}
                              onLoadMore={handleLoadMoreCameos} 
-                             onMovieClick={onMovieClick} 
+                             onMovieClick={handleMediaClick} 
                          />
 
                          {/* Voice Acting Portfolio (Characters) */}
@@ -1052,7 +1367,35 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                      </div>
                  </div>
              </div>
-          ) : null}
+          ) : (
+             <div className="h-screen flex items-center justify-center flex-col gap-4 relative px-6 text-center">
+                 <button 
+                     onClick={handleClose} 
+                     className="absolute top-5 left-5 md:top-6 md:left-8 z-[120] bg-black/60 hover:bg-black/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-zinc-300 hover:text-white flex items-center gap-2 border border-white/10 text-xs font-medium active:scale-95 transition-all shadow-md cursor-pointer"
+                 >
+                     <ArrowLeft size={16}/> Back
+                 </button>
+                 <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-1">
+                     <AlertCircle size={28} />
+                 </div>
+                 <h3 className="text-lg font-semibold text-white">Unable to Load Person</h3>
+                 <p className="text-zinc-400 text-xs max-w-sm">We couldn't load this profile. Please check your network connection and try again.</p>
+                 <div className="flex items-center gap-3 mt-2">
+                     <button 
+                         onClick={() => setFetchAttempts(prev => prev + 1)}
+                         className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs font-medium transition-colors cursor-pointer"
+                     >
+                         Try Again
+                     </button>
+                     <button 
+                         onClick={handleClose}
+                         className="px-4 py-2 bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white rounded-full text-xs font-medium transition-colors cursor-pointer"
+                     >
+                         Return to Previous
+                     </button>
+                 </div>
+             </div>
+          )}
           {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
       </div>
     );
@@ -1582,7 +1925,8 @@ interface CharacterPageProps {
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
-    onPersonClick?: (id: number) => void;
+    onPersonClick?: (id: number, name?: string, isAniList?: boolean) => void;
+    onMangaSelect?: (id: string | number, title?: string) => void;
 }
 
 export const CharacterPage: React.FC<CharacterPageProps> = ({ 
@@ -1590,7 +1934,8 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
     onClose, 
     apiKey, 
     onMovieClick, 
-    onPersonClick 
+    onPersonClick,
+    onMangaSelect 
 }) => {
     const [details, setDetails] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
@@ -1641,7 +1986,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                     }
                     age
                     bloodType
-                    media(type: ANIME, sort: POPULARITY_DESC, perPage: 12) {
+                    media(sort: POPULARITY_DESC, perPage: 25) {
                         edges {
                             voiceActors(language: JAPANESE) {
                                 id
@@ -1874,20 +2219,23 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
         setMatchingAnimeId(null);
     };
 
-    const handleVoiceActorClick = async (name: string) => {
+    const handleVoiceActorClick = async (name: string, vaId?: number) => {
         try {
             const res = await fetch(`${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(name)}`);
-            if (!res.ok) throw new Error("Search failed");
-            const data = await res.json();
-            const person = data.results?.find((item: any) => item.known_for_department === 'Acting');
-            const targetPerson = person || data.results?.[0];
-            if (targetPerson) {
-                onPersonClick?.(targetPerson.id);
-            } else {
-                console.warn("No matching TMDB person found for", name);
+            if (res.ok) {
+                const data = await res.json();
+                const person = data.results?.find((item: any) => item.known_for_department === 'Acting');
+                const targetPerson = person || data.results?.[0];
+                if (targetPerson) {
+                    onPersonClick?.(targetPerson.id, targetPerson.name, false);
+                    return;
+                }
             }
         } catch (err) {
             console.error("Error matching VA to TMDB:", err);
+        }
+        if (vaId || name) {
+            onPersonClick?.(vaId || 0, name, true);
         }
     };
 
@@ -1983,7 +2331,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                                     {voiceActors.map((va: any) => (
                                         <div 
                                             key={va.id} 
-                                            onClick={() => handleVoiceActorClick(va.name.full)}
+                                            onClick={() => handleVoiceActorClick(va.name.full, va.id)}
                                             className="shrink-0 w-24 sm:w-28 md:w-32 flex flex-col items-center text-center group cursor-pointer"
                                         >
                                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-2.5 border border-white/10 group-hover:border-red-500/50 transition-all shadow-md bg-zinc-900">
@@ -2013,6 +2361,13 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                                             <div 
                                                 key={mediaNode.id} 
                                                 onClick={() => {
+                                                    if (mediaNode.type === 'MANGA') {
+                                                        if (onMangaSelect) {
+                                                            handleClose();
+                                                            onMangaSelect(mediaNode.id, mediaTitle);
+                                                            return;
+                                                        }
+                                                    }
                                                     if (!isMatching) handleAnimeClick(mediaNode);
                                                 }}
                                                 className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-md"
@@ -2047,12 +2402,14 @@ interface StudioPageProps {
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
+    onMangaSelect?: (id: string | number, title?: string) => void;
 }
 
-export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, isAnime, onClose, apiKey, onMovieClick }) => {
+export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, isAnime, onClose, apiKey, onMovieClick, onMangaSelect }) => {
     const [details, setDetails] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [fetchAttempts, setFetchAttempts] = useState(0);
     const [isClosing, setIsClosing] = useState(false);
     const [isTimelineDescending, setIsTimelineDescending] = useState(false);
     const [mergedCredits, setMergedCredits] = useState<any[]>([]);
@@ -2073,6 +2430,17 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
     const handleClose = () => {
         setIsClosing(true);
         setTimeout(onClose, 240);
+    };
+
+    const handleStudioMediaClick = (m: Movie) => {
+        if ((m as any).isMangaDirect || m.media_type === 'manga') {
+            if (onMangaSelect) {
+                handleClose();
+                onMangaSelect(m.id, m.title || m.name);
+                return;
+            }
+        }
+        onMovieClick(m);
     };
 
     useEffect(() => {
@@ -2136,7 +2504,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
                 let companyMovies: any[] = [];
 
                 if (isAnime && studioName) {
-                    const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 50) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format startDate { year month day } popularity averageScore } } } }`;
+                    const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 50) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format type startDate { year month day } popularity averageScore } } } }`;
                     try {
                         const aniRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { search: studioName } }) });
                         if (aniRes.ok) {
@@ -2156,8 +2524,9 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
                                         vote_average: node.averageScore ? node.averageScore / 10 : 0,
                                         vote_count: node.popularity || 0,
                                         popularity: node.popularity || 0,
-                                        media_type: node.format === 'MOVIE' ? 'movie' : 'tv',
-                                        isAnimeDirect: true
+                                        media_type: node.type === 'MANGA' ? 'manga' : (node.format === 'MOVIE' ? 'movie' : 'tv'),
+                                        isAnimeDirect: node.type !== 'MANGA',
+                                        isMangaDirect: node.type === 'MANGA'
                                     }));
                                 }
                             }
@@ -2210,7 +2579,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
                 }
 
                 if ((!companyDetails || companyMovies.length === 0) && studioName && !isAnime) {
-                    const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 40) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format startDate { year month day } popularity averageScore } } } }`;
+                    const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 40) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format type startDate { year month day } popularity averageScore } } } }`;
                     try {
                         const aniRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { search: studioName } }) });
                         const aniJson = await aniRes.json();
@@ -2229,8 +2598,9 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
                                     vote_average: node.averageScore ? node.averageScore / 10 : 0,
                                     vote_count: node.popularity || 0,
                                     popularity: node.popularity || 0,
-                                    media_type: node.format === 'MOVIE' ? 'movie' : 'tv',
-                                    isAnimeDirect: true
+                                    media_type: node.type === 'MANGA' ? 'manga' : (node.format === 'MOVIE' ? 'movie' : 'tv'),
+                                    isAnimeDirect: node.type !== 'MANGA',
+                                    isMangaDirect: node.type === 'MANGA'
                                 }));
                             }
                         }
@@ -2248,7 +2618,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
             }
         };
         fetchStudioAndWorks();
-    }, [studioId, studioName, isAnime, apiKey]);
+    }, [studioId, studioName, isAnime, apiKey, fetchAttempts]);
 
     useEffect(() => {
         if (details?.name) document.title = `${details.name} - MovieVerse AI`;
@@ -2285,55 +2655,125 @@ export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, is
     return (
         <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
             {loading ? (
-                <div className="h-screen flex items-center justify-center flex-col gap-4">
-                    <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
-                    <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Studio Details...</p>
+                <div className="h-screen flex items-center justify-center flex-col gap-4 relative">
+                    <button 
+                        onClick={handleClose} 
+                        className="absolute top-5 left-5 md:top-6 md:left-8 z-[120] bg-black/60 hover:bg-black/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-zinc-300 hover:text-white flex items-center gap-2 border border-white/10 text-xs font-medium active:scale-95 transition-all shadow-md cursor-pointer"
+                    >
+                        <ArrowLeft size={16}/> Back
+                    </button>
+                    <div className="w-16 h-16 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
+                    <p className="text-zinc-500 text-xs animate-pulse uppercase tracking-wider font-medium">Loading Studio Details...</p>
                 </div>
             ) : error ? (
-                <div className="h-screen flex flex-col items-center justify-center text-center p-6 text-zinc-400 gap-2">
-                    <AlertCircle size={40} className="text-red-500" />
-                    <h3 className="text-lg font-bold text-white">Failed to load Studio</h3>
-                    <p className="text-xs text-zinc-500 max-w-sm">{error}</p>
-                    <button onClick={handleClose} className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all">Back</button>
+                <div className="h-screen flex items-center justify-center flex-col gap-4 relative px-6 text-center">
+                    <button 
+                        onClick={handleClose} 
+                        className="absolute top-5 left-5 md:top-6 md:left-8 z-[120] bg-black/60 hover:bg-black/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-zinc-300 hover:text-white flex items-center gap-2 border border-white/10 text-xs font-medium active:scale-95 transition-all shadow-md cursor-pointer"
+                    >
+                        <ArrowLeft size={16}/> Back
+                    </button>
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-1">
+                        <AlertCircle size={28} />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">Unable to Load Studio</h3>
+                    <p className="text-zinc-400 text-xs max-w-sm">{error || "We couldn't load this studio. Please check your network connection and try again."}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                        <button 
+                            onClick={() => { setError(null); setLoading(true); setFetchAttempts(prev => prev + 1); }}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs font-medium transition-colors cursor-pointer"
+                        >
+                            Try Again
+                        </button>
+                        <button 
+                            onClick={handleClose} 
+                            className="px-4 py-2 bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white rounded-full text-xs font-medium transition-colors cursor-pointer"
+                        >
+                            Return to Previous
+                        </button>
+                    </div>
                 </div>
             ) : details ? (
                 <div className="w-full flex flex-col pb-20">
-                    <div className="relative w-full h-[35vh] sm:h-[45vh] md:h-[50vh] overflow-hidden bg-[#0c0c0e]">
-                        {heroBackdrop ? <img src={heroBackdrop.startsWith('http') ? heroBackdrop : `${TMDB_BACKDROP_BASE}${heroBackdrop}`} className="w-full h-full object-cover opacity-35 filter blur-[2px]" alt="" /> : <div className="w-full h-full bg-gradient-to-br from-red-950/20 to-zinc-950" />}
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent" />
-                        <button onClick={handleClose} className="absolute top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all shadow-xl"><ArrowLeft size={18}/> Back</button>
-                        <div className="absolute bottom-6 left-6 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-6 z-10 w-[calc(100%-3rem)] md:w-[calc(100%-6rem)]">
-                            <div className="w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white/10 shadow-2xl bg-white p-2.5 shrink-0 flex items-center justify-center">
-                                {details.logo_path ? <img src={`${TMDB_IMAGE_BASE}${details.logo_path}`} alt={details.name} className="max-w-full max-h-full object-contain" /> : <Building2 size={48} className="text-zinc-800" />}
+                    {/* Top Hero Banner with Blurred Backdrop */}
+                    <div className="relative w-full h-[32vh] sm:h-[40vh] md:h-[46vh] overflow-hidden bg-[#0c0c0e]">
+                        {heroBackdrop ? (
+                            <img 
+                                src={heroBackdrop.startsWith('http') ? heroBackdrop : `${TMDB_BACKDROP_BASE}${heroBackdrop}`} 
+                                className="w-full h-full object-cover opacity-25 filter blur-[2px]" 
+                                alt="" 
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-red-950/20 to-zinc-950" />
+                        )}
+                        {/* Gradient Overlays */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent h-24" />
+                        
+                        {/* Back Button */}
+                        <button 
+                            onClick={handleClose} 
+                            className="absolute top-5 left-5 md:top-6 md:left-8 z-[120] bg-black/50 hover:bg-black/80 backdrop-blur-md px-3.5 py-1.5 rounded-full text-zinc-300 hover:text-white flex items-center gap-2 border border-white/10 text-xs font-medium active:scale-95 transition-all shadow-md cursor-pointer"
+                        >
+                            <ArrowLeft size={16}/> Back
+                        </button>
+
+                        {/* Hero Floating Card Content */}
+                        <div className="absolute bottom-5 left-5 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-5 z-10 w-[calc(100%-2.5rem)] md:w-[calc(100%-6rem)]">
+                            <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-white p-2.5 shrink-0 flex items-center justify-center transform hover:scale-[1.02] transition-transform duration-500 shadow-black/80">
+                                {details.logo_path ? (
+                                    <img 
+                                        src={`${TMDB_IMAGE_BASE}${details.logo_path}`} 
+                                        alt={details.name} 
+                                        className="max-w-full max-h-full object-contain" 
+                                    />
+                                ) : (
+                                    <Building2 size={40} className="text-zinc-800" />
+                                )}
                             </div>
                             <div className="text-center md:text-left flex-1 min-w-0">
-                                <p className="text-red-500 text-xs font-black tracking-[0.25em] uppercase mb-1.5">{details.origin_country ? `Studio (${details.origin_country})` : "Production Studio"}</p>
-                                <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md mb-3">{details.name}</h2>
-                                <div className="flex justify-center md:justify-start gap-3">{details.homepage && <SocialLink url={details.homepage} icon={Globe} color="hover:text-emerald-400 hover:border-emerald-400/30"/>}</div>
+                                <p className="text-red-500 text-xs font-medium tracking-wide uppercase mb-1">
+                                    {details.origin_country ? `Studio (${details.origin_country})` : "Production Studio"}
+                                </p>
+                                <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight mb-2">
+                                    {details.name}
+                                </h2>
+
+                                {/* Studio Metadata in Header */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-xs text-zinc-400 font-normal mb-3">
+                                    {details.headquarters && <span>HQ: <span className="text-zinc-200">{details.headquarters}</span></span>}
+                                    {details.origin_country && (
+                                        <>
+                                            <span className="text-zinc-600">•</span>
+                                            <span>Origin: <span className="text-zinc-200">{details.origin_country}</span></span>
+                                        </>
+                                    )}
+                                    {mergedCredits.length > 0 && (
+                                        <>
+                                            <span className="text-zinc-600">•</span>
+                                            <span><span className="text-zinc-200">{mergedCredits.length}</span> Produced Works</span>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Social / Homepage Links */}
+                                {details.homepage && (
+                                    <div className="flex justify-center md:justify-start gap-2.5">
+                                        <SocialLink url={details.homepage} icon={Globe} color="hover:text-emerald-400 hover:border-emerald-400/30"/>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
-                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 w-full">
-                        <div className="flex flex-col lg:flex-row gap-10">
-                            <div className="w-full lg:w-80 shrink-0 space-y-6">
-                                <div className="bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md text-left">
-                                    <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4 border-b border-white/5 pb-2">Studio Info</h3>
-                                    <div className="space-y-4">
-                                        {details.headquarters && <div><span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Headquarters</span><span className="text-zinc-200 font-semibold text-sm leading-relaxed">{details.headquarters}</span></div>}
-                                        {details.origin_country && <div><span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Country of Origin</span><span className="text-zinc-200 font-semibold text-sm">{details.origin_country}</span></div>}
-                                        <div><span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Total Produced Works</span><span className="text-zinc-200 font-semibold text-sm">{mergedCredits.length} Titles</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-4">
-                                <HorizontalScrollRow title="Popular Hits & Blockbusters" movies={categories.popular} limit={popularLimit} loadingMore={loadingPopular} onLoadMore={handleLoadMorePopular} onMovieClick={onMovieClick} />
-                                <TimelineScrollRow title="Production Timeline" movies={categories.timeline} limit={timelineLimit} loadingMore={loadingTimeline} isDescending={isTimelineDescending} onToggle={() => setIsTimelineDescending(prev => !prev)} onLoadMore={handleLoadMoreTimeline} onMovieClick={onMovieClick} />
-                                <HorizontalScrollRow title="Top Rated Productions" movies={categories.topRated} limit={topRatedLimit} loadingMore={loadingTopRated} onLoadMore={handleLoadMoreTopRated} onMovieClick={onMovieClick} />
-                                <HorizontalScrollRow title="Feature Films" movies={categories.featureMovies} limit={moviesLimit} loadingMore={loadingMovies} onLoadMore={handleLoadMoreMovies} onMovieClick={onMovieClick} />
-                                <HorizontalScrollRow title="TV & Web Series" movies={categories.tvShows} limit={tvLimit} loadingMore={loadingTv} onLoadMore={handleLoadMoreTv} onMovieClick={onMovieClick} />
-                                <HorizontalScrollRow title="Upcoming & Recent Releases" movies={categories.upcoming} limit={upcomingLimit} loadingMore={loadingUpcoming} onLoadMore={handleLoadMoreUpcoming} onMovieClick={onMovieClick} />
-                            </div>
-                        </div>
+
+                    {/* Content Section - Clean Full Width Layout */}
+                    <div className="w-full px-5 md:px-12 py-8 space-y-4">
+                        <HorizontalScrollRow title="Popular Hits & Blockbusters" movies={categories.popular} limit={popularLimit} loadingMore={loadingPopular} onLoadMore={handleLoadMorePopular} onMovieClick={handleStudioMediaClick} />
+                        <TimelineScrollRow title="Production Timeline" movies={categories.timeline} limit={timelineLimit} loadingMore={loadingTimeline} isDescending={isTimelineDescending} onToggle={() => setIsTimelineDescending(prev => !prev)} onLoadMore={handleLoadMoreTimeline} onMovieClick={handleStudioMediaClick} />
+                        <HorizontalScrollRow title="Top Rated Productions" movies={categories.topRated} limit={topRatedLimit} loadingMore={loadingTopRated} onLoadMore={handleLoadMoreTopRated} onMovieClick={handleStudioMediaClick} />
+                        <HorizontalScrollRow title="Feature Films" movies={categories.featureMovies} limit={moviesLimit} loadingMore={loadingMovies} onLoadMore={handleLoadMoreMovies} onMovieClick={handleStudioMediaClick} />
+                        <HorizontalScrollRow title="TV & Web Series" movies={categories.tvShows} limit={tvLimit} loadingMore={loadingTv} onLoadMore={handleLoadMoreTv} onMovieClick={handleStudioMediaClick} />
+                        <HorizontalScrollRow title="Upcoming & Recent Releases" movies={categories.upcoming} limit={upcomingLimit} loadingMore={loadingUpcoming} onLoadMore={handleLoadMoreUpcoming} onMovieClick={handleStudioMediaClick} />
                     </div>
                 </div>
             ) : null}

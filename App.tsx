@@ -1306,6 +1306,10 @@ export default function App() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    useEffect(() => {
+        setIsScrolled(window.scrollY > 20);
+    }, [selectedMangaId]);
+
     const [isBrowseOpen, setIsBrowseOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [profileMenuTab, setProfileMenuTab] = useState<'menu' | 'notifications'>('menu');
@@ -2089,7 +2093,7 @@ export default function App() {
     const hasHeroBanner = !!(
         (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Franchise", "LiveTV", "Anime", "Manga"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0) ||
-        (!searchQuery && (selectedCategory === "Anime" || (selectedCategory === "Manga" && !selectedMangaId)))
+        (!searchQuery && (selectedCategory === "Anime" || selectedCategory === "Manga"))
     );
 
     const matchingCollections = searchQuery
@@ -4392,6 +4396,19 @@ export default function App() {
                             activeChapterId={activeMangaChapterId}
                             onChapterSelect={setActiveMangaChapterId}
                             onMovieClick={setSelectedMovie}
+                            onPersonClick={(id, name, isAniList) => {
+                                setSelectedPersonId(id);
+                                setSelectedPersonName(name || null);
+                                setIsPersonAniListStaff(!!isAniList);
+                            }}
+                            onCharacterClick={(id) => {
+                                setSelectedCharacterId(id);
+                            }}
+                            onStudioClick={(id, name, isAnime) => {
+                                setSelectedStudioId(id);
+                                setSelectedStudioName(name);
+                                setIsAnimeStudio(!!isAnime);
+                            }}
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                             isAiSearchActive={isAiSearchActive}
@@ -5016,7 +5033,7 @@ export default function App() {
                 />
             )}
             <PersonPage 
-                key={selectedPersonId || 0} 
+                key={(selectedPersonId || 0) + (selectedPersonName || '')} 
                 personId={selectedPersonId || 0} 
                 personName={selectedPersonName}
                 isAniListStaff={isPersonAniListStaff}
@@ -5028,6 +5045,14 @@ export default function App() {
                 apiKey={apiKey} 
                 onMovieClick={(m) => { setSelectedPersonId(null); setSelectedPersonName(null); setIsPersonAniListStaff(false); setSelectedMovie(m); }} 
                 onCharacterClick={(id) => { setSelectedPersonId(null); setSelectedPersonName(null); setIsPersonAniListStaff(false); setSelectedCharacterId(id); }}
+                onMangaSelect={(id) => {
+                    setSelectedPersonId(null);
+                    setSelectedPersonName(null);
+                    setIsPersonAniListStaff(false);
+                    setSelectedMovie(null);
+                    setSelectedCategory("Manga");
+                    setSelectedMangaId(String(id));
+                }}
             />
             {selectedCharacterId && (
                 <CharacterPage
@@ -5041,9 +5066,17 @@ export default function App() {
                         setSelectedCharacterId(null);
                         setSelectedMovie(m);
                     }}
-                    onPersonClick={(id) => {
+                    onPersonClick={(id, name, isAniList) => {
                         setSelectedCharacterId(null);
                         setSelectedPersonId(id);
+                        setSelectedPersonName(name || null);
+                        setIsPersonAniListStaff(!!isAniList);
+                    }}
+                    onMangaSelect={(id) => {
+                        setSelectedCharacterId(null);
+                        setSelectedMovie(null);
+                        setSelectedCategory("Manga");
+                        setSelectedMangaId(String(id));
                     }}
                 />
             )}
@@ -5063,6 +5096,14 @@ export default function App() {
                         setSelectedStudioName(null);
                         setIsAnimeStudio(false);
                         setSelectedMovie(m);
+                    }}
+                    onMangaSelect={(id) => {
+                        setSelectedStudioId(null);
+                        setSelectedStudioName(null);
+                        setIsAnimeStudio(false);
+                        setSelectedMovie(null);
+                        setSelectedCategory("Manga");
+                        setSelectedMangaId(String(id));
                     }}
                 />
             )}

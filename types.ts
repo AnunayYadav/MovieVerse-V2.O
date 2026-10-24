@@ -15,7 +15,7 @@ export interface Movie {
   popularity: number;
   genre_ids?: number[];
   genres?: Genre[];
-  media_type?: 'movie' | 'tv' | 'person';
+  media_type?: 'movie' | 'tv' | 'person' | 'manga';
   original_language?: string;
   origin_country?: string[];
   runtime?: number;
@@ -368,13 +368,19 @@ export interface AIAnalysisResult {
 export interface PersonDetails {
   id: number;
   name: string;
+  native_name?: string;
+  alternative_names?: string[];
   biography: string;
   birthday: string;
+  deathday?: string;
   place_of_birth: string;
+  language?: string;
+  gender?: string;
   profile_path: string | null;
   known_for_department: string;
   combined_credits: {
     cast: Movie[];
+    crew?: Movie[];
   };
   external_ids?: ExternalIds;
   homepage?: string;

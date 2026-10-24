@@ -57,6 +57,9 @@ interface MangaPageProps {
   activeChapterId: string | null;
   onChapterSelect: (id: string | null) => void;
   onMovieClick: (m: any) => void; // Unused but kept to match props shape of other tabs
+  onPersonClick?: (id: number, name?: string, isAniList?: boolean) => void;
+  onCharacterClick?: (id: number) => void;
+  onStudioClick?: (id: number | null, name: string | null, isAnime?: boolean) => void;
   searchQuery?: string;
   onSearchClear?: () => void;
   isAiSearchActive?: boolean;
@@ -425,6 +428,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   onMangaSelect,
   activeChapterId,
   onChapterSelect,
+  onMovieClick,
+  onPersonClick,
+  onCharacterClick,
+  onStudioClick,
   searchQuery: parentSearchQuery,
   onSearchClear,
   isAiSearchActive,
@@ -1817,6 +1824,49 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   }, [fetchAniList]);
 
   const handleStaffSearchAndSelect = useCallback(async (name: string) => {
+    if (!name) return;
+    const cleanName = name.replace(/\([^)]*\)/g, '').trim();
+    const isStudio = /\b(studio|production|animation|comics|entertainment)\b/i.test(cleanName);
+    if (isStudio && onStudioClick) {
+      onStudioClick(null, cleanName, true);
+      return;
+    }
+
+    if (onPersonClick) {
+      try {
+        const query = `
+          query ($search: String) {
+            Page(perPage: 1) {
+              staff(search: $search) {
+                id
+                name { full }
+              }
+            }
+          }
+        `;
+        const res = await fetchAniList(query, { search: cleanName });
+        const staffList = res?.Page?.staff || [];
+        if (staffList.length > 0) {
+          onPersonClick(staffList[0].id, staffList[0].name?.full || cleanName, true);
+          return;
+        } else {
+          const parts = cleanName.split(/\s+/);
+          if (parts.length > 1) {
+            const res2 = await fetchAniList(query, { search: parts[parts.length - 1] });
+            const staffList2 = res2?.Page?.staff || [];
+            if (staffList2.length > 0) {
+              onPersonClick(staffList2[0].id, staffList2[0].name?.full || cleanName, true);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("AniList staff search error in handleStaffSearchAndSelect:", e);
+      }
+      onPersonClick(0, cleanName, true);
+      return;
+    }
+
     setStaffDetailsLoading(true);
     setStaffDetailsError(null);
     try {
@@ -1829,7 +1879,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           }
         }
       `;
-      const cleanName = name.replace(/\([^)]*\)/g, '').trim();
       const res = await fetchAniList(query, { search: cleanName });
       const staffList = res?.Page?.staff || [];
       if (staffList.length > 0) {
@@ -1852,7 +1901,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } finally {
       setStaffDetailsLoading(false);
     }
-  }, [fetchAniList, showToast]);
+  }, [fetchAniList, showToast, onPersonClick, onStudioClick]);
 
   const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
     if (useNativeGigaViewerRef.current) return;
@@ -3749,436 +3798,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   };
 
-  // Premium Character Details Page layout (Early Return)
-  if (selectedCharacterId) {
-    return (
-      <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-fade-in text-left">
-        {/* Navigation Bar / Header */}
-        <div className="max-w-7xl mx-auto px-4 md:px-12 py-6 border-b border-white/5 flex items-center justify-between">
-          <button
-            onClick={() => setSelectedCharacterId(null)}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Character Profile</span>
-        </div>
-
-        {characterDetailsLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400 min-h-[60vh]">
-            <Loader2 className="animate-spin text-red-600" size={36} />
-            <span className="text-xs font-semibold tracking-wider">Loading character dossiers...</span>
-          </div>
-        ) : characterDetailsError ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2 min-h-[60vh]">
-            <AlertCircle size={40} className="text-red-500" />
-            <h3 className="text-lg font-bold text-white">Failed to load character details</h3>
-            <p className="text-xs text-zinc-500 max-w-sm">{characterDetailsError}</p>
-            <button
-              onClick={() => setSelectedCharacterId(selectedCharacterId)}
-              className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
-            >
-              Retry
-            </button>
-          </div>
-        ) : characterDetails ? (
-          <div className="max-w-7xl mx-auto px-4 md:px-12 py-10 flex flex-col md:flex-row gap-10 text-left">
-            {/* Left column: Image & Stats */}
-            <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start font-sans">
-              <div className="w-[200px] md:w-full aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-white/5 group hover:scale-[1.01] transition-transform duration-500">
-                <img
-                  src={characterDetails.image?.large}
-                  alt={characterDetails.name?.full}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* Stats card */}
-              <div className="w-full mt-8 bg-[#0c0c0e]/80 border border-white/5 rounded-2xl p-6 space-y-4 text-xs shadow-lg">
-                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2">Profile Dossier</h4>
-                {characterDetails.gender && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Gender</span>
-                    <span className="text-zinc-300 text-sm font-medium">{characterDetails.gender}</span>
-                  </div>
-                )}
-                {characterDetails.age && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Age</span>
-                    <span className="text-zinc-300 text-sm font-medium">{characterDetails.age}</span>
-                  </div>
-                )}
-                {(characterDetails.dateOfBirth?.day || characterDetails.dateOfBirth?.month) && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Birthday</span>
-                    <span className="text-zinc-300 text-sm font-medium font-sans">
-                      {characterDetails.dateOfBirth.month ? new Date(2000, characterDetails.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {characterDetails.dateOfBirth.day || ''}
-                      {characterDetails.dateOfBirth.year ? `, ${characterDetails.dateOfBirth.year}` : ''}
-                    </span>
-                  </div>
-                )}
-                {characterDetails.bloodType && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Blood Type</span>
-                    <span className="text-zinc-300 text-sm font-medium">{characterDetails.bloodType}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right column: Bio & Other Works */}
-            <div className="flex-1 min-w-0 flex flex-col font-sans space-y-10">
-              <div className="space-y-6">
-                {/* Character Names */}
-                <div>
-                  <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none mb-2">
-                    {characterDetails.name?.full}
-                  </h1>
-                  {characterDetails.name?.native && (
-                    <h3 className="text-xl font-bold text-red-500 mt-1">
-                      {characterDetails.name.native}
-                    </h3>
-                  )}
-                  {(characterDetails.name?.alternative?.length > 0 || characterDetails.name?.alternativeSpoiler?.length > 0) && (
-                    <p className="text-xs text-zinc-500 mt-2">
-                      <span className="font-semibold text-zinc-400">Alternative Names:</span> {[...(characterDetails.name.alternative || []), ...(characterDetails.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                </div>
-
-                {/* Biography */}
-                <div className="space-y-3.5">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Biography</h3>
-                  <div className="text-gray-300 leading-relaxed text-base font-light whitespace-pre-line bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03] shadow-inner max-h-[400px] overflow-y-auto custom-scrollbar">
-                    {characterDetails.description || 'No biography available for this character.'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Appears In Manga Section */}
-              <div className="space-y-5">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
-                  <BookOpen size={16} className="text-red-500" />
-                  <span>Appears In ({characterModalMediaManga.length})</span>
-                </h3>
-
-                {characterModalMediaLoading ? (
-                  <div className="flex items-center gap-2 py-8">
-                    <Loader2 className="animate-spin text-red-500" size={20} />
-                    <span className="text-xs text-zinc-500 font-medium">Mapping appearances to catalog...</span>
-                  </div>
-                ) : characterModalMediaManga.length === 0 ? (
-                  <p className="text-zinc-500 italic py-2 text-sm">No other mapped manga entries available.</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
-                    {characterModalMediaManga.map((manga) => {
-                      const title = getMangaTitleHelper(manga, titleLanguage);
-                      const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
-                      const coverUrl = coverFileName?.startsWith('http')
-                        ? coverFileName
-                        : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
-                      return (
-                        <div
-                          key={manga.id}
-                          onClick={() => {
-                            handleMangaSelect(manga.id, title);
-                            setSelectedCharacterId(null);
-                          }}
-                          className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
-                        >
-                          <img
-                            src={coverUrl}
-                            alt={title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-                          <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
-                            <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                              {title}
-                            </h5>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  // Premium Staff Details Page layout (Early Return)
-  if (selectedStaffId) {
-    return (
-      <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-fade-in text-left">
-        {/* Navigation Bar / Header */}
-        <div className="max-w-7xl mx-auto px-4 md:px-12 py-6 border-b border-white/5 flex items-center justify-between">
-          <button
-            onClick={() => setSelectedStaffId(null)}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Creator Profile</span>
-        </div>
-
-        {staffDetailsLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400 min-h-[60vh]">
-            <Loader2 className="animate-spin text-red-600" size={36} />
-            <span className="text-xs font-semibold tracking-wider">Retrieving creator dossiers...</span>
-          </div>
-        ) : staffDetailsError ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2 min-h-[60vh]">
-            <AlertCircle size={40} className="text-red-500" />
-            <h3 className="text-lg font-bold text-white">Failed to load creator details</h3>
-            <p className="text-xs text-zinc-500 max-w-sm">{staffDetailsError}</p>
-            <button
-              onClick={() => setSelectedStaffId(selectedStaffId)}
-              className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
-            >
-              Retry
-            </button>
-          </div>
-        ) : staffDetails ? (
-          <div className="max-w-7xl mx-auto px-4 md:px-12 py-10 flex flex-col md:flex-row gap-10 text-left">
-            {/* Left column: Image & Stats */}
-            <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start font-sans">
-              <div className="w-[200px] md:w-full aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-white/5 group hover:scale-[1.01] transition-transform duration-500">
-                <img
-                  src={staffDetails.image?.large}
-                  alt={staffDetails.name?.full}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* Stats card */}
-              <div className="w-full mt-8 bg-[#0c0c0e]/80 border border-white/5 rounded-2xl p-6 space-y-4 text-xs shadow-lg font-sans">
-                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2">Creator Dossier</h4>
-                {staffDetails.homeTown && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Hometown</span>
-                    <span className="text-zinc-300 text-sm font-medium">{staffDetails.homeTown}</span>
-                  </div>
-                )}
-                {staffDetails.language && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Language</span>
-                    <span className="text-zinc-300 text-sm font-medium">{staffDetails.language}</span>
-                  </div>
-                )}
-                {(staffDetails.dateOfBirth?.day || staffDetails.dateOfBirth?.month || staffDetails.dateOfBirth?.year) && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Birth Date</span>
-                    <span className="text-zinc-300 text-sm font-medium">
-                      {staffDetails.dateOfBirth.month ? new Date(2000, staffDetails.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {staffDetails.dateOfBirth.day || ''}
-                      {staffDetails.dateOfBirth.year ? `, ${staffDetails.dateOfBirth.year}` : ''}
-                    </span>
-                  </div>
-                )}
-                {(staffDetails.dateOfDeath?.day || staffDetails.dateOfDeath?.month || staffDetails.dateOfDeath?.year) && (
-                  <div>
-                    <span className="text-zinc-500 font-normal block mb-0.5">Date of Death</span>
-                    <span className="text-zinc-300 text-sm font-medium">
-                      {staffDetails.dateOfDeath.month ? new Date(2000, staffDetails.dateOfDeath.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {staffDetails.dateOfDeath.day || ''}
-                      {staffDetails.dateOfDeath.year ? `, ${staffDetails.dateOfDeath.year}` : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right column: Bio & Other Works */}
-            <div className="flex-1 min-w-0 flex flex-col font-sans space-y-10">
-              <div className="space-y-6">
-                <div>
-                  <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none mb-2">
-                    {staffDetails.name?.full}
-                  </h1>
-                  {staffDetails.name?.native && (
-                    <h3 className="text-xl font-bold text-red-500 mt-1">
-                      {staffDetails.name.native}
-                    </h3>
-                  )}
-                  {staffDetails.name?.alternative?.length > 0 && (
-                    <p className="text-xs text-zinc-500 mt-2">
-                      <span className="font-semibold text-zinc-400">Alternative Names:</span> {staffDetails.name.alternative.filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                </div>
-
-                {/* Biography */}
-                <div className="space-y-3.5">
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Biography</h3>
-                  <div
-                    className="text-gray-300 leading-relaxed text-base font-light whitespace-pre-line bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03] shadow-inner max-h-[400px] overflow-y-auto custom-scrollbar text-left"
-                    dangerouslySetInnerHTML={{ __html: staffDetails.description || 'No biography available for this creator.' }}
-                  />
-                </div>
-              </div>
-
-              {/* Works Grid */}
-              <div className="space-y-5">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
-                  <BookOpen size={16} className="text-red-500" />
-                  <span>Works ({staffMedia.length})</span>
-                </h3>
-
-                {staffMediaLoading ? (
-                  <div className="flex items-center gap-2 py-8">
-                    <Loader2 className="animate-spin text-red-500" size={20} />
-                    <span className="text-xs text-zinc-500 font-medium">Mapping credits to catalog...</span>
-                  </div>
-                ) : staffMedia.length === 0 ? (
-                  <p className="text-zinc-500 italic py-2 text-sm">No mapped works catalog entries available.</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
-                    {staffMedia.map((manga) => {
-                      const title = getMangaTitleHelper(manga, titleLanguage);
-                      const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
-                      const coverUrl = coverFileName?.startsWith('http')
-                        ? coverFileName
-                        : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
-                      return (
-                        <div
-                          key={manga.id}
-                          onClick={() => {
-                            handleMangaSelect(manga.id, title);
-                            setSelectedStaffId(null);
-                          }}
-                          className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
-                        >
-                          <img
-                            src={coverUrl}
-                            alt={title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-                          <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
-                            <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                              {title}
-                            </h5>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  // Premium Studio Details Page layout (Early Return)
-  if (selectedStudioId) {
-    return (
-      <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-fade-in text-left">
-        {/* Navigation Bar / Header */}
-        <div className="max-w-7xl mx-auto px-4 md:px-12 py-6 border-b border-white/5 flex items-center justify-between">
-          <button
-            onClick={() => setSelectedStudioId(null)}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Studio Profile</span>
-        </div>
-
-        {studioDetailsLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400 min-h-[60vh]">
-            <Loader2 className="animate-spin text-red-600" size={36} />
-            <span className="text-xs font-semibold tracking-wider">Retrieving studio details...</span>
-          </div>
-        ) : studioDetailsError ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2 min-h-[60vh]">
-            <AlertCircle size={40} className="text-red-500" />
-            <h3 className="text-lg font-bold text-white">Failed to load studio details</h3>
-            <p className="text-xs text-zinc-500 max-w-sm">{studioDetailsError}</p>
-            <button
-              onClick={() => setSelectedStudioId(selectedStudioId)}
-              className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
-            >
-              Retry
-            </button>
-          </div>
-        ) : studioDetails ? (
-          <div className="max-w-7xl mx-auto px-4 md:px-12 py-10 flex flex-col gap-10 text-left">
-            {/* Studio Header block */}
-            <div className="space-y-4">
-              <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none">
-                {studioDetails.name}
-              </h1>
-              <div className="flex items-center gap-2 text-zinc-400 text-xs">
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full font-bold uppercase text-red-500 flex items-center gap-1.5 shadow">
-                  <Heart size={11} className="fill-red-500" /> {studioDetails.favourites || 0} Favorites
-                </span>
-                <span className="text-zinc-600">|</span>
-                <span>Produced Works: {studioMedia.length}</span>
-              </div>
-            </div>
-
-            {/* Produced Works Grid */}
-            <div className="space-y-6">
-              <h3 className="text-lg font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
-                <BookOpen size={18} className="text-red-500" />
-                <span>Produced Adaptations & Works ({studioMedia.length})</span>
-              </h3>
-
-              {studioMediaLoading ? (
-                <div className="flex items-center gap-2 py-8">
-                  <Loader2 className="animate-spin text-red-500" size={20} />
-                  <span className="text-xs text-zinc-500 font-medium">Mapping credits to catalog...</span>
-                </div>
-              ) : studioMedia.length === 0 ? (
-                <p className="text-zinc-500 italic py-2 text-sm">No mapped works catalog entries available.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
-                  {studioMedia.map((manga) => {
-                    const title = getMangaTitleHelper(manga, titleLanguage);
-                    const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
-                    const coverUrl = coverFileName?.startsWith('http')
-                      ? coverFileName
-                      : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
-                    return (
-                      <div
-                        key={manga.id}
-                        onClick={() => {
-                          handleMangaSelect(manga.id, title);
-                          setSelectedStudioId(null);
-                        }}
-                        className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
-                      >
-                        <img
-                          src={coverUrl}
-                          alt={title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-                        <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
-                          <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                            {title}
-                          </h5>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
   // Reader overlay active checks
   if (activeChapter) {
     const currentChapterIdx = activeReaderChapters.findIndex(ch => ch.id === activeChapter.id);
@@ -4603,7 +4222,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div
             ref={readerScrollContainerRef}
             onScroll={handleReaderScroll}
-            className="flex-1 overflow-y-auto custom-scrollbar pt-20 pb-20 px-4 relative flex flex-col items-center justify-start min-h-full"
+            className="flex-1 overflow-y-auto custom-scrollbar pt-16 sm:pt-20 pb-4 px-2 sm:px-4 relative flex flex-col items-center justify-start"
           >
             {pagesLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -4617,12 +4236,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </div>
             ) : readerMode === 'strip' ? (
               /* Long Strip Mode (Stacked scroll) */
-              <div className={`${getPageWidthClass()} w-full flex flex-col ${isStitchedFormat ? 'gap-0 py-0' : 'gap-2 py-1'}`}>
+              <div className={`${getPageWidthClass()} w-full flex flex-col ${isStitchedFormat ? 'gap-0 py-0' : 'gap-1 py-0'}`}>
                 {pages.map((page, i) => {
                   const isGiga = readingSource === 'gigaviewer';
                   const url = typeof page === 'string' ? page : page.src;
                   return (
-                    <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-zinc-950/20 rounded-xl shadow-lg min-h-0'}`}>
+                    <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-transparent rounded-none sm:rounded-md min-h-0'}`}>
                       {isGiga ? (
                         <GigaViewerPage page={page} pageNum={i + 1} />
                       ) : (
@@ -4662,7 +4281,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               })}
 
               {/* End of Chapter Navigation Card */}
-              <div className="w-full mt-6 mb-16 p-8 rounded-2xl bg-zinc-900/95 text-white border border-white/10 shadow-2xl backdrop-blur-md flex flex-col items-center text-center gap-4 select-none">
+              <div className="w-full mt-4 mb-4 p-6 sm:p-8 rounded-2xl bg-zinc-900/95 text-white border border-white/10 shadow-2xl backdrop-blur-md flex flex-col items-center text-center gap-4 select-none">
                 <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold uppercase tracking-wider">
                   <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
                   <span>End of Chapter {(activeChapter as any).attributes?.chapter || (activeChapter as any).chapter || ''}</span>
@@ -4713,7 +4332,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <ChevronLeft size={20} />
                   </button>
 
-                  <div className="flex-1 aspect-[3/4] max-h-[76vh] md:max-h-[80vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
+                  <div className="flex-1 aspect-[3/4] max-h-[86vh] md:max-h-[92vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
                     {readingSource === 'gigaviewer' ? (
                       <GigaViewerPage key={activePageIdx} page={pages[activePageIdx]} pageNum={activePageIdx + 1} className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300" />
                     ) : (
@@ -5375,25 +4994,26 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       <div className={`min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans ${isDetailsExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
 
         {/* Backdrop Hero Banner */}
-        <div className="relative w-full h-[14vh] md:h-[18vh] overflow-hidden select-none">
+        <div className="relative w-full h-[28vh] sm:h-[34vh] md:h-[40vh] overflow-hidden select-none">
           <img
             src={(selectedManga as any)?.bannerImage || getMangaCover(selectedManga)}
             alt={getMangaTitle(selectedManga)}
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover opacity-30 blur-md scale-105"
+            className="w-full h-full object-cover opacity-35 filter blur-[2px] scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent h-28" />
 
           <button
             onClick={handleCloseDetails}
-            className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
+            className="absolute top-20 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md border border-white/10 text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30 shadow-md cursor-pointer"
           >
             <ArrowLeft size={14} /> Back to Manga
           </button>
         </div>
 
         {/* Main Grid Content */}
-        <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-10 md:-mt-12 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
+        <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-12 md:-mt-16 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
 
           {/* Left Column - Side Cover Card & Specs */}
           <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start">
@@ -5416,8 +5036,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             )}
 
             {/* Technical metadata card */}
-            <div className="w-full mt-6 bg-[#0c0c0e]/80 border border-white/5 rounded-xl p-5 space-y-4">
-              <h4 className="text-xs font-semibold text-zinc-400 tracking-wider">Information</h4>
+            <div className="w-full mt-6 bg-white/[0.015] border border-white/[0.04] rounded-2xl p-5 space-y-4">
+              <h4 className="text-xs font-medium text-zinc-400 tracking-wider uppercase">Information</h4>
 
               <div className="space-y-3.5 text-xs">
                 <div>
@@ -5473,7 +5093,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       {mangaStudios.map((st) => (
                         <button
                           key={st.id}
-                          onClick={() => setSelectedStudioId(st.id)}
+                          onClick={() => onStudioClick ? onStudioClick(st.id, st.name, true) : setSelectedStudioId(st.id)}
                           className="text-red-500 hover:text-red-400 font-medium underline text-left hover:no-underline transition-all"
                         >
                           {st.name}
@@ -5500,7 +5120,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 </div>
                 <div>
                   <span className="text-zinc-500 font-normal block mb-0.5">Format</span>
-                  <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold border ${getMangaFormat(selectedManga).badgeClass}`}>
+                  <span className="text-zinc-200 font-medium text-xs">
                     {getMangaFormat(selectedManga).label}
                   </span>
                 </div>
@@ -5514,43 +5134,51 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               {getMangaTitle(selectedManga)}
             </h1>
 
-            {/* Quick Metrics Badge row */}
-            <div className="flex flex-wrap gap-2 mb-6 text-left">
-              <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${getMangaFormat(selectedManga).badgeClass}`}>
+            {/* Clean Metrics Row - Text Only, No Boxes */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-6 text-xs text-zinc-400 font-normal text-left">
+              <span className="text-red-500 font-medium tracking-wide uppercase">
                 {getMangaFormat(selectedManga).label}
               </span>
-              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5" title="MAL Rating">
-                ⭐ {ratingScore} MAL
+              <span className="text-zinc-600">•</span>
+              <span className="flex items-center gap-1.5 text-zinc-300" title="MAL Rating">
+                <span className="text-yellow-400">⭐</span> {ratingScore} MAL
               </span>
-              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5" title="Reviews Score">
-                🏆 {reviewScore} / 10 ({reviewCount} reviews)
+              <span className="text-zinc-600">•</span>
+              <span className="flex items-center gap-1.5 text-zinc-300" title="Reviews Score">
+                <span className="text-amber-400">🏆</span> {reviewScore} / 10 ({reviewCount} reviews)
               </span>
-              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5">
-                <Users size={12} className="text-zinc-500" /> {formatFollowers(selectedManga.attributes.relevance || 0)} Followers
+              <span className="text-zinc-600">•</span>
+              <span className="flex items-center gap-1.5 text-zinc-300">
+                <Users size={13} className="text-zinc-500" /> {formatFollowers(selectedManga.attributes.relevance || 0)} Followers
               </span>
-              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 capitalize">
-                {selectedManga.attributes.contentRating}
-              </span>
+              {selectedManga.attributes.contentRating && (
+                <>
+                  <span className="text-zinc-600">•</span>
+                  <span className="text-zinc-300 capitalize">
+                    {selectedManga.attributes.contentRating}
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Airing Anime Countdown Card */}
             {nextAiringEpisodeData && (
-              <div className="mb-8 bg-red-950/20 border border-red-500/30 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg text-left">
+              <div className="mb-8 bg-red-950/20 border border-red-500/15 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg text-left">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-red-500 font-bold text-xs tracking-wider uppercase">
+                  <div className="flex items-center gap-1.5 text-red-500 font-medium text-xs tracking-wider uppercase">
                     <Calendar size={14} className="animate-pulse" />
                     <span>Anime Adaptation Airing</span>
                   </div>
-                  <h4 className="text-base font-extrabold text-white leading-tight">
+                  <h4 className="text-base font-semibold text-white leading-tight">
                     Episode {nextAiringEpisodeData.episode} Countdown
                   </h4>
                   <p className="text-xs text-zinc-400">
                     Airs on {new Date(nextAiringEpisodeData.airingAt * 1000).toLocaleString(undefined, { weekday: 'long', hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
                   </p>
                 </div>
-                <div className="bg-red-500/10 border border-red-500/25 px-5 py-3 rounded-xl text-left sm:text-right font-sans shrink-0 w-full sm:w-auto">
-                  <span className="text-[10px] font-bold text-red-400 uppercase block tracking-wider mb-0.5">Airing In</span>
-                  <span className="text-base font-black text-white font-mono">
+                <div className="bg-red-500/10 border border-red-500/15 px-5 py-3 rounded-xl text-left sm:text-right font-sans shrink-0 w-full sm:w-auto">
+                  <span className="text-[10px] font-medium text-red-400 uppercase block tracking-wider mb-0.5">Airing In</span>
+                  <span className="text-base font-bold text-white font-mono">
                     {Math.floor(nextAiringEpisodeData.timeUntilAiring / 86400)}d {Math.floor((nextAiringEpisodeData.timeUntilAiring % 86400) / 3600)}h {Math.floor((nextAiringEpisodeData.timeUntilAiring % 3600) / 60)}m
                   </span>
                 </div>
@@ -5565,14 +5193,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </p>
             </div>
 
-            {/* Genres & Tags */}
+            {/* Genres & Themes */}
             <div className="mb-8 text-left">
               <h3 className="text-xl font-bold text-white mb-4">Genres & Themes</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedManga.attributes.tags?.map((t: any) => (
                   <span
                     key={t.id}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 transition-colors cursor-default"
+                    className="px-2.5 py-1 rounded-lg text-xs font-normal bg-white/[0.02] border border-white/[0.04] text-zinc-400 hover:text-zinc-200 transition-colors cursor-default"
                   >
                     {t.attributes.name.en}
                   </span>
@@ -5591,7 +5219,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-2 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white transition-all flex items-center gap-2 active:scale-95 shadow-sm"
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.02] border border-white/[0.04] hover:border-white/[0.08] hover:bg-white/[0.05] text-zinc-400 hover:text-white transition-all flex items-center gap-2 active:scale-95 shadow-sm"
                     >
                       <Globe size={13} className="text-zinc-500" /> {link.name}
                     </a>
@@ -5601,52 +5229,52 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             )}
 
             {/* Tab navigation */}
-            <div className="flex items-center gap-6 border-b border-white/5 mb-6">
+            <div className="flex items-center gap-4 sm:gap-6 border-b border-white/[0.04] mb-6 overflow-x-auto hide-scrollbar scroll-smooth w-full select-none">
               <button
                 onClick={() => setDetailsTab('chapters')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'chapters' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'chapters' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 Chapters
                 {detailsTab === 'chapters' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
                 onClick={() => setDetailsTab('relations')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'relations' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'relations' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 Related Works
                 {detailsTab === 'relations' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
                 onClick={() => setDetailsTab('recommendations')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'recommendations' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'recommendations' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 More Like This
                 {detailsTab === 'recommendations' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
                 onClick={() => setDetailsTab('characters')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'characters' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'characters' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 Characters
                 {detailsTab === 'characters' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
                 onClick={() => setDetailsTab('staff')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'staff' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'staff' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 Staff
                 {detailsTab === 'staff' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
                 onClick={() => setDetailsTab('reviews')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'reviews' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'reviews' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 Reviews
                 {detailsTab === 'reviews' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
                 onClick={() => setDetailsTab('social')}
-                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'social' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`pb-2.5 text-xs md:text-sm font-medium tracking-wide relative transition-colors shrink-0 whitespace-nowrap ${detailsTab === 'social' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
                 Social
                 {detailsTab === 'social' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
@@ -5968,7 +5596,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     return (
                       <div
                         key={charNode.id}
-                        onClick={() => setSelectedCharacterId(charNode.id)}
+                        onClick={() => onCharacterClick ? onCharacterClick(charNode.id) : setSelectedCharacterId(charNode.id)}
                         className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
                       >
                         <img
@@ -6021,7 +5649,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     return (
                       <div
                         key={staffNode.id}
-                        onClick={() => setSelectedStaffId(staffNode.id)}
+                        onClick={() => onPersonClick ? onPersonClick(staffNode.id, staffNode.name?.full, true) : setSelectedStaffId(staffNode.id)}
                         className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
                       >
                         <img
@@ -6068,7 +5696,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   {reviews.map((rev) => (
                     <div
                       key={rev.id}
-                      className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-4 hover:border-white/10 transition-colors shadow-lg"
+                      className="bg-white/[0.02] border border-white/[0.04] rounded-2xl p-6 space-y-4 hover:border-white/[0.08] transition-colors shadow-sm"
                     >
                       {/* Review Header */}
                       <div className="flex items-center justify-between">
@@ -6085,7 +5713,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         </div>
 
                         {/* Scores */}
-                        <div className="flex items-center gap-3 text-xs bg-white/5 border border-white/5 px-3 py-1.5 rounded-lg">
+                        <div className="flex items-center gap-3 text-xs bg-white/[0.03] border border-white/[0.04] px-3 py-1.5 rounded-lg">
                           <div className="flex items-center gap-1">
                             <Star size={12} className="text-yellow-500 fill-yellow-500" />
                             <span className="font-semibold text-white">{rev.score}%</span>
@@ -6114,14 +5742,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {detailsTab === 'social' && (
               <div className="space-y-6 text-left animate-in fade-in">
                 {/* Create Post Form */}
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 md:p-6 backdrop-blur-md">
+                <div className="bg-white/[0.02] border border-white/[0.04] rounded-2xl p-5 md:p-6 backdrop-blur-md">
                   <h4 className="font-bold text-xs sm:text-sm text-white mb-3">Discuss this Manga</h4>
                   <textarea
                     rows={3}
                     value={socialPostText}
                     onChange={(e) => setSocialPostText(e.target.value)}
                     placeholder="Write your thoughts or questions about this manga..."
-                    className="w-full bg-white/5 border border-white/5 focus:border-white/10 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar font-normal"
+                    className="w-full bg-white/[0.02] border border-white/[0.04] focus:border-white/10 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar font-normal"
                   />
                   <div className="flex justify-end mt-2">
                     <button
