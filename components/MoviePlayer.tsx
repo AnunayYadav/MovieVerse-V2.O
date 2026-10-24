@@ -374,6 +374,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (!PROVIDERS.some(p => p.id === preferred)) {
         return defaultProvider;
       }
+      if (isAnime && !getFilteredProviders(true, isWatchParty, isAnimeDirect).some(p => p.id === preferred)) {
+        return defaultProvider;
+      }
       return preferred;
     }
     return chosen || defaultProvider;
@@ -586,12 +589,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         return;
       }
       const prov = PROVIDERS.find(p => p.id === providerId);
-      if (isWatchParty && prov && !prov.supportsPostMessage) {
+      if (!prov) {
+        return;
+      }
+      if (isAnime && !getFilteredProviders(true, isWatchParty, isAnimeDirect).some(p => p.id === providerId)) {
+        return;
+      }
+      if (isWatchParty && !prov.supportsPostMessage) {
         return;
       }
       setSelectedProviderId(providerId);
     }
-  }, [providerId, isWatchParty, isAnime]);
+  }, [providerId, isWatchParty, isAnime, isAnimeDirect]);
 
   // Ensure non-anime never stays on anime-only providers
   useEffect(() => {
@@ -608,6 +617,41 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (isAnime || isAnimeDirect) return 'vidnest_animepahe';
     return 'vidstuck';
   });
+
+  const animeProvidersList = useMemo(() => {
+    return getFilteredProviders(true, isWatchParty, true).filter(p => p.id !== 'auto');
+  }, [isWatchParty]);
+
+  const movieProvidersList = useMemo(() => {
+    return getFilteredProviders(false, isWatchParty, false);
+  }, [isWatchParty]);
+
+  const displayProviders = isAnime ? animeProvidersList : movieProvidersList;
+
+  const activeEffectiveServerId = useMemo(() => {
+    if (selectedProviderId && selectedProviderId !== 'auto' && displayProviders.some(p => p.id === selectedProviderId)) {
+      return selectedProviderId;
+    }
+    if (autoPlayingServerId && displayProviders.some(p => p.id === autoPlayingServerId)) {
+      return autoPlayingServerId;
+    }
+    const defaultId = (isAnime || isAnimeDirect) ? 'vidnest_animepahe' : 'vidstuck';
+    if (displayProviders.some(p => p.id === defaultId)) {
+      return defaultId;
+    }
+    return displayProviders[0]?.id || defaultId;
+  }, [selectedProviderId, autoPlayingServerId, displayProviders, isAnime, isAnimeDirect]);
+
+  // Automatically heal and synchronize selectedProviderId if legacy or invalid
+  useEffect(() => {
+    if (!selectedProviderId || (!displayProviders.some(p => p.id === selectedProviderId) && selectedProviderId !== 'auto')) {
+      setSelectedProviderId(activeEffectiveServerId);
+      if (typeof window !== 'undefined') {
+        const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+        localStorage.setItem(key, activeEffectiveServerId);
+      }
+    }
+  }, [selectedProviderId, displayProviders, activeEffectiveServerId, isAnime]);
 
 
   // Native video source loader for MP4/MKV/HLS streams (including Torrent Swarm Stream)
@@ -827,7 +871,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   );
 
   // Custom controls derived values & refs
-  const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
+  const currentProvider = PROVIDERS.find(p => p.id === activeEffectiveServerId);
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
   const [fallbackToIframe, setFallbackToIframe] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
@@ -2598,7 +2642,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
-    let provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
+    let provider = PROVIDERS.find(p => p.id === activeEffectiveServerId) || PROVIDERS[0];
     if (isWatchParty && !provider.supportsPostMessage) {
       provider = PROVIDERS.find(p => p.supportsPostMessage) || provider;
     }
@@ -2606,7 +2650,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     let shouldUpdateUrl = false;
 
-    const effectiveProvider = selectedProviderId === 'auto' ? autoPlayingServerId : selectedProviderId;
+    const effectiveProvider = activeEffectiveServerId;
 
     if (lastEpisodeKeyRef.current !== episodeKey) {
       // Episode or movie changed -> reload and reset progress to forceProgress
@@ -2681,7 +2725,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (shouldUpdateUrl) {
       const startProgress = currentProgressRef.current;
       let newUrl = '';
-      const activeProviderId = selectedProviderId === 'auto' ? autoPlayingServerId : selectedProviderId;
+      const activeProviderId = activeEffectiveServerId;
       if (activeProviderId === 'videasy_adfree' && fallbackToNativeVideasy) {
         newUrl = isTvShow
           ? `https://player.videasy.net/tv/${tmdbId}/${currentSeason}/${currentEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`
@@ -2696,7 +2740,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setIframeLoading(true);
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, autoPlayingServerId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
+  }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, autoPlayingServerId, activeEffectiveServerId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
 
   const checkServerStatus = async (url: string): Promise<boolean> => {
     try {
@@ -3212,9 +3256,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     : (details?.number_of_episodes
       ? Array.from({ length: details.number_of_episodes }, (_, i) => ({ episode_number: i + 1, name: `Episode ${i + 1}` }))
       : Array.from({ length: 12 }, (_, i) => ({ episode_number: i + 1, name: `Episode ${i + 1}` })));
-
-  const animeProvidersList = getFilteredProviders(true, isWatchParty, true).filter(p => p.id !== 'auto');
-  const movieProvidersList = getFilteredProviders(false, isWatchParty, false);
 
   const renderVideoPlayerCore = () => (
     <div
@@ -4028,7 +4069,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       <span>Source quality</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 text-xs text-zinc-400 group-hover:text-zinc-300">
-                                      <span className="truncate max-w-[100px]">{PROVIDERS.find(p => p.id === selectedProviderId)?.name || 'Auto'}</span>
+                                      <span className="truncate max-w-[100px]">{PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'Auto'}</span>
                                       <ChevronRight size={13} className="text-zinc-500 group-hover:text-zinc-400" />
                                     </div>
                                   </button>
@@ -4231,7 +4272,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                               <div className="flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-0.5">
                                 {getFilteredProviders(isAnime, isWatchParty, isAnimeDirect).map((prov) => {
-                                  const isActive = selectedProviderId === prov.id;
+                                  const isActive = selectedProviderId === prov.id || prov.id === activeEffectiveServerId;
                                   return (
                                     <button
                                       key={prov.id}
@@ -5246,7 +5287,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               {/* Scrollable Grid of Provider Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto pr-1 custom-scrollbar pb-1">
                 {getFilteredProviders(isAnime, isWatchParty, isAnimeDirect).map((prov) => {
-                  const isActive = selectedProviderId === prov.id;
+                  const isActive = selectedProviderId === prov.id || prov.id === activeEffectiveServerId;
                   const { flagUrl, langLabel } = getServerDetails(prov.name);
                   const probeBadge = autoProbeBadges[prov.id];
                   const rawStatus = serverStatuses[prov.id] || probeBadge?.status;
@@ -5380,8 +5421,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return '';
   };
 
-  const displayProviders = isAnime ? animeProvidersList : movieProvidersList;
-
   return (
     <div 
       className="w-full h-full min-h-screen bg-[#07080b] text-zinc-100 select-none overflow-y-auto custom-scrollbar relative"
@@ -5463,7 +5502,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </span>
                 <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Server: {selectedProviderId === 'auto' ? `Auto (${PROVIDERS.find(p => p.id === autoPlayingServerId)?.name || 'VidEasy'})` : (PROVIDERS.find(p => p.id === selectedProviderId)?.name || selectedProviderId)}
+                  Server: {selectedProviderId === 'auto' ? `Auto (${PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'AnimePahe'})` : (PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || activeEffectiveServerId)}
                 </span>
               </div>
             </div>
@@ -5724,8 +5763,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                 <div className="space-y-1">
                   {displayProviders.map((prov, idx) => {
-                    const isSelected = selectedProviderId === prov.id;
-                    const isActuallyPlaying = (selectedProviderId === prov.id) || (selectedProviderId === 'auto' && prov.id === autoPlayingServerId);
+                    const isSelected = selectedProviderId === prov.id || prov.id === activeEffectiveServerId;
+                    const isActuallyPlaying = prov.id === activeEffectiveServerId;
                     const badge = getServerBadge(prov.id, idx);
                     return (
                       <button
@@ -5759,7 +5798,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             {prov.id === 'auto' && isSelected && (
                               <span className="text-[10px] text-zinc-300 font-light flex items-center gap-1">
                                 <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping inline-block" />
-                                Playing: {PROVIDERS.find(p => p.id === autoPlayingServerId)?.name || 'VidEasy'}
+                                Playing: {PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'AnimePahe'}
                               </span>
                             )}
                           </div>
@@ -5884,8 +5923,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                   <div className="space-y-1">
                     {displayProviders.map((prov, idx) => {
-                      const isSelected = selectedProviderId === prov.id;
-                      const isActuallyPlaying = (selectedProviderId === prov.id) || (selectedProviderId === 'auto' && prov.id === autoPlayingServerId);
+                      const isSelected = selectedProviderId === prov.id || prov.id === activeEffectiveServerId;
+                      const isActuallyPlaying = prov.id === activeEffectiveServerId;
                       const badge = getServerBadge(prov.id, idx);
                       return (
                         <button
@@ -5917,7 +5956,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               {prov.id === 'auto' && isSelected && (
                                 <span className="text-[10px] text-zinc-300 font-light flex items-center gap-1">
                                   <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping inline-block" />
-                                  Playing: {PROVIDERS.find(p => p.id === autoPlayingServerId)?.name || 'VidEasy'}
+                                  Playing: {PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'AnimePahe'}
                                 </span>
                               )}
                             </div>

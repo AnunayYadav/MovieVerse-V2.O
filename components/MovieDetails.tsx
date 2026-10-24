@@ -516,24 +516,36 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [isCastPlaying, setIsCastPlaying] = useState(true);
     const [castVolume, setCastVolume] = useState(1);
     const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
+        const defaultId = isAnime ? 'vidnest_animepahe' : 'vidstuck';
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
             const stored = localStorage.getItem(key);
-            if (!stored || stored === 'auto' || stored === 'auto_select') return isAnime ? 'vidnest_animepahe' : 'vidstuck';
+            if (!stored || stored === 'auto' || stored === 'auto_select' || !PROVIDERS.some(p => p.id === stored)) {
+                return defaultId;
+            }
+            if (isAnime && !getFilteredProviders(true, false, true).some(p => p.id === stored)) {
+                return defaultId;
+            }
             return stored;
         }
-        return isAnime ? 'vidnest_animepahe' : 'vidstuck';
+        return defaultId;
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
+        const defaultId = isAnime ? 'vidnest_animepahe' : 'vidstuck';
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
             const stored = localStorage.getItem(key);
-            if (!stored || stored === 'auto' || stored === 'auto_select') return isAnime ? 'vidnest_animepahe' : 'vidstuck';
+            if (!stored || stored === 'auto' || stored === 'auto_select' || !PROVIDERS.some(p => p.id === stored)) {
+                return defaultId;
+            }
+            if (isAnime && !getFilteredProviders(true, false, true).some(p => p.id === stored)) {
+                return defaultId;
+            }
             return stored;
         }
-        return isAnime ? 'vidnest_animepahe' : 'vidstuck';
+        return defaultId;
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
@@ -560,8 +572,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-        const stored = localStorage.getItem(key);
-        const preferred = (!stored || stored === 'auto' || stored === 'auto_select') ? (isAnime ? 'vidnest_animepahe' : 'vidstuck') : stored;
+        const defaultId = isAnime ? 'vidnest_animepahe' : 'vidstuck';
+        let preferred = defaultId;
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem(key);
+            preferred = (!stored || stored === 'auto' || stored === 'auto_select') ? defaultId : stored;
+            if (!PROVIDERS.some(p => p.id === preferred) || (isAnime && !getFilteredProviders(true, false, true).some(p => p.id === preferred))) {
+                preferred = defaultId;
+                localStorage.setItem(key, defaultId);
+            }
+        }
         setSelectedProviderId(preferred);
         setSelectedCastProviderId(preferred);
     }, [isAnime]);
