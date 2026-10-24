@@ -5488,40 +5488,36 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               <h2 className="text-base sm:text-lg font-normal text-white tracking-tight truncate">
                 {displayTitle}
               </h2>
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-light text-zinc-400">
-                {releaseYear && (
-                  <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
-                    {releaseYear}
-                  </span>
-                )}
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
-                  {details?.adult ? '18+' : 'PG-13'}
-                </span>
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-300">
-                  {isTvShow ? `Season ${currentSeason} • Episode ${currentEpisode}` : formattedRuntime || 'Movie'}
-                </span>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400 font-normal">
+                {releaseYear && <span>{releaseYear}</span>}
+                {releaseYear && <span className="text-zinc-600 font-bold">•</span>}
+                <span>{details?.adult ? '18+' : 'PG-13'}</span>
+                <span className="text-zinc-600 font-bold">•</span>
+                <span>{isTvShow ? `Season ${currentSeason} • Episode ${currentEpisode}` : formattedRuntime || 'Movie'}</span>
+                <span className="text-zinc-600 font-bold">•</span>
                 <button
                   type="button"
                   onClick={() => setActiveSidebarTab('servers')}
-                  className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors cursor-pointer group"
                   title="Click to view/change server"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Server: {selectedProviderId === 'auto' ? `Auto (${PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'AnimePahe'})` : (PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || activeEffectiveServerId)}
+                  <span className="group-hover:underline">Server: {selectedProviderId === 'auto' ? `Auto (${PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || 'AnimePahe'})` : (PROVIDERS.find(p => p.id === activeEffectiveServerId)?.name || activeEffectiveServerId)}</span>
                 </button>
               </div>
             </div>
 
             {/* Right: Quick Action Buttons */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setAutoPlayState(!autoPlayState)}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-normal transition-all active:scale-95 flex items-center gap-1.5 ${
-                  autoPlayState ? 'bg-white/15 border-white/25 text-white font-medium shadow-sm' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'
+                  autoPlayState ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-400 hover:text-zinc-200'
                 }`}
                 title="Toggle Auto Play"
               >
-                <Zap size={12} /> <span>Auto Play</span>
+                <Zap size={12} className={autoPlayState ? "text-amber-400 fill-amber-400" : ""} />
+                <span>Auto Play</span>
               </button>
 
               {isTvShow && (
@@ -5529,7 +5525,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <button
                     onClick={() => setAutoNextState(!autoNextState)}
                     className={`px-3 py-1.5 rounded-xl border text-xs font-normal transition-all active:scale-95 flex items-center gap-1.5 ${
-                      autoNextState ? 'bg-white/15 border-white/25 text-white font-medium shadow-sm' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'
+                      autoNextState ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-400 hover:text-zinc-200'
                     }`}
                     title="Toggle Auto Next"
                   >
@@ -5539,7 +5535,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <button
                     onClick={() => setAutoSkipState(!autoSkipState)}
                     className={`px-3 py-1.5 rounded-xl border text-xs font-normal transition-all active:scale-95 flex items-center gap-1.5 ${
-                      autoSkipState ? 'bg-white/15 border-white/25 text-white font-medium shadow-sm' : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-400'
+                      autoSkipState ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-400 hover:text-zinc-200'
                     }`}
                     title="Toggle Auto Skip"
                   >
@@ -5550,14 +5546,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     <button
                       disabled={currentEpisode <= 1}
                       onClick={handlePrevEpisode}
-                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none border border-white/5 text-zinc-300 text-xs font-normal transition-all active:scale-95"
+                      className="p-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none border border-white/10 text-zinc-400 hover:text-zinc-200 text-xs font-normal transition-all active:scale-95"
                       title="Previous Episode"
                     >
                       <ChevronLeft size={15} />
                     </button>
                     <button
                       onClick={handleNextEpisode}
-                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 text-xs font-normal transition-all active:scale-95"
+                      className="p-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-zinc-400 hover:text-zinc-200 text-xs font-normal transition-all active:scale-95"
                       title="Next Episode"
                     >
                       <ChevronRight size={15} />
@@ -5568,7 +5564,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
               <button
                 onClick={toggleFullscreen}
-                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 hover:text-white transition-all active:scale-95 text-xs font-normal flex items-center gap-1"
+                className="p-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-zinc-400 hover:text-white transition-all active:scale-95 text-xs font-normal flex items-center gap-1"
                 title="Expand / Fullscreen"
               >
                 <Maximize size={14} />
