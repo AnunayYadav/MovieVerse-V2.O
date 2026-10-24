@@ -1279,12 +1279,18 @@ export default function App() {
 
     // Scroll Lock Controller
     useEffect(() => {
-        const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen || isSidebarOpen;
+        const isAnyModalOpen = Boolean(selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen || isSidebarOpen);
         if (isAnyModalOpen) {
+            document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
         } else {
-            document.body.style.overflow = 'auto';
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
         }
+        return () => {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+        };
     }, [selectedMovie, isSettingsOpen, selectedPersonId, selectedCharacterId, isNotificationOpen, isComparisonOpen, isSidebarOpen]);
 
     const [isScrolled, setIsScrolled] = useState(false);

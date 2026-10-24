@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
-import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Film, Star, Eye, Download, X, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import { Movie } from '../types';
 import { useTvFocus } from '../tvNavigation';
 
@@ -421,44 +422,85 @@ export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Mov
 });
 
 export const ImageLightbox = ({ src, onClose }: { src: string, onClose: () => void }) => {
+    const [downloading, setDownloading] = useState(false);
+
+    useEffect(() => {
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onClose]);
+
     if (!src) return null;
-    const handleDownload = async () => {
+
+    const handleDownload = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (downloading) return;
+        setDownloading(true);
         try {
-          const response = await fetch(src);
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `movie-image-${Date.now()}.jpg`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        } catch (e) {
-          window.open(src, '_blank');
+            const response = await fetch(src);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `movie-image-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch {
+            window.open(src, '_blank');
+        } finally {
+            setDownloading(false);
         }
     };
   
-    return (
-      <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300 font-sans" onClick={onClose}>
-         <button 
-           onClick={(e) => { e.stopPropagation(); onClose(); }}
-           className="absolute top-6 left-6 text-white hover:text-red-500 bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all hover:scale-110 active:scale-95 flex items-center gap-2 group"
-         >
-           <ArrowLeft size={24}/>
-           <span className="hidden md:inline font-bold text-sm">Back</span>
-         </button>
-         <div 
-           className="relative max-w-full max-h-full flex flex-col items-center animate-in slide-in-from-bottom-5 duration-500"
-           onClick={(e) => e.stopPropagation()} 
-         >
-            <img src={src} className="max-w-full max-h-[85vh] rounded-lg shadow-2xl" alt="Full size" />
-            <button onClick={handleDownload} className="mt-6 glass px-8 py-3 rounded-full font-bold text-sm flex items-center gap-2 hover:bg-white/20 transition-all text-white active:scale-95">
-                <Download size={16}/> Download High-Res
+    return createPortal(
+        <div 
+            className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200 select-none font-sans" 
+            onClick={onClose}
+        >
+            {/* Proper Close Button Top-Right */}
+            <button 
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 z-30 p-2.5 rounded-full bg-black/60 hover:bg-black text-white/80 hover:text-white border border-white/20 backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-xl"
+                title="Close (Esc)"
+            >
+                <X size={20} />
             </button>
-         </div>
-      </div>
-    )
+
+            {/* Centered Modal Content with Proportional Sizing */}
+            <div 
+                className="relative max-w-full flex flex-col items-center justify-center animate-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()} 
+            >
+                <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/50 max-w-[85vw] md:max-w-3xl lg:max-w-4xl max-h-[65vh] flex items-center justify-center">
+                    <img 
+                        src={src} 
+                        className="max-w-full max-h-[65vh] w-auto h-auto object-contain" 
+                        alt="Preview" 
+                    />
+                </div>
+
+                {/* Clean, Minimalist Download Button */}
+                <button 
+                    onClick={handleDownload} 
+                    disabled={downloading}
+                    className="mt-4 sm:mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-semibold tracking-wide border border-white/15 backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg hover:shadow-white/5"
+                >
+                    {downloading ? <Loader2 size={14} className="animate-spin text-zinc-300" /> : <Download size={14} className="text-zinc-200" />}
+                    <span>{downloading ? 'Downloading...' : 'Download High-Res'}</span>
+                </button>
+            </div>
+        </div>,
+        document.body
+    );
 };
 
 interface MovieCardProps {
@@ -467,9 +509,10 @@ interface MovieCardProps {
     isWatched: boolean;
     onToggleWatched: (m: Movie) => void;
     horizontal?: boolean;
+    className?: string;
 }
 
-export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched, horizontal = false }, ref) => {
+export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched, horizontal = false, className = '' }, ref) => {
     if (!movie) return null;
 
     const { ref: focusRef } = useTvFocus({
@@ -574,7 +617,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     return (
       <div 
         ref={combinedRef}
-        className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left font-sans transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.965] gpu-layer"
+        className={`group flex flex-col gap-2 shrink-0 ${className || 'w-[125px] sm:w-[145px] md:w-[150px]'} cursor-pointer select-none text-left font-sans transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.965] gpu-layer`}
         onClick={() => onClick(movie)}
       >
         {/* Vertical Poster Container */}

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize, Newspaper, ExternalLink, ThumbsUp, MoreVertical } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
@@ -446,6 +447,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [viewingTrailerKey, setViewingTrailerKey] = useState<string | null>(null);
 
+    // Lock body scroll when viewing trailer
+    useEffect(() => {
+        if (viewingTrailerKey) {
+            const originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalOverflow;
+            };
+        }
+    }, [viewingTrailerKey]);
+
     // Keep screen awake while viewing movie trailers
     useScreenWakeLock({
         isActive: !!viewingTrailerKey,
@@ -549,8 +561,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
+    const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
     const providerDropdownRef = useRef<HTMLDivElement>(null);
     const mobileProviderDropdownRef = useRef<HTMLDivElement>(null);
+    const moreActionsRef = useRef<HTMLDivElement>(null);
 
     const [showDownloadModal, setShowDownloadModal] = useState(false);
     const [downloadSeason, setDownloadSeason] = useState(1);
@@ -596,6 +610,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             }
             if (mobileProviderDropdownRef.current && !mobileProviderDropdownRef.current.contains(event.target as Node)) {
                 setIsMobileProviderDropdownOpen(false);
+            }
+            if (moreActionsRef.current && !moreActionsRef.current.contains(event.target as Node)) {
+                setIsMoreActionsOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -1376,6 +1393,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     
     const [showFullCast, setShowFullCast] = useState(showFullCastProp);
     const [showFullCrew, setShowFullCrew] = useState(showFullCrewProp);
+
+    useEffect(() => {
+        const origHtmlOverflow = document.documentElement.style.overflow;
+        const origBodyOverflow = document.body.style.overflow;
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.documentElement.style.overflow = origHtmlOverflow;
+            document.body.style.overflow = origBodyOverflow;
+        };
+    }, []);
 
     useEffect(() => { setActiveTab(activeTabProp || "overview"); }, [activeTabProp]);
     useEffect(() => {
@@ -2693,13 +2721,27 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         );
     };
 
+    const originalLangCode = displayData.original_language?.toLowerCase() || 'en';
+    const spokenLangMatch = displayData.spoken_languages?.find(lang => lang.iso_639_1 === originalLangCode);
+    const originalLangFull = spokenLangMatch?.english_name || spokenLangMatch?.name || LANGUAGES_FULL_MAP[originalLangCode] || originalLangCode.toUpperCase();
+
+    const productionCountries = (() => {
+        if (displayData.production_countries && displayData.production_countries.length > 0) {
+            return displayData.production_countries.map(c => COUNTRIES_FULL_MAP[c.iso_3166_1.toUpperCase()] || c.name);
+        }
+        if (displayData.origin_country && displayData.origin_country.length > 0) {
+            return displayData.origin_country.map(code => COUNTRIES_FULL_MAP[code.toUpperCase()] || code.toUpperCase());
+        }
+        return [];
+    })();
+
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const scrolled = e.currentTarget.scrollTop > 20;
         onScrollChange?.(scrolled);
     };
 
     return (
-        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] ${showPlayer ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
+        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] ${showPlayer || showFullCast || showFullCrew || viewingTrailerKey || viewingImage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
             <div className={`relative w-full ${showPlayer ? 'h-full overflow-hidden' : 'min-h-screen'} flex flex-col`}>
                 {!showPlayer && (
                     <TvFocusButton onClick={handleClose} className="absolute top-20 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
@@ -2746,27 +2788,35 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 ) : (
                     <div className="flex flex-col pb-20">
                         {/* Responsive Hero Media Container */}
-                        <div className="relative w-full min-h-[500px] md:h-[70vh] shrink-0 bg-black group/hero overflow-visible">
+                        <div className="relative w-full min-h-[460px] sm:min-h-[500px] md:h-[70vh] shrink-0 bg-black group/hero overflow-hidden">
                              <div className="absolute inset-0 w-full h-full overflow-hidden">
                                 {trailer && !isTV && !showPlayer && !isCasting && (
                                      <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
-                                         <iframe ref={iframeRef} src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[150%] h-[150%] min-w-full min-h-full scale-110 object-cover ${videoLoaded ? 'opacity-90' : 'opacity-0'}`} allow="autoplay; encrypted-media; gyroscope; picture-in-picture" title="Background Trailer" loading="lazy" onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} />
+                                         <iframe 
+                                            ref={iframeRef} 
+                                            src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} 
+                                            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[300%] h-[300%] min-w-[180vh] min-h-[60vw] max-w-none scale-125 sm:scale-110 object-cover ${videoLoaded ? 'opacity-90' : 'opacity-0'}`} 
+                                            allow="autoplay; encrypted-media; gyroscope; picture-in-picture" 
+                                            title="Background Trailer" 
+                                            loading="lazy" 
+                                            onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} 
+                                        />
                                      </div>
                                 )}
                                 <img src={displayData.backdrop_path ? (displayData.backdrop_path.startsWith('http') ? displayData.backdrop_path : `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}`) : displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && !isTV && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
                                 <div className={`absolute inset-0 -z-20 ${isAnime ? 'bg-black/40' : 'bg-black/10'}`}></div>
-                                <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30' : 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent'}`}></div>
-                                <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent' : 'bg-gradient-to-r from-[#0a0a0a]/50 via-transparent to-transparent'}`}></div>
+                                <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30' : 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent'}`}></div>
+                                <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent' : 'bg-gradient-to-r from-[#0a0a0a]/60 via-transparent to-transparent'}`}></div>
                                  {trailer && videoLoaded && (
-                                     <TvFocusButton onClick={toggleMute} className="absolute top-20 right-4 md:bottom-6 md:right-6 z-30 w-10 h-10 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
+                                     <TvFocusButton onClick={toggleMute} className="absolute top-20 right-4 md:bottom-6 md:right-6 z-30 w-9 h-9 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={18} strokeWidth={1.5} /> : <Volume2 size={18} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
                              </div>
 
                              {/* Hero Content Overlay: Poster on Left (Anime Only), Info & Controls on Right */}
-                             <div className="absolute bottom-0 left-0 w-full max-w-7xl inset-x-0 mx-auto px-4 sm:px-8 md:px-10 pb-8 sm:pb-10 pt-16 flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-8 z-30 pointer-events-auto">
+                             <div className="absolute bottom-0 left-0 w-full max-w-7xl inset-x-0 mx-auto px-4 sm:px-8 md:px-10 pb-5 sm:pb-10 pt-12 flex flex-col sm:flex-row items-center sm:items-end gap-3 sm:gap-8 z-30 pointer-events-auto">
                                 {/* Left Poster Image Card (Anime Only) */}
                                 {isAnime && (
-                                    <div className="w-32 sm:w-44 md:w-52 lg:w-56 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-zinc-900 group/poster relative">
+                                    <div className="w-28 sm:w-44 md:w-52 lg:w-56 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-zinc-900 group/poster relative">
                                         <img
                                             src={displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/300x450"}
                                             alt={title}
@@ -2776,16 +2826,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 )}
 
                                 {/* Right Section: Clean Title / Logo, Metadata, Watch Buttons */}
-                                <div className="flex-1 flex flex-col items-center sm:items-start justify-end gap-3 min-w-0 text-center sm:text-left">
+                                <div className="flex-1 flex flex-col items-center sm:items-start justify-end gap-2 sm:gap-3 min-w-0 text-center sm:text-left">
                                     <div className="flex flex-col items-center sm:items-start gap-1">
                                         {!isAnime && logo ? (
                                             <img 
                                                 src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                                 alt={title} 
-                                                className="max-h-20 sm:max-h-28 lg:max-h-36 w-auto object-contain drop-shadow-2xl mb-1 sm:mb-2" 
+                                                className="max-h-14 sm:max-h-24 md:max-h-32 max-w-[220px] sm:max-w-xs md:max-w-md w-auto object-contain drop-shadow-2xl mb-1 sm:mb-2" 
                                             />
                                         ) : (
-                                            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight drop-shadow-md">
+                                            <h1 className="text-xl sm:text-3xl lg:text-5xl font-bold text-white tracking-tight leading-tight drop-shadow-md">
                                                 {title}
                                             </h1>
                                         )}
@@ -2797,58 +2847,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </div>
 
                                     {/* Metadata Badges */}
-                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-white/90 text-xs sm:text-sm font-medium">
-                                        {ratingLabel !== 'NR' && <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
-                                        <span className="flex items-center gap-1.5 font-medium"><Calendar size={14} className={accentText}/> {releaseDate}</span>
-                                        <span className="flex items-center gap-1.5 font-medium"><Clock size={14} className={accentText}/> {runtime}</span>
+                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-white/90 text-xs sm:text-sm font-medium">
+                                        {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
+                                        <span className="flex items-center gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-xs"><Calendar size={13} className={accentText}/> {releaseDate}</span>
+                                        <span className="flex items-center gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-xs"><Clock size={13} className={accentText}/> {runtime}</span>
                                         {displayData.vote_average && (
-                                            <span className="flex items-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/10 font-medium">
-                                                <Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}
+                                            <span className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10 font-medium text-[11px] sm:text-xs">
+                                                <Star size={13} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}
                                             </span>
                                         )}
                                     </div>
 
                                     {/* Action Buttons Bar */}
-                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2.5">
+                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 sm:gap-3 mt-1.5 sm:mt-2.5">
                                         {isExclusive && (
-                                            <div className="relative flex items-center bg-white rounded-full text-black shadow-xl hover:scale-[1.02] transition-all duration-200" ref={providerDropdownRef}>
-                                                <TvFocusButton 
-                                                    onClick={handleWatchClick} 
-                                                    className="flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-sm transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-full"
-                                                >
-                                                    <Play size={18} fill="currentColor" /> 
-                                                    {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
-                                                </TvFocusButton>
-                                                <TvFocusButton 
-                                                    onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)} 
-                                                    className="px-3.5 py-2.5 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-full" 
-                                                    title="Select Provider"
-                                                >
-                                                    <ChevronDown size={18} className={`transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`} />
-                                                </TvFocusButton>
-
-                                                {isProviderDropdownOpen && (
-                                                    <div className="absolute left-0 top-full mt-2 w-56 bg-[#121212]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                        {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
-                                                            <TvFocusButton
-                                                                key={prov.id}
-                                                                onClick={() => {
-                                                                    handleProviderChange(prov.id);
-                                                                    setIsProviderDropdownOpen(false);
-                                                                }}
-                                                                className="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-between"
-                                                            >
-                                                                <span>{prov.name}</span>
-                                                                {selectedProviderId === prov.id && <Check size={14} className="text-red-500" />}
-                                                            </TvFocusButton>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <TvFocusButton 
+                                                onClick={handleWatchClick} 
+                                                className="flex items-center justify-center gap-2 px-6 sm:px-7 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm transition-all active:scale-95 bg-white hover:bg-white/90 text-black rounded-full shadow-xl hover:scale-[1.02]"
+                                            >
+                                                <Play size={16} fill="currentColor" /> 
+                                                {movie.play_progress && movie.play_progress > 0 ? 'Resume' : 'Watch'}
+                                            </TvFocusButton>
                                         )}
 
+                                        {/* Desktop Watch Party Button */}
                                         {isExclusive && (
-                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all hover:scale-[1.02] active:scale-95 bg-white/10 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md shadow-md" title="Start a Watch Party">
+                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="hidden sm:flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm transition-all hover:scale-[1.02] active:scale-95 bg-white/10 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md shadow-md" title="Start a Watch Party">
                                                 <Users size={18} /> Watch Party
                                             </TvFocusButton>
                                         )}
@@ -2862,20 +2886,114 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             return (
                                                 <div className="flex items-center gap-2">
-                                                    <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
-                                                    <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
-                                                    <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${copied ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
-                                                    <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
-                                                    <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
+                                                    {/* Desktop only buttons: Watchlist, Favorites, Share, Download */}
+                                                    <div className="hidden sm:flex items-center gap-2">
+                                                        <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Bookmark size={18} fill="currentColor"/> : <Bookmark size={18}/>}</TvFocusButton>
+                                                        <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
+                                                        <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${copied ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
+                                                        <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
+                                                    </div>
+
+                                                    {/* Parents Guide: OUTSIDE as requested */}
+                                                    <TvFocusButton 
+                                                        onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} 
+                                                        disabled={!details?.external_ids?.imdb_id} 
+                                                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} 
+                                                        title="Parents Guide (IMDb)"
+                                                    >
+                                                        <Shield size={16}/>
+                                                    </TvFocusButton>
+
+                                                    {/* Trailer Play: OUTSIDE as requested */}
                                                     {effectiveTrailerKey && (
                                                         <TvFocusButton 
                                                             onClick={() => setViewingTrailerKey(effectiveTrailerKey)} 
-                                                            className="w-10 h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
+                                                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 backdrop-blur-md flex items-center justify-center transition-all active:scale-95 text-white cursor-pointer" 
                                                             title="Watch Trailer"
                                                         >
-                                                            <Play size={16} fill="currentColor" className="ml-0.5"/>
+                                                            <Play size={15} fill="currentColor" className="ml-0.5"/>
                                                         </TvFocusButton>
                                                     )}
+
+                                                    {/* Mobile Three Dots Menu: Watch Party, Watchlist, Favorites, Share, Download inside */}
+                                                    <div className="relative sm:hidden" ref={moreActionsRef}>
+                                                        <TvFocusButton
+                                                            onClick={() => setIsMoreActionsOpen(!isMoreActionsOpen)}
+                                                            className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${
+                                                                isMoreActionsOpen 
+                                                                    ? 'bg-white/20 text-white border-white/30 shadow-lg' 
+                                                                    : 'text-white border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'
+                                                            }`}
+                                                            title="More Options"
+                                                        >
+                                                            <MoreVertical size={16} />
+                                                        </TvFocusButton>
+
+                                                        {isMoreActionsOpen && (
+                                                            <div className="absolute right-0 bottom-full mb-2 w-52 bg-[#121318]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                                                {isExclusive && onStartWatchParty && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setIsMoreActionsOpen(false);
+                                                                            onStartWatchParty(displayData, playParams.season, playParams.episode);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors text-left"
+                                                                    >
+                                                                        <Users size={15} className="text-indigo-400" />
+                                                                        <span>Watch Party</span>
+                                                                    </button>
+                                                                )}
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setIsMoreActionsOpen(false);
+                                                                        onToggleWatchlist(displayData);
+                                                                    }}
+                                                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors text-left"
+                                                                >
+                                                                    <Bookmark size={15} className={isWatchlisted ? "text-emerald-400 fill-emerald-400" : "text-zinc-400"} />
+                                                                    <span className={isWatchlisted ? "text-emerald-400 font-medium" : ""}>
+                                                                        {isWatchlisted ? 'In Watchlist' : 'Add to Watchlist'}
+                                                                    </span>
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setIsMoreActionsOpen(false);
+                                                                        onToggleFavorite(displayData);
+                                                                    }}
+                                                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors text-left"
+                                                                >
+                                                                    <Heart size={15} className={isFavorite ? "text-rose-500 fill-rose-500" : "text-zinc-400"} />
+                                                                    <span className={isFavorite ? "text-rose-400 font-medium" : ""}>
+                                                                        {isFavorite ? 'Favorited' : 'Add to Favorites'}
+                                                                    </span>
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setIsMoreActionsOpen(false);
+                                                                        handleShare();
+                                                                    }}
+                                                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors text-left"
+                                                                >
+                                                                    {copied ? <Check size={15} className="text-emerald-400" /> : <Share2 size={15} className="text-sky-400" />}
+                                                                    <span>{copied ? 'Link Copied!' : 'Share Movie'}</span>
+                                                                </button>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setIsMoreActionsOpen(false);
+                                                                        setShowDownloadModal(true);
+                                                                    }}
+                                                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/10 transition-colors text-left"
+                                                                >
+                                                                    <Download size={15} className="text-amber-400" />
+                                                                    <span>Download</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })()}
@@ -2912,12 +3030,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 })}
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-                                <div className="lg:col-span-2 space-y-6">
+                            <div className="w-full space-y-8">
                                     {(activeTab || 'overview') === 'overview' && (
-                                        <div className="animate-in fade-in">
+                                        <div className="animate-in fade-in space-y-7">
                                             {nextAiringEpisode && (
-                                                <div className="mb-8 p-5 bg-gradient-to-r from-red-950/10 to-zinc-900/30 border border-red-500/15 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-500 shadow-md">
+                                                <div className="p-5 bg-gradient-to-r from-red-950/10 to-zinc-900/30 border border-red-500/15 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-500 shadow-md">
                                                     <div className="flex items-center gap-3">
                                                         <div className="p-2.5 bg-red-600/10 border border-red-500/25 text-red-500 rounded-xl flex items-center justify-center shrink-0">
                                                             <Tv size={18} className="animate-pulse" />
@@ -2938,69 +3055,186 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="mb-5">
-                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-2.5">Plot Summary</h3>
+                                            {/* Details & Production */}
+                                            <div className="space-y-4 text-left">
+                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                    <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                    Details
+                                                </h3>
                                                 <p className="text-zinc-300 leading-relaxed text-sm md:text-base font-normal">{displayData.overview || "No overview available."}</p>
-                                            </div>
-                                             {displayData.external_ids && (
-                                                <div className="flex gap-2.5 mb-5">
-                                                    {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${details.external_ids.imdb_id}`} icon={Film} hoverColor="hover:text-yellow-500 hover:border-yellow-500/30"/>}
-                                                    {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} hoverColor="hover:text-pink-500 hover:border-pink-500/30"/>}
-                                                    {displayData.external_ids.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} hoverColor="hover:text-sky-400 hover:border-sky-400/30"/>}
-                                                    {displayData.external_ids.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} hoverColor="hover:text-blue-500 hover:border-blue-500/30"/>}
-                                                    {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} hoverColor="hover:text-emerald-400 hover:border-emerald-400/30"/>}
-                                                </div>
-                                            )}
 
-                                            {/* Integrated Horizontal Popularity Meter */}
-                                            {displayData.vote_count > 0 && (
-                                                <div className="p-3.5 bg-white/[0.03] border border-white/[0.06] rounded-2xl mb-5 shadow-sm">
-                                                    <div className="flex flex-wrap items-center justify-between gap-2.5 mb-2.5">
-                                                        <div className="flex items-center gap-2.5">
-                                                            <span className="text-base sm:text-lg font-semibold text-white tracking-tight">
-                                                                Popularity {Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%
-                                                            </span>
-                                                            <span className="text-xs font-normal text-zinc-400">
-                                                                {(displayData.vote_average || 0).toFixed(1)} / 10
-                                                            </span>
-                                                            <span className="text-xs text-zinc-500">
-                                                                • {displayData.vote_count.toLocaleString()} votes
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-4 pt-1">
+                                                    {displayData.budget > 0 && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Budget</span>
+                                                            <span className="text-sm text-zinc-200 font-normal">{formatCurrency(displayData.budget, appRegion)}</span>
+                                                        </div>
+                                                    )}
+                                                    {displayData.revenue > 0 && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Box office</span>
+                                                            <span className="text-sm text-emerald-400 font-normal">{formatCurrency(displayData.revenue, appRegion)}</span>
+                                                        </div>
+                                                    )}
+                                                    {displayData.status && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Status</span>
+                                                            <span className={`text-sm font-normal ${displayData.status === 'Released' || displayData.status === 'FINISHED' ? 'text-emerald-400' : 'text-zinc-200'}`}>
+                                                                {displayData.status}
                                                             </span>
                                                         </div>
-                                                        {displayData.popularity ? (
-                                                            <span className="text-xs text-zinc-400">
-                                                                Index: <span className="text-zinc-200 font-medium">{Math.round(displayData.popularity).toLocaleString()}</span>
-                                                            </span>
-                                                        ) : null}
+                                                    )}
+                                                    <div>
+                                                        <span className="text-xs text-zinc-500 font-normal block mb-1">Original language</span>
+                                                        <span className="text-sm text-zinc-200 font-normal">{originalLangFull}</span>
                                                     </div>
+                                                    {productionCountries.length > 0 && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Country of origin</span>
+                                                            <span className="text-sm text-zinc-200 font-normal truncate block" title={productionCountries.join(', ')}>
+                                                                {productionCountries.join(', ')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {isAnime && displayData.format && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Format</span>
+                                                            <span className="text-sm text-zinc-200 font-normal">{displayData.format}</span>
+                                                        </div>
+                                                    )}
+                                                    {isAnime && displayData.source && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Source</span>
+                                                            <span className="text-sm text-zinc-200 font-normal">{displayData.source.replace(/_/g, ' ')}</span>
+                                                        </div>
+                                                    )}
+                                                    {isAnime && displayData.season && (
+                                                        <div>
+                                                            <span className="text-xs text-zinc-500 font-normal block mb-1">Season</span>
+                                                            <span className="text-sm text-zinc-200 font-normal">{displayData.season} {displayData.seasonYear}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                                    <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className="h-full bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 rounded-full transition-all duration-1000 ease-out"
-                                                            style={{ width: `${Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%` }}
-                                                        />
+                                                {/* Production Studios / Companies */}
+                                                {displayData.production_companies && displayData.production_companies.length > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                        <span className="text-xs text-zinc-500 font-normal mr-1">Production:</span>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            {displayData.production_companies.map((company: any) => (
+                                                                <button
+                                                                    key={company.id}
+                                                                    onClick={() => onStudioClick(company.id, company.name, false)}
+                                                                    className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-all text-xs font-normal cursor-pointer border-0 outline-none active:scale-95"
+                                                                    title={`View ${company.name}`}
+                                                                >
+                                                                    {company.logo_path ? (
+                                                                        <div className="w-4 h-4 bg-white/90 rounded-[3px] p-0.5 flex items-center justify-center shrink-0">
+                                                                            <img src={`${TMDB_IMAGE_BASE}${company.logo_path}`} alt={company.name} className="max-w-full max-h-full object-contain" />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <Building2 size={12} className="text-zinc-500 shrink-0" />
+                                                                    )}
+                                                                    <span>{company.name}</span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* MyDramaList extra if drama */}
+                                                {isDrama && mdlDetails && (
+                                                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+                                                        <div className="flex flex-wrap items-center gap-4">
+                                                            {mdlDetails.score_details && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs text-zinc-500 font-normal">MDL score:</span>
+                                                                    <span className="text-amber-400 font-normal">★ {mdlDetails.score_details}</span>
+                                                                </div>
+                                                            )}
+                                                            {mdlDetails.ranked && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs text-zinc-500 font-normal">Ranking:</span>
+                                                                    <span className="text-zinc-200 font-normal">#{mdlDetails.ranked}</span>
+                                                                </div>
+                                                            )}
+                                                            {mdlDetails.original_network && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs text-zinc-500 font-normal">Network:</span>
+                                                                    <span className="text-zinc-200 font-normal">{mdlDetails.original_network}</span>
+                                                                </div>
+                                                            )}
+                                                            {mdlDetails.aired && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs text-zinc-500 font-normal">Aired:</span>
+                                                                    <span className="text-zinc-200 font-normal">{mdlDetails.aired}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {mdlDetails.url && (
+                                                            <a
+                                                                href={mdlDetails.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-xs text-zinc-400 hover:text-white transition-colors underline underline-offset-4"
+                                                            >
+                                                                View on MyDramaList →
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Where to Watch (JustWatch streaming badges) */}
+                                            {(providers?.flatrate || providers?.rent || providers?.buy) && (
+                                                <div className="pt-1">
+                                                    <div className="flex items-center gap-2 mb-2.5">
+                                                        <span className="text-xs text-zinc-400 font-normal">Where to watch</span>
+                                                        <span className="text-[10px] text-zinc-600 font-normal">• JustWatch</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-4">
+                                                        {providers.flatrate && providers.flatrate.length > 0 && (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-zinc-500 font-normal">Stream:</span>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {providers.flatrate.map(p => (
+                                                                        <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-7 h-7 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {(providers.rent || providers.buy) && (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-zinc-500 font-normal">Rent / Buy:</span>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {[...(providers.rent || []), ...(providers.buy || [])].reduce((acc: any[], curr) => { if (!acc.find(p => p.provider_id === curr.provider_id)) acc.push(curr); return acc; }, []).map(p => (
+                                                                        <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-7 h-7 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {/* Movie & Genre Tags */}
+                                            {/* Movie & Genre Tags - strictly 2 rows max */}
                                             {((displayData.genres && displayData.genres.length > 0) || (displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags)) && (
-                                                <div className="mb-5">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {displayData.genres?.map((genre: any) => (
-                                                            <button 
+                                                <div>
+                                                    <div className="flex flex-wrap gap-2 max-h-[64px] overflow-hidden">
+                                                        {displayData.genres?.slice(0, 3).map((genre: any) => (
+                                                             <button 
                                                                 key={genre.id || genre.name} 
                                                                 onClick={() => {
                                                                     onClose();
                                                                     if (onKeywordClick) onKeywordClick({ id: genre.id || 0, name: genre.name });
                                                                 }}
-                                                                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 hover:text-white transition-all cursor-pointer border-0 outline-none active:scale-95"
+                                                                className="h-7 inline-flex items-center px-3 rounded-full text-xs font-medium bg-white/[0.08] hover:bg-white/[0.14] text-zinc-200 hover:text-white transition-all cursor-pointer border-0 outline-none active:scale-95 shrink-0"
                                                             >
                                                                 {genre.name}
                                                             </button>
                                                         ))}
                                                         {(displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags || [])
-                                                            .slice(0, 16)
+                                                            .slice(0, 5)
                                                             .map((tag: any, idx: number) => {
                                                                 const tagName = typeof tag === 'string' ? tag : tag.name;
                                                                 const tagId = typeof tag === 'object' && tag.id ? tag.id : 0;
@@ -3012,7 +3246,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             onClose();
                                                                             if (onKeywordClick) onKeywordClick({ id: tagId, name: tagName });
                                                                         }}
-                                                                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer border-0 outline-none active:scale-95"
+                                                                        className="h-7 inline-flex items-center px-2.5 rounded-full text-xs font-medium bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer border-0 outline-none active:scale-95 shrink-0"
                                                                     >
                                                                         #{tagName}
                                                                     </button>
@@ -3022,28 +3256,115 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="mb-6">
-                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-3.5">Top Cast</h3>
+                                            {displayData.external_ids && (
+                                                <div className="flex gap-2.5">
+                                                    {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${details.external_ids.imdb_id}`} icon={Film} hoverColor="hover:text-yellow-500 hover:border-yellow-500/30"/>}
+                                                    {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} hoverColor="hover:text-pink-500 hover:border-pink-500/30"/>}
+                                                    {displayData.external_ids.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} hoverColor="hover:text-sky-400 hover:border-sky-400/30"/>}
+                                                    {displayData.external_ids.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} hoverColor="hover:text-blue-500 hover:border-blue-500/30"/>}
+                                                    {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} hoverColor="hover:text-emerald-400 hover:border-emerald-400/30"/>}
+                                                </div>
+                                            )}
+
+                                            {/* Top Cast */}
+                                            <div className="pt-2">
+                                                <div className="flex items-center justify-between mb-3.5">
+                                                    <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                        <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                        Top Cast
+                                                    </h3>
+                                                    {displayData.credits?.cast && displayData.credits.cast.length > 10 && (
+                                                        <button onClick={() => setShowFullCast(true)} className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-transparent border-0 outline-none">
+                                                            View All
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 <div className="flex overflow-x-auto gap-5 pb-2 hide-scrollbar">
-                                                     {displayData.credits?.cast?.slice(0, 10).map((person) => (
+                                                     {displayData.credits?.cast?.slice(0, 14).map((person) => (
                                                          <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-20 bg-transparent p-0 border border-transparent">
                                                              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-2.5 bg-white/5 transition-all duration-500 border border-transparent shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
-                                                            <h4 className="text-xs font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4>
-                                                            <p className="text-[11px] text-zinc-400 line-clamp-1">{person.character}</p>
-                                                        </TvFocusButton>
-                                                    ))}
-                                                    <TvFocusButton onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group self-start"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-medium text-zinc-400 group-hover:text-white">View All</span></TvFocusButton>
+                                                             <h4 className="text-xs font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4>
+                                                             <p className="text-[11px] text-zinc-400 line-clamp-1">{person.character}</p>
+                                                         </TvFocusButton>
+                                                     ))}
                                                 </div>
                                             </div>
+
+                                            {/* Crew */}
                                             <div>
-                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight mb-3.5">Crew</h3>
+                                                <div className="flex items-center justify-between mb-3.5">
+                                                    <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                        <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                        Crew
+                                                    </h3>
+                                                    {displayData.credits?.crew && displayData.credits.crew.length > 10 && (
+                                                         <button onClick={() => setShowFullCrew(true)} className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer bg-transparent border-0 outline-none">
+                                                             View All
+                                                         </button>
+                                                    )}
+                                                </div>
                                                 <div className="flex overflow-x-auto gap-5 pb-2 hide-scrollbar">
-                                                     {displayData.credits?.crew?.slice(0, 10).map((person) => (
+                                                     {displayData.credits?.crew?.slice(0, 14).map((person) => (
                                                           <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-2.5 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-medium text-zinc-100 leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[11px] text-zinc-400 line-clamp-1">{person.job}</p></TvFocusButton>
                                                      ))}
-                                                    <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group self-start"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-medium text-zinc-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
+
+                                             {/* Collection (Inside Overview Tab) */}
+{collection && collection.parts && collection.parts.length > 0 && (
+                                <div className="pt-6 border-t border-white/[0.06]">
+                                    <div className="flex items-center gap-2.5 mb-4">
+                                        <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                        <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-baseline gap-2">
+                                            <span>{collection.name}</span>
+                                            <span className="text-xs text-zinc-500 font-normal">• {collection.parts.length} Films</span>
+                                        </h3>
+                                    </div>
+                                    <div className="relative w-full">
+                                        <div ref={timelineContainerRef} className="flex overflow-x-auto gap-4 md:gap-5 pb-3 pt-1 hide-scrollbar relative z-10 px-0.5 scroll-smooth">
+                                            {collection.parts.map((part) => {
+                                                const isCurrent = part.id === movie.id;
+                                                const partYear = part.release_date?.split('-')[0] || 'TBA';
+                                                return (
+                                                    <div 
+                                                        key={part.id} 
+                                                        ref={isCurrent ? activeTimelineItemRef : null} 
+                                                        className="flex flex-col items-center shrink-0 w-32 sm:w-36 md:w-40 group cursor-pointer"
+                                                        onClick={() => { if(!isCurrent) { onSwitchMovie(part); } }}
+                                                    >
+                                                        {/* Poster Card */}
+                                                        <div className={`relative aspect-[2/3] w-full rounded-xl overflow-hidden transition-all duration-300 ${
+                                                            isCurrent 
+                                                                ? 'ring-1 ring-white/30 shadow-lg scale-[1.01]' 
+                                                                : 'ring-1 ring-white/5 hover:ring-white/20 hover:scale-[1.01] opacity-75 hover:opacity-100 shadow-sm'
+                                                        }`}>
+                                                            <img 
+                                                                src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
+                                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                                alt={part.title}
+                                                            />
+                                                        </div>
+
+                                                        {/* Movie Title & Release Year */}
+                                                        <div className="mt-2.5 text-center px-0.5 w-full">
+                                                            <h4 className={`text-xs md:text-sm font-medium leading-snug line-clamp-2 transition-colors ${
+                                                                isCurrent ? 'text-white font-semibold' : 'text-zinc-300 group-hover:text-white'
+                                                            }`}>
+                                                                {part.title}
+                                                            </h4>
+                                                            <span className={`text-[11px] block mt-1 transition-colors ${
+                                                                isCurrent ? 'text-zinc-400 font-medium' : 'text-zinc-500 group-hover:text-zinc-400 font-normal'
+                                                            }`}>
+                                                                {partYear}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                                         </div>
                                     )}
                                     {activeTab === 'characters' && (
@@ -3276,7 +3597,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         return (
                                             <div className="space-y-6 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar text-left">
                                                 {/* Rating Summary Header */}
-                                                <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-6 md:p-7 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+                                                <div className="pb-6 mb-2 border-b border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-6">
                                                     <div className="flex flex-col items-center md:items-start text-center md:text-left">
                                                         <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-1">Overall Rating</span>
                                                         <div className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-2">
@@ -3323,8 +3644,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {/* Reviews Cards List */}
-                                                <div className="space-y-4">
+                                                {/* Reviews Cards in 2-Column Grid */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {tmdbReviews.map(review => {
                                                         const rating10 = review.author_details?.rating;
                                                         const starVal = rating10 ? Math.min(5, Math.max(1, Math.round(rating10 / 2))) : 5;
@@ -3332,61 +3653,52 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const isExpanded = expandedReviews[review.id];
 
                                                         return (
-                                                            <div key={review.id} className="bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.07] p-5 rounded-2xl transition-all text-left relative space-y-3.5 shadow-sm">
-                                                                <div className="flex items-center justify-between">
+                                                            <div key={review.id} className="border-b border-white/[0.06] pb-5 text-left flex flex-col justify-between space-y-3">
+                                                                <div className="space-y-3">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center font-semibold text-xs text-white uppercase shadow-inner">
+                                                                        <div className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center font-semibold text-xs text-white uppercase shadow-inner shrink-0">
                                                                             {review.author.charAt(0)}
                                                                         </div>
-                                                                        <div>
+                                                                        <div className="min-w-0 flex-1">
                                                                             <div className="flex items-center gap-2">
-                                                                                <h4 className="font-semibold text-white text-sm">{review.author}</h4>
-                                                                                <span className="bg-white/[0.06] border border-white/[0.08] text-zinc-300 text-[10px] tracking-wide font-medium px-2.5 py-0.5 rounded-full">
-                                                                                    TMDB Critic
-                                                                                </span>
+                                                                                <h4 className="font-semibold text-white text-sm truncate">{review.author}</h4>
+                                                                                <span className="text-zinc-500 text-xs font-medium tracking-wide shrink-0">• TMDB Critic</span>
                                                                             </div>
                                                                             <p className="text-[11px] text-zinc-400 font-normal">{dateStr}</p>
                                                                         </div>
                                                                     </div>
-                                                                    <button className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-full hover:bg-white/5 transition-colors">
-                                                                        <MoreVertical size={16} />
-                                                                    </button>
+
+                                                                    <div className="flex items-center gap-1 text-amber-400">
+                                                                        {[1, 2, 3, 4, 5].map((s) => (
+                                                                            <Star 
+                                                                                key={s} 
+                                                                                size={12} 
+                                                                                className={s <= starVal ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-800"} 
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+
+                                                                    <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
+                                                                        {review.content}
+                                                                    </p>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-1 text-amber-400">
-                                                                    {[1, 2, 3, 4, 5].map((s) => (
-                                                                        <Star 
-                                                                            key={s} 
-                                                                            size={13} 
-                                                                            className={s <= starVal ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-800"} 
-                                                                        />
-                                                                    ))}
-                                                                </div>
-
-                                                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
-                                                                    {review.content}
-                                                                </p>
-
-                                                                <div className="flex items-center justify-between pt-1">
-                                                                    {review.content.length > 280 ? (
+                                                                {review.content.length > 240 && (
+                                                                    <div className="pt-1">
                                                                         <TvFocusButton
                                                                             onClick={() => toggleReviewExpand(review.id)}
-                                                                            className="text-xs font-semibold text-zinc-200 hover:text-white transition-colors focus:outline-none"
+                                                                            className="text-xs font-semibold text-zinc-300 hover:text-white transition-colors focus:outline-none cursor-pointer bg-transparent border-0 p-0"
                                                                         >
                                                                             {isExpanded ? 'Show Less' : 'Read More'}
                                                                         </TvFocusButton>
-                                                                    ) : <div />}
-                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.06] px-3.5 py-1.5 rounded-full active:scale-95">
-                                                                        <ThumbsUp size={12} />
-                                                                        <span>Helpful</span>
                                                                     </div>
-                                                                </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     })}
 
                                                     {isAnime && aniListReviewsLoading ? (
-                                                        <div className="flex items-center justify-center py-6 gap-2">
+                                                        <div className="col-span-full flex items-center justify-center py-6 gap-2">
                                                             <Loader2 className="animate-spin text-zinc-400" size={16} />
                                                             <span className="text-[10px] text-zinc-400 font-medium tracking-wider uppercase">Fetching AniList reviews...</span>
                                                         </div>
@@ -3396,64 +3708,57 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const isExpanded = expandedReviews[rev.id.toString()];
 
                                                         return (
-                                                            <div key={rev.id} className="bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.07] p-5 rounded-2xl transition-all text-left relative space-y-3.5 shadow-sm">
-                                                                <div className="flex items-center justify-between">
+                                                            <div key={rev.id} className="border-b border-white/[0.06] pb-5 text-left flex flex-col justify-between space-y-3">
+                                                                <div className="space-y-3">
                                                                     <div className="flex items-center gap-3">
                                                                         <img 
                                                                             src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
-                                                                            className="w-9 h-9 rounded-full object-cover border border-white/10" 
+                                                                            className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0" 
                                                                             alt="" 
                                                                         />
-                                                                        <div>
+                                                                        <div className="min-w-0 flex-1">
                                                                             <div className="flex items-center gap-2">
-                                                                                <h4 className="font-semibold text-white text-sm">{rev.user?.name}</h4>
-                                                                                <span className="bg-amber-400/10 border border-amber-400/20 text-amber-400 text-[10px] tracking-wide font-medium px-2.5 py-0.5 rounded-full">
-                                                                                    AniList Fan Review
-                                                                                </span>
+                                                                                <h4 className="font-semibold text-white text-sm truncate">{rev.user?.name}</h4>
+                                                                                <span className="text-amber-500/80 text-xs font-medium tracking-wide shrink-0">• AniList Fan</span>
                                                                             </div>
                                                                             <p className="text-[11px] text-zinc-400 font-normal">{dateStr}</p>
                                                                         </div>
                                                                     </div>
-                                                                    <button className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-full hover:bg-white/5 transition-colors">
-                                                                        <MoreVertical size={16} />
-                                                                    </button>
+
+                                                                    <div className="flex items-center gap-1 text-amber-400">
+                                                                        {[1, 2, 3, 4, 5].map((s) => (
+                                                                            <Star 
+                                                                                key={s} 
+                                                                                size={12} 
+                                                                                className={s <= starVal ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-800"} 
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+
+                                                                    {rev.summary && (
+                                                                        <h5 className="font-semibold text-white text-xs sm:text-sm leading-snug">{rev.summary}</h5>
+                                                                    )}
+                                                                    <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
+                                                                        {rev.body}
+                                                                    </p>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-1 text-amber-400">
-                                                                    {[1, 2, 3, 4, 5].map((s) => (
-                                                                        <Star 
-                                                                            key={s} 
-                                                                            size={13} 
-                                                                            className={s <= starVal ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-800"} 
-                                                                        />
-                                                                    ))}
-                                                                </div>
-
-                                                                <h5 className="font-semibold text-white text-xs sm:text-sm leading-snug">{rev.summary}</h5>
-                                                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
-                                                                    {rev.body}
-                                                                </p>
-
-                                                                <div className="flex items-center justify-between pt-1">
-                                                                    {rev.body.length > 280 ? (
+                                                                {rev.body && rev.body.length > 240 && (
+                                                                    <div className="pt-1">
                                                                         <TvFocusButton
                                                                             onClick={() => toggleReviewExpand(rev.id.toString())}
-                                                                            className="text-xs font-semibold text-zinc-200 hover:text-white transition-colors focus:outline-none"
+                                                                            className="text-xs font-semibold text-zinc-300 hover:text-white transition-colors focus:outline-none cursor-pointer bg-transparent border-0 p-0"
                                                                         >
                                                                             {isExpanded ? 'Show Less' : 'Read More'}
                                                                         </TvFocusButton>
-                                                                    ) : <div />}
-                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.06] px-3.5 py-1.5 rounded-full active:scale-95">
-                                                                        <ThumbsUp size={12} />
-                                                                        <span>Helpful</span>
                                                                     </div>
-                                                                </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     }) : null}
 
                                                     {isDrama && mdlLoading ? (
-                                                        <div className="flex items-center justify-center py-6 gap-2">
+                                                        <div className="col-span-full flex items-center justify-center py-6 gap-2">
                                                             <Loader2 className="w-4 h-4 text-zinc-400 animate-spin" size={16} />
                                                             <span className="text-[10px] text-zinc-400 font-medium tracking-wider uppercase">Fetching MyDramaList reviews...</span>
                                                         </div>
@@ -3462,63 +3767,54 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const isExpanded = expandedReviews[`mdl-${idx}`];
 
                                                         return (
-                                                            <div key={`mdl-rev-${idx}`} className="bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.07] p-5 rounded-2xl transition-all text-left relative space-y-3.5 shadow-sm">
-                                                                <div className="flex items-center justify-between">
+                                                            <div key={`mdl-rev-${idx}`} className="border-b border-white/[0.06] pb-5 text-left flex flex-col justify-between space-y-3">
+                                                                <div className="space-y-3">
                                                                     <div className="flex items-center gap-3">
                                                                         <img 
                                                                             src={rev.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.username || 'User')}&background=333&color=fff`} 
-                                                                            className="w-9 h-9 rounded-full object-cover border border-white/10" 
+                                                                            className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0" 
                                                                             alt="" 
                                                                         />
-                                                                        <div>
+                                                                        <div className="min-w-0 flex-1">
                                                                             <div className="flex items-center gap-2">
-                                                                                <h4 className="font-semibold text-white text-sm">{rev.username}</h4>
-                                                                                <span className="bg-amber-400/10 border border-amber-400/20 text-amber-400 text-[10px] tracking-wide font-medium px-2.5 py-0.5 rounded-full">
-                                                                                    MDL Fan Review
-                                                                                </span>
+                                                                                <h4 className="font-semibold text-white text-sm truncate">{rev.username}</h4>
+                                                                                <span className="text-amber-500/80 text-xs font-medium tracking-wide shrink-0">• MDL Fan</span>
                                                                             </div>
                                                                             <p className="text-[11px] text-zinc-400 font-normal">{rev.date}</p>
                                                                         </div>
                                                                     </div>
-                                                                    <button className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-full hover:bg-white/5 transition-colors">
-                                                                        <MoreVertical size={16} />
-                                                                    </button>
+
+                                                                    <div className="flex items-center gap-1 text-amber-400">
+                                                                        {[1, 2, 3, 4, 5].map((s) => (
+                                                                            <Star 
+                                                                                key={s} 
+                                                                                size={12} 
+                                                                                className={s <= starVal ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-800"} 
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+
+                                                                    <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
+                                                                        {rev.review}
+                                                                    </p>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-1 text-amber-400">
-                                                                    {[1, 2, 3, 4, 5].map((s) => (
-                                                                        <Star 
-                                                                            key={s} 
-                                                                            size={13} 
-                                                                            className={s <= starVal ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-800"} 
-                                                                        />
-                                                                    ))}
-                                                                </div>
-
-                                                                <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line ${isExpanded ? '' : 'line-clamp-4'}`}>
-                                                                    {rev.review}
-                                                                </p>
-
-                                                                <div className="flex items-center justify-between pt-1">
-                                                                    {rev.review && rev.review.length > 280 ? (
+                                                                {rev.review && rev.review.length > 240 && (
+                                                                    <div className="pt-1">
                                                                         <TvFocusButton
                                                                             onClick={() => toggleReviewExpand(`mdl-${idx}`)}
-                                                                            className="text-xs font-semibold text-zinc-200 hover:text-white transition-colors focus:outline-none"
+                                                                            className="text-xs font-semibold text-zinc-300 hover:text-white transition-colors focus:outline-none cursor-pointer bg-transparent border-0 p-0"
                                                                         >
                                                                             {isExpanded ? 'Show Less' : 'Read More'}
                                                                         </TvFocusButton>
-                                                                    ) : <div />}
-                                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.06] px-3.5 py-1.5 rounded-full active:scale-95">
-                                                                        <ThumbsUp size={12} />
-                                                                        <span>Helpful</span>
                                                                     </div>
-                                                                </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     }) : null}
 
                                                     {!hasAnyReviews && (
-                                                        <div className="text-center py-12 text-zinc-400 rounded-2xl text-xs font-medium bg-white/[0.02] border border-white/[0.05]">
+                                                        <div className="col-span-full text-center py-12 text-zinc-500 text-xs italic">
                                                             No reviews available yet.
                                                         </div>
                                                     )}
@@ -3526,6 +3822,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             </div>
                                         );
                                     })()}
+                                    
                                     {activeTab === 'media' && (() => {
                                         const aniListTrailerKey = (aniListMedia?.trailer?.site === 'youtube' || aniListMedia?.trailer?.site === 'YouTube') ? aniListMedia?.trailer?.id : null;
                                         let allVideos = displayData.videos?.results?.filter((v: any) => v.site === 'YouTube') || [];
@@ -3560,6 +3857,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <div className="space-y-4">
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
                                                                 <span>Trailers & More</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {allVideos.length}
@@ -3568,7 +3866,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         </div>
 
                                                         {featuredVideo && (
-                                                            <div className="relative aspect-video rounded-2xl overflow-hidden group bg-white/[0.03] border border-white/[0.08] shadow-2xl">
+                                                            <div className="relative w-full max-w-md sm:max-w-lg aspect-video rounded-xl overflow-hidden group bg-white/[0.03] border border-white/[0.08] shadow-lg">
                                                                 <img 
                                                                     src={`https://img.youtube.com/vi/${featuredVideo.key}/maxresdefault.jpg`}
                                                                     onError={(e) => {
@@ -3577,24 +3875,24 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                                                                     alt={featuredVideo.name}
                                                                 />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-between p-5 sm:p-6">
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-between p-4 sm:p-5">
                                                                     <div className="flex justify-end">
-                                                                        <span className="bg-black/60 backdrop-blur-md text-white/90 border border-white/10 text-[10px] uppercase font-semibold tracking-wider px-3 py-1 rounded-full">
+                                                                        <span className="bg-black/60 backdrop-blur-md text-white/90 border border-white/10 text-[9px] uppercase font-semibold tracking-wider px-2.5 py-0.5 rounded-full">
                                                                             Official Trailer
                                                                         </span>
                                                                     </div>
-                                                                    <div className="flex items-end justify-between gap-4">
-                                                                        <div>
-                                                                            <h4 className="font-semibold text-white text-base sm:text-lg md:text-xl drop-shadow-md line-clamp-1">
+                                                                    <div className="flex items-end justify-between gap-3">
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <h4 className="font-semibold text-white text-sm sm:text-base drop-shadow-md line-clamp-1">
                                                                                 {featuredVideo.name}
                                                                             </h4>
-                                                                            <p className="text-xs text-zinc-300 font-normal mt-0.5">YouTube HD Video</p>
+                                                                            <p className="text-[11px] text-zinc-300 font-normal mt-0.5">YouTube HD Video</p>
                                                                         </div>
                                                                         <TvFocusButton 
                                                                             onClick={() => setViewingTrailerKey(featuredVideo.key)}
-                                                                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white hover:bg-zinc-100 text-black flex items-center justify-center shadow-2xl transition-all duration-300 group-hover:scale-105 active:scale-95 flex-shrink-0 cursor-pointer border-0 outline-none"
+                                                                            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white hover:bg-zinc-100 text-black flex items-center justify-center shadow-xl transition-all duration-300 group-hover:scale-105 active:scale-95 flex-shrink-0 cursor-pointer border-0 outline-none"
                                                                         >
-                                                                            <Play size={20} className="fill-black text-black translate-x-0.5" />
+                                                                            <Play size={16} className="fill-black text-black translate-x-0.5" />
                                                                         </TvFocusButton>
                                                                     </div>
                                                                 </div>
@@ -3635,6 +3933,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
                                                                 <span>Images</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {backdrops.length}
@@ -3668,6 +3967,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
                                                                 <span>Posters</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {posters.length}
@@ -3701,6 +4001,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between">
                                                             <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
+                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
                                                                 <span>Logos</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {logos.length}
@@ -3914,7 +4215,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {/* Season and Episode Control Header */}
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-1 h-5 sm:h-6 bg-white/80 rounded-full" />
+                                                    <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
                                                     <h3 className="text-sm sm:text-base font-semibold text-white tracking-wide">Episodes</h3>
                                                 </div>
                                                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -4086,26 +4387,36 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             )}
                                         </div>
                                     )}
-                                    {activeTab === 'similar' && displayData.similar?.results && displayData.similar.results.length > 0 && (
-                                        <div className="space-y-6 animate-in fade-in select-none text-left">
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-                                                {displayData.similar.results.slice(0, 16).map(sim => {
-                                                    const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
-                                                    return (
-                                                        <div key={sim.id} onClick={() => { onSwitchMovie(simWithMediaType); }}>
+                                    {activeTab === 'similar' && displayData.similar?.results && displayData.similar.results.length > 0 && (() => {
+                                        const validSimilar = displayData.similar.results.filter((m: any) => m.poster_path || m.backdrop_path);
+                                        if (validSimilar.length === 0) {
+                                            return (
+                                                <div className="py-12 text-center text-zinc-500 text-xs italic">
+                                                    No similar titles available.
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div className="animate-in fade-in select-none text-left">
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4 md:gap-5">
+                                                    {validSimilar.slice(0, 21).map((sim: any) => {
+                                                        const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
+                                                        return (
                                                             <MovieCard 
+                                                                key={sim.id}
+                                                                className="w-full"
                                                                 movie={simWithMediaType} 
                                                                 onClick={() => { onSwitchMovie(simWithMediaType); }} 
                                                                 isWatched={false} 
                                                                 onToggleWatched={() => {}} 
-                                                             />
-                                                        </div>
-                                                    );
-                                                })}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-
+                                        );
+                                    })()}
+                                    
                                     {activeTab === 'mdlCast' && isDrama && (
                                         <div className="space-y-6 animate-in fade-in select-none text-left">
                                             {mdlLoading ? (
@@ -4144,7 +4455,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {activeTab === 'mdlEpisodes' && isDrama && (
                                         <div className="space-y-4 animate-in fade-in select-none text-left">
                                             <div className="flex items-center gap-2 pb-3 border-b border-white/[0.08]">
-                                                <div className="w-1 h-5 sm:h-6 bg-white/80 rounded-full" />
+                                                <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
                                                 <h3 className="text-sm sm:text-base font-semibold text-white tracking-wide">Episodes</h3>
                                             </div>
 
@@ -4235,343 +4546,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     )}
                                 </div>
 
-                                <div className="space-y-6">
-                                    {isDrama && (mdlLoading ? (
-                                        <div className="rounded-3xl bg-zinc-950/40 backdrop-blur-xl border border-white/[0.06] p-6 flex items-center justify-center gap-2.5">
-                                            <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
-                                            <span className="text-xs text-zinc-400 font-medium tracking-wide">Fetching MyDramaList details...</span>
-                                        </div>
-                                    ) : mdlDetails ? (
-                                        <div className="rounded-3xl bg-zinc-950/40 backdrop-blur-xl border border-white/[0.06] p-6 space-y-4 text-left">
-                                            <div className="flex items-center gap-2 pb-3 border-b border-white/[0.06]">
-                                                <Tv size={14} className="text-zinc-400" />
-                                                <h3 className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">MyDramaList</h3>
-                                            </div>
-
-                                            {mdlDetails.alternative_titles && (
-                                                <div>
-                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Alternative Titles</span>
-                                                    <span className="text-zinc-200 text-sm leading-relaxed block">{mdlDetails.alternative_titles}</span>
-                                                </div>
-                                            )}
-
-                                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                                                {mdlDetails.country && (
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Country</span>
-                                                        <span className="text-zinc-200 font-medium text-sm block">{mdlDetails.country}</span>
-                                                    </div>
-                                                )}
-                                                {mdlDetails.duration && (
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Duration</span>
-                                                        <span className="text-zinc-200 font-medium text-sm block">{mdlDetails.duration}</span>
-                                                    </div>
-                                                )}
-                                                {mdlDetails.score_details && (
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">MDL Score</span>
-                                                        <span className="text-amber-400 font-medium text-sm block">★ {mdlDetails.score_details}</span>
-                                                    </div>
-                                                )}
-                                                {mdlDetails.ranked && (
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Ranking</span>
-                                                        <span className="text-zinc-200 font-medium text-sm block">#{mdlDetails.ranked}</span>
-                                                    </div>
-                                                )}
-                                                {mdlDetails.original_network && (
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Original Network</span>
-                                                        <span className="text-zinc-200 font-medium text-sm block">{mdlDetails.original_network}</span>
-                                                    </div>
-                                                )}
-                                                {mdlDetails.aired && (
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Aired Dates</span>
-                                                        <span className="text-zinc-300 font-normal text-sm block">{mdlDetails.aired}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {mdlDetails.url && (
-                                                <a 
-                                                    href={mdlDetails.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block w-full py-2 bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white font-medium text-center text-xs rounded-xl border border-white/[0.06] transition-all tracking-wide mt-2"
-                                                >
-                                                    View on MyDramaList
-                                                </a>
-                                            )}
-                                        </div>
-                                    ) : null)}
-
-                                    <div className="rounded-3xl bg-zinc-950/40 backdrop-blur-xl border border-white/[0.06] p-6 md:p-7 space-y-6 text-left">
-                                        {/* Header */}
-                                        <div className="flex items-center gap-2 pb-4 border-b border-white/[0.06]">
-                                            <Info size={14} className="text-zinc-400" />
-                                            <h3 className="text-xs font-semibold tracking-wider text-zinc-300 uppercase">Information</h3>
-                                        </div>
-
-                                        {/* Clean 2-Column Typographic Grid */}
-                                        {(() => {
-                                            const originalLangCode = displayData.original_language?.toLowerCase() || 'en';
-                                            const spokenLangMatch = displayData.spoken_languages?.find(lang => lang.iso_639_1 === originalLangCode);
-                                            const originalLangFull = spokenLangMatch?.english_name || spokenLangMatch?.name || LANGUAGES_FULL_MAP[originalLangCode] || originalLangCode.toUpperCase();
-
-                                            const getProductionCountriesList = () => {
-                                                if (displayData.production_countries && displayData.production_countries.length > 0) {
-                                                    return displayData.production_countries.map(c => COUNTRIES_FULL_MAP[c.iso_3166_1.toUpperCase()] || c.name);
-                                                }
-                                                if (displayData.origin_country && displayData.origin_country.length > 0) {
-                                                    return displayData.origin_country.map(code => COUNTRIES_FULL_MAP[code.toUpperCase()] || code.toUpperCase());
-                                                }
-                                                return [];
-                                            };
-                                            const productionCountries = getProductionCountriesList();
-
-                                            return (
-                                                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                                                    {isAnime ? (
-                                                        <>
-                                                            {displayData.studio && (
-                                                                <div>
-                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Studio</span>
-                                                                    <button 
-                                                                        onClick={() => onStudioClick(displayData.studioId || null, displayData.studio, true)}
-                                                                        className="text-white hover:text-zinc-300 font-medium text-sm truncate bg-transparent border-0 p-0 focus:outline-none text-left transition-colors cursor-pointer block w-full"
-                                                                    >
-                                                                        {displayData.studio}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Status</span>
-                                                                <span className={`text-sm font-medium block truncate ${displayData.status === 'FINISHED' || displayData.status === 'Released' ? 'text-emerald-400' : 'text-zinc-200'}`}>
-                                                                    {displayData.status === 'FINISHED' ? 'Finished' : displayData.status === 'RELEASING' ? 'Releasing' : displayData.status === 'NOT_YET_RELEASED' ? 'Upcoming' : (displayData.status || 'N/A')}
-                                                                </span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Format</span>
-                                                                <span className="text-zinc-200 font-medium text-sm block truncate">{displayData.format || 'N/A'}</span>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Source</span>
-                                                                <span className="text-zinc-200 font-medium text-sm block truncate">{displayData.source ? displayData.source.replace(/_/g, ' ') : 'N/A'}</span>
-                                                            </div>
-                                                            {displayData.season && (
-                                                                <div>
-                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Season</span>
-                                                                    <span className="text-zinc-200 font-medium text-sm block truncate">{displayData.season} {displayData.seasonYear}</span>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            {director && (
-                                                                <div>
-                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Director</span>
-                                                                    <span className="text-zinc-100 font-medium text-sm block truncate" title={director.name}>{director.name}</span>
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Status</span>
-                                                                <span className={`text-sm font-medium block truncate ${displayData.status === 'Released' ? 'text-emerald-400' : 'text-zinc-200'}`}>{displayData.status || 'N/A'}</span>
-                                                            </div>
-                                                            {displayData.budget > 0 && (
-                                                                <div>
-                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Budget</span>
-                                                                    <span className="text-zinc-200 font-medium text-sm block truncate">{formatCurrency(displayData.budget, appRegion)}</span>
-                                                                </div>
-                                                            )}
-                                                            {displayData.revenue > 0 && (
-                                                                <div>
-                                                                    <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Revenue</span>
-                                                                    <span className="text-emerald-400 font-medium text-sm block truncate">{formatCurrency(displayData.revenue, appRegion)}</span>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )}
-
-                                                    {/* Original Language */}
-                                                    <div>
-                                                        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Original Language</span>
-                                                        <span className="text-zinc-200 font-medium text-sm block truncate">{originalLangFull}</span>
-                                                    </div>
-
-                                                    {/* Origin Country */}
-                                                    {productionCountries.length > 0 && (
-                                                        <div>
-                                                            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Origin Country</span>
-                                                            <span className="text-zinc-200 font-medium text-sm block truncate" title={productionCountries.join(", ")}>
-                                                                {productionCountries.join(", ")}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })()}
-
-                                        {/* Spoken & Dubbed */}
-                                        {displayData.spoken_languages && displayData.spoken_languages.length > 0 && (
-                                            <div className="pt-4 border-t border-white/[0.06]">
-                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block mb-1">Spoken & Dubbed</span>
-                                                <p className="text-sm font-normal text-zinc-300 leading-relaxed">
-                                                    {displayData.spoken_languages.map(l => l.english_name || l.name).join(', ')}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* Where to Watch */}
-                                        <div className="pt-4 border-t border-white/[0.06] space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Where to Watch</span>
-                                                <span className="text-[10px] text-zinc-600 font-medium">Powered by JustWatch</span>
-                                            </div>
-                                            {(providers?.flatrate || providers?.rent || providers?.buy) ? (
-                                                <div className="space-y-3">
-                                                    {providers.flatrate && (
-                                                        <div className="space-y-1.5">
-                                                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Stream{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {providers.flatrate.map(p => (
-                                                                    <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {(providers.rent || providers.buy) && (
-                                                        <div className="space-y-1.5">
-                                                            <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Rent / Buy{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {[...(providers.rent || []), ...(providers.buy || [])].reduce((acc: any[], curr) => { if (!acc.find(p => p.provider_id === curr.provider_id)) acc.push(curr); return acc; }, []).map(p => (
-                                                                    <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <p className="text-xs text-zinc-500">No streaming information available.</p>
-                                            )}
-                                        </div>
-
-                                        {/* Production Companies */}
-                                        {displayData.production_companies && displayData.production_companies.length > 0 && (
-                                            <div className="pt-4 border-t border-white/[0.06] space-y-3">
-                                                <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider block">Production</span>
-                                                <div className="space-y-2.5">
-                                                    {displayData.production_companies.map((company) => (
-                                                        <div 
-                                                            key={company.id} 
-                                                            onClick={() => onStudioClick(company.id, company.name, false)}
-                                                            className="flex items-center gap-3 py-1 cursor-pointer group/prod transition-opacity hover:opacity-80"
-                                                            title={`View ${company.name} Studios`}
-                                                        >
-                                                            <div className="w-7 h-7 bg-white/90 rounded-md p-1 flex items-center justify-center shrink-0">
-                                                                {company.logo_path ? (
-                                                                    <img src={`${TMDB_IMAGE_BASE}${company.logo_path}`} alt={company.name} className="max-w-full max-h-full object-contain"/>
-                                                                ) : (
-                                                                    <Building2 size={13} className="text-zinc-700"/>
-                                                                )}
-                                                            </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <p className="text-xs font-medium text-zinc-200 group-hover/prod:text-white truncate">{company.name}</p>
-                                                                <p className="text-[10px] text-zinc-500">{company.origin_country || 'Global'}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
 
 
-
-                            {collection && collection.parts && collection.parts.length > 0 && (
-                                <div className="mt-8 pt-6 border-t border-white/[0.06]">
-                                    <div className="flex flex-col gap-4 mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-300 shrink-0">
-                                                <Layers size={16}/>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight">{collection.name}</h3>
-                                                <p className="text-xs text-zinc-500 font-medium tracking-wide mt-0.5">Chronological Order • {collection.parts.length} Films</p>
-                                            </div>
-                                        </div>
-                                        <div className="relative w-full">
-                                            <div ref={timelineContainerRef} className="flex overflow-x-auto gap-5 md:gap-7 pb-4 pt-1 hide-scrollbar relative z-10 px-1 scroll-smooth">
-                                                {collection.parts.map((part) => {
-                                                    const isCurrent = part.id === movie.id;
-                                                    const partYear = part.release_date?.split('-')[0] || 'TBA';
-                                                    return (
-                                                        <div 
-                                                            key={part.id} 
-                                                            ref={isCurrent ? activeTimelineItemRef : null} 
-                                                            className="flex flex-col items-center shrink-0 w-36 md:w-44 group cursor-pointer"
-                                                            onClick={() => { if(!isCurrent) { onSwitchMovie(part); } }}
-                                                        >
-                                                            {/* Poster Card */}
-                                                            <div className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden transition-all duration-300 ${
-                                                                isCurrent 
-                                                                    ? 'ring-2 ring-white/90 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.8)] scale-[1.03]' 
-                                                                    : 'ring-1 ring-white/10 group-hover:ring-white/30 group-hover:scale-[1.02] opacity-85 group-hover:opacity-100 shadow-md'
-                                                            }`}>
-                                                                <img 
-                                                                    src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
-                                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                                                    alt={part.title}
-                                                                />
-                                                                {isCurrent && (
-                                                                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-xl flex items-center gap-1.5 shadow-md">
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                                        <span className="text-[10px] font-medium text-white/90 tracking-wide">Viewing</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Timeline Node & Line */}
-                                                            <div className="flex flex-col items-center mt-5 mb-2 relative w-full">
-                                                                <div className="absolute top-1/2 left-0 right-0 h-px bg-white/[0.08] -translate-y-1/2 pointer-events-none" />
-                                                                <div className={`relative z-10 w-2.5 h-2.5 rounded-full transition-all ${
-                                                                    isCurrent 
-                                                                        ? 'bg-white ring-4 ring-white/20 shadow-[0_0_12px_rgba(255,255,255,0.9)]' 
-                                                                        : 'bg-zinc-700 group-hover:bg-zinc-400'
-                                                                }`} />
-                                                            </div>
-
-                                                            {/* Release Year */}
-                                                            <span className={`text-[11px] font-medium tracking-wider mb-1 transition-colors ${
-                                                                isCurrent ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'
-                                                            }`}>
-                                                                {partYear}
-                                                            </span>
-
-                                                            {/* Movie Title */}
-                                                            <h4 className={`text-xs md:text-sm font-medium leading-snug text-center line-clamp-2 px-1 transition-colors ${
-                                                                isCurrent ? 'text-white font-semibold' : 'text-zinc-400 group-hover:text-zinc-200'
-                                                            }`}>
-                                                                {part.title}
-                                                            </h4>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            
                         </div>
                     </div>
                 )}
             </div>
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
-            {viewingTrailerKey && (
-                <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-in fade-in" onClick={() => setViewingTrailerKey(null)}>
+            {viewingTrailerKey && createPortal(
+                <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-in fade-in" onClick={() => setViewingTrailerKey(null)}>
                     <div className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
                         <button 
                             onClick={() => setViewingTrailerKey(null)}
@@ -4587,7 +4571,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             title="Trailer Player"
                         />
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
             <FullCreditsModal isOpen={showFullCast} onClose={() => setShowFullCast(false)} title="Full Cast" credits={displayData.credits?.cast || []} onPersonClick={onPersonClick} />
             <FullCreditsModal isOpen={showFullCrew} onClose={() => setShowFullCrew(false)} title="Full Crew" credits={displayData.credits?.crew || []} onPersonClick={onPersonClick} />
@@ -5207,5 +5192,3 @@ const DramaRecCard: React.FC<{
     </div>
   );
 };
-
-

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Shield, ExternalLink, Building2 } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails, ProductionCompanyDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton, ImageLightbox, tvFetch } from './Shared';
@@ -18,11 +19,13 @@ interface FullCreditsModalProps {
 
 export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onClose, title, credits, onPersonClick }) => {
     const [isClosing, setIsClosing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleClose = useCallback(() => {
         setIsClosing(true);
         setTimeout(() => {
             setIsClosing(false);
+            setSearchQuery('');
             onClose();
         }, 240);
     }, [onClose]);
@@ -30,70 +33,147 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
     useEffect(() => {
         if (!isOpen) {
             setIsClosing(false);
+            setSearchQuery('');
             return;
         }
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') handleClose();
         };
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            window.removeEventListener('keydown', handleKeyDown);
+        };
     }, [isOpen, handleClose]);
 
-    if (!isOpen && !isClosing) return null;
+    const filteredCredits = useMemo(() => {
+        if (!searchQuery.trim()) return credits;
+        const q = searchQuery.toLowerCase().trim();
+        return credits.filter(p => 
+            (p.name || '').toLowerCase().includes(q) || 
+            (p.character || '').toLowerCase().includes(q) ||
+            (p.job || '').toLowerCase().includes(q)
+        );
+    }, [credits, searchQuery]);
 
-    return (
-        <div className={`fixed inset-0 z-[200] flex flex-col bg-[#0a0a0a] overflow-hidden select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
-            {/* Sticky Header with Back Button, Title, and Count */}
+    if (!isOpen && !isClosing) return null;
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
+        <div className={`fixed inset-0 z-[500] flex flex-col bg-[#0a0a0a] overflow-hidden select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
+            {/* Sticky Header with Back Button, Title, Search, and Count */}
             <div className="sticky top-0 z-30 px-4 md:px-8 py-3.5 md:py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0a0a0a]/95 backdrop-blur-2xl">
                 <div className="flex items-center gap-3 md:gap-4">
                     <button 
                         onClick={handleClose} 
-                        className="p-2 -ml-1 md:-ml-2 hover:bg-white/10 active:bg-white/15 rounded-full transition-all text-white cursor-pointer flex items-center justify-center group active:scale-95"
+                        className="p-2 -ml-1 md:-ml-2 hover:bg-white/10 active:bg-white/15 rounded-full transition-all text-white cursor-pointer flex items-center justify-center group active:scale-95 border-0 bg-transparent outline-none"
                         title="Back"
                         aria-label="Back"
                     >
                         <ArrowLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
                     </button>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <span className="w-1 h-5 bg-red-600 rounded-full shrink-0" />
                         <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">{title}</h2>
                     </div>
                 </div>
-                <span className="text-xs font-semibold bg-white/[0.08] text-zinc-300 px-3 py-1 rounded-full border border-white/[0.06]">
-                    {credits.length} {credits.length === 1 ? 'Person' : 'People'}
-                </span>
-            </div>
-            
-            {/* Clean Unboxed Circles & Details */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10">
-                <div className="max-w-7xl mx-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-x-4 sm:gap-x-6 gap-y-6 sm:gap-y-8 justify-items-center">
-                    {credits.map((person, idx) => (
-                        <button 
-                            key={`${person.id}-${person.job || person.character || ''}-${idx}`} 
-                            onClick={() => { 
-                                onClose(); 
-                                onPersonClick(person.id, person.name, person.isAniListStaff); 
-                            }} 
-                            className="flex flex-col items-center text-center group cursor-pointer bg-transparent border-0 p-0 outline-none select-none transition-transform duration-200 hover:scale-105 active:scale-95 w-24 sm:w-28"
-                        >
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-2.5 bg-white/5 transition-all duration-300 border border-white/10 group-hover:border-white/30 shadow-lg shrink-0">
-                                <img 
-                                    src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name || 'Unknown')}&background=222&color=fff`} 
-                                    alt={person.name} 
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                />
-                            </div>
-                            <h4 className="text-xs sm:text-sm font-medium text-zinc-100 group-hover:text-red-400 transition-colors leading-tight mb-1 line-clamp-2 max-w-full">
-                                {person.name}
-                            </h4>
-                            <p className="text-[11px] text-zinc-400 line-clamp-1 max-w-full">
-                                {person.character || person.job}
-                            </p>
-                        </button>
-                    ))}
+
+                <div className="flex items-center gap-3">
+                    {/* Search box for cast/crew */}
+                    <div className="relative hidden sm:block w-48 md:w-64">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={`Search ${title.toLowerCase()}...`}
+                            className="w-full bg-white/[0.06] border border-white/10 rounded-full pl-9 pr-7 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-all"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white border-0 bg-transparent cursor-pointer p-0"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
+
+                    <span className="text-xs font-semibold bg-white/[0.08] text-zinc-300 px-3 py-1 rounded-full border border-white/[0.06] shrink-0">
+                        {filteredCredits.length} {filteredCredits.length === 1 ? 'Person' : 'People'}
+                    </span>
                 </div>
             </div>
-        </div>
+
+            {/* Mobile search bar */}
+            <div className="sm:hidden px-4 py-2 bg-[#0a0a0a] border-b border-white/[0.06]">
+                <div className="relative w-full">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={`Search ${title.toLowerCase()}...`}
+                        className="w-full bg-white/[0.06] border border-white/10 rounded-full pl-9 pr-7 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-all"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white border-0 bg-transparent cursor-pointer p-0"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+            </div>
+            
+            {/* Clean Unboxed Circles & Details with Reduced Gaps */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 lg:p-8">
+                {filteredCredits.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <p className="text-zinc-400 text-sm">No results found matching &quot;{searchQuery}&quot;</p>
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="mt-3 text-xs text-red-500 hover:text-red-400 underline cursor-pointer bg-transparent border-0"
+                        >
+                            Clear search
+                        </button>
+                    </div>
+                ) : (
+                    <div className="max-w-7xl mx-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-x-3 sm:gap-x-4 md:gap-x-5 gap-y-4 sm:gap-y-5 justify-items-center">
+                        {filteredCredits.map((person, idx) => (
+                            <button 
+                                key={`${person.id}-${person.job || person.character || ''}-${idx}`} 
+                                onClick={() => { 
+                                    onClose(); 
+                                    onPersonClick(person.id, person.name, person.isAniListStaff); 
+                                }} 
+                                className="flex flex-col items-center text-center group cursor-pointer bg-transparent border-0 p-0 outline-none select-none transition-transform duration-200 hover:scale-105 active:scale-95 w-20 sm:w-24 md:w-26"
+                            >
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 rounded-full overflow-hidden mb-2 bg-white/5 transition-all duration-300 border border-white/10 group-hover:border-white/30 shadow-md shrink-0">
+                                    <img 
+                                        src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name || 'Unknown')}&background=222&color=fff`} 
+                                        alt={person.name} 
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                    />
+                                </div>
+                                <h4 className="text-xs sm:text-sm font-medium text-zinc-100 group-hover:text-red-400 transition-colors leading-tight mb-1 line-clamp-2 max-w-full">
+                                    {person.name}
+                                </h4>
+                                <p className="text-[11px] text-zinc-400 line-clamp-1 max-w-full">
+                                    {person.character || person.job}
+                                </p>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>,
+        document.body
     );
 };
 
