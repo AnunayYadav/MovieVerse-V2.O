@@ -87,6 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await fetch(tmdbUrl);
     if (!response.ok) {
+      if (response.status === 404 && path.includes('/recommendations')) {
+        return res.status(200).json({ page: 1, results: [], total_pages: 0, total_results: 0 });
+      }
       const errorText = await response.text();
       return res.status(response.status).json({ error: `TMDB error: ${errorText}` });
     }

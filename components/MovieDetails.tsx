@@ -979,8 +979,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     });
                 }
             })
-            .catch(err => {
-                console.error("Error fetching anime themes:", err);
+            .catch(() => {
                 if (isMounted) setAnimeThemes(null);
             })
             .finally(() => {
