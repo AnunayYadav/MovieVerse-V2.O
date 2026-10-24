@@ -874,7 +874,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const currentProvider = PROVIDERS.find(p => p.id === activeEffectiveServerId);
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
   const [fallbackToIframe, setFallbackToIframe] = useState(false);
-  const isCineSrcCustom = selectedProviderId === 'cinesrc';
+  const isCineSrcCustom = selectedProviderId === 'cinesrc' || activeEffectiveServerId === 'cinesrc';
   const isVidFastCustom = false;
 
   const isIframeCustomControls = isCineSrcCustom;
@@ -3541,7 +3541,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         ) : (
           embedUrl && (
             <div className="w-full h-full absolute inset-0 bg-black z-0 overflow-hidden">
-              {iframeLoading && (
+              {iframeLoading && !isCineSrcCustom && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-30 animate-in fade-in duration-200">
                   <div className="w-10 h-10 border-[3px] border-[#E50914] border-t-transparent border-r-transparent rounded-full animate-spin [filter:drop-shadow(0_0_10px_#E50914)]" />
                   <span className="text-zinc-500 text-[10px] mt-3 tracking-widest font-semibold uppercase animate-pulse select-none">Loading Server...</span>
