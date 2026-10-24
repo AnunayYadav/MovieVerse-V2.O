@@ -348,7 +348,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
-    const defaultProvider = isAnime ? 'auto' : 'vidstuck';
+    const defaultProvider = isAnime ? 'vidnest_animepahe' : 'vidstuck';
     let chosen = providerId;
     if (!isAnime && (chosen === 'vidnest_animepahe' || chosen?.startsWith('megaplay') || chosen === 'encdec_animekai')) {
       chosen = undefined;
@@ -356,11 +356,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (typeof window !== 'undefined') {
       const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
       let preferred = chosen || localStorage.getItem(key);
-      if (!preferred || preferred === 'auto_select' || (!chosen && preferred === 'auto' && !isAnime)) {
+      if (!preferred || preferred === 'auto_select' || preferred === 'auto') {
         preferred = defaultProvider;
       }
       if (!isAnime && (preferred === 'vidnest_animepahe' || preferred?.startsWith('megaplay') || preferred === 'encdec_animekai')) {
         preferred = 'vidstuck';
+      }
+      if (isAnime && (preferred === 'vidstuck')) {
+        preferred = 'vidnest_animepahe';
       }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
@@ -2832,7 +2835,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           }
 
           // Handle ZXCStream events
-          if (event.origin === 'https://zxcstream.xyz' || parsed.type?.startsWith('VIDEO_')) {
+          if (event.origin === 'https://zxcstream.cc' || event.origin === 'https://zxcstream.xyz' || parsed.type?.startsWith('VIDEO_')) {
             const type = parsed.type;
             const payload = parsed.payload || {};
             switch (type) {
@@ -2986,6 +2989,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           // Handle VIDSTUCK events explicitly
           if (
+            event.origin === 'https://vidstuck.cc' ||
             event.origin === 'https://vidstuck.xyz' ||
             (parsed && parsed.id && parsed.timestamp !== undefined && parsed.progress !== undefined && (parsed.type === 'movie' || parsed.type === 'tv' || parsed.type === 'anime'))
           ) {
