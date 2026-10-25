@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio, Download, Users, ArrowLeftRight } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
-import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
 import { useScreenWakeLock } from '../utils/screenWakeLock';
@@ -863,12 +862,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
 
 
-  const isTV = typeof window !== 'undefined' && (
-    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) ||
-    navigator.userAgent.includes("MovieVerseTV") ||
-    (window as any).Capacitor?.platform === 'android' ||
-    window.location.search.includes("tv=true")
-  );
+  const isTV = false;
 
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === activeEffectiveServerId);
@@ -2609,23 +2603,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [embedUrl]);
 
-  useEffect(() => {
-    if (isTV) {
-      console.log("MovieVerse TV: Pausing spatial navigation for video playback");
-      pause();
 
-      const handleWindowFocus = () => {
-        focusIframe();
-      };
-      window.addEventListener('focus', handleWindowFocus);
-
-      return () => {
-        console.log("MovieVerse TV: Resuming spatial navigation after video playback");
-        resume();
-        window.removeEventListener('focus', handleWindowFocus);
-      };
-    }
-  }, [isTV]);
 
   const currentProgressRef = useRef<number>(forceProgress || 0);
   const lastEpisodeKeyRef = useRef<string | null>(null);

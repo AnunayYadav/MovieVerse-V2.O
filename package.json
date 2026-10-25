@@ -6,18 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "cap-sync": "node scripts/cap-sync.cjs"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.0",
-    "@capacitor/app": "^8.1.0",
-    "@capacitor/cli": "^8.4.0",
-    "@capacitor/core": "^8.4.0",
     "@consumet/extensions": "^1.8.8",
     "@google/genai": "^1.31.0",
     "@movie-web/providers": "^2.4.13",
-    "@noriginmedia/norigin-spatial-navigation": "^3.1.0",
     "@omss/framework": "^1.1.19",
     "@supabase/supabase-js": "2.45.1",
     "cheerio": "^1.2.0",

@@ -5,22 +5,9 @@ import { Film, Star, Eye, Download, X, Check, ArrowLeft, Loader2 } from 'lucide-
 import { Movie } from '../types';
 import { useTvFocus } from '../tvNavigation';
 
-const isTVApp = 
-  typeof window !== 'undefined' && (
-    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
-    navigator.userAgent.includes("MovieVerseTV") ||
-    window.location.search.includes("tv=true")
-  );
-
-// Point to the hosted Vercel deployment of the proxy to prevent buffering/throttling inside India
-export const TMDB_BASE_URL = isTVApp ? "https://movieverseofficial.vercel.app/api/tmdb" : "/api/tmdb";
-export const TMDB_IMAGE_BASE = isTVApp 
-    ? "https://image.tmdb.org/t/p/w342" 
-    : "https://image.tmdb.org/t/p/w500";
-
-export const TMDB_BACKDROP_BASE = isTVApp 
-    ? "https://image.tmdb.org/t/p/w780" 
-    : "https://image.tmdb.org/t/p/w1280";
+export const TMDB_BASE_URL = "/api/tmdb";
+export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
 // Standard, high-performance in-memory cache for fetch requests
 const fetchCache = new Map<string, any>();
@@ -35,24 +22,8 @@ export async function cachedFetch(url: string) {
     return data;
 }
 
-const originalFetch = typeof window !== 'undefined' ? window.fetch : null;
 export const tvFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const urlStr = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
-    const isTvMode = typeof document !== 'undefined' && document.body.classList.contains("tv-navigation-enabled");
-    if (isTvMode && originalFetch && urlStr.includes('/api/tmdb') && (!init || !init.method || init.method.toUpperCase() === 'GET')) {
-        try {
-            const data = await cachedFetch(urlStr);
-            return {
-                ok: true,
-                status: 200,
-                json: async () => data,
-                text: async () => JSON.stringify(data),
-            } as any;
-        } catch (e) {
-            console.error("tvFetch: cachedFetch failed, falling back to original fetch:", e);
-        }
-    }
-    return originalFetch ? originalFetch(input, init) : fetch(input, init);
+    return fetch(input, init);
 };
 
 // --- CENTRALIZED CONFIGURATION ---

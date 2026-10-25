@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { App as CapApp } from '@capacitor/app';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch } from './components/Shared';
@@ -20,16 +19,9 @@ import { NovelPage } from './components/NovelPage';
 import { DramaPage } from './components/DramaPage';
 import { BookOpen, Drama } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
-import AppTV from './components/AppTV';
 import { syncWatchlistToAniList } from './services/anilistSync';
 
 const fetch = tvFetch;
-
-const isTVApp = typeof window !== 'undefined' && (
-    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
-    navigator.userAgent.includes("MovieVerseTV") ||
-    window.location.search.includes("tv=true")
-);
 
 const DEFAULT_COLLECTIONS: any = {
     "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://image.tmdb.org/t/p/original/2uiMdrO15s597M3E27az2Z2gSgD.jpg", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -1064,34 +1056,7 @@ export default function App() {
     const [apiKey, setApiKey] = useState(getTmdbKey());
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-    const [isTV, setIsTV] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        return (
-            /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
-            navigator.userAgent.includes("MovieVerseTV") ||
-            window.location.search.includes("tv=true")
-        );
-    });
-
-    useEffect(() => {
-        const checkTV = () => {
-            const result = 
-                /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
-                navigator.userAgent.includes("MovieVerseTV") ||
-                window.location.search.includes("tv=true");
-            if (result) {
-                setIsTV(true);
-            }
-        };
-        checkTV();
-        const timer = setTimeout(checkTV, 300);
-        const timer2 = setTimeout(checkTV, 800);
-        return () => {
-            clearTimeout(timer);
-            clearTimeout(timer2);
-        };
-    }, []);
+    const isTV = false;
 
 
     const [authChecking, setAuthChecking] = useState(true);
@@ -1206,39 +1171,18 @@ export default function App() {
     const [currentUserId, setCurrentUserId] = useState<string>('');
     const [reminders, setReminders] = useState<number[]>([]);
 
-    // Halt video playback when app goes to background / minimized / locked
+    // Tab visibility handling
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                console.log("MovieVerse TV: Tab hidden.");
-                // We no longer call setIsWatching(false) here so the player doesn't close on tab switch
-            }
-        };
-
-        let stateListener: any = null;
-        const registerAppStateListener = async () => {
-            if ((window as any).Capacitor?.isPluginAvailable('App')) {
-                try {
-                    stateListener = await CapApp.addListener('appStateChange', ({ isActive }) => {
-                        console.log("MovieVerse TV: App state changed. isActive:", isActive);
-                        if (!isActive) {
-                            // We no longer call setIsWatching(false) here to avoid closing player in background
-                        }
-                    });
-                } catch (e) {
-                    console.error("MovieVerse TV: Failed to register appStateChange listener:", e);
-                }
+                console.log("MovieVerse: Tab hidden.");
             }
         };
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
-        registerAppStateListener();
 
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
-            if (stateListener) {
-                stateListener.remove();
-            }
         };
     }, []);
 
@@ -3980,24 +3924,6 @@ export default function App() {
     }
     if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} watchlist={watchlist} setWatchlist={(w) => { setWatchlist(w); localStorage.setItem('movieverse_watchlist', JSON.stringify(w)); }} favorites={favorites} setFavorites={(f) => { setFavorites(f); localStorage.setItem('movieverse_favorites', JSON.stringify(f)); }} onSelectMovie={setSelectedMovie} /> </>);
 
-    if (isTV) {
-        return (
-            <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>}>
-                <AppTV
-                    apiKey={apiKey}
-                    userProfile={userProfile}
-                    onLogout={handleLogout}
-                    watchlist={watchlist}
-                    favorites={favorites}
-                    watched={watched}
-                    onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
-                    onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
-                    onToggleWatched={handleToggleWatched}
-                    onProgress={handleProgressUpdate}
-                />
-            </Suspense>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
