@@ -466,11 +466,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     });
 
     const [localPlayerDismissed, setLocalPlayerDismissed] = useState(false);
+    const prevInitialShowPlayerRef = useRef(initialShowPlayer);
     useEffect(() => {
-        if (initialShowPlayer) {
+        if (initialShowPlayer && !prevInitialShowPlayerRef.current) {
             setLocalPlayerDismissed(false);
         }
-    }, [initialShowPlayer, initialPlayParams?.season, initialPlayParams?.episode]);
+        prevInitialShowPlayerRef.current = initialShowPlayer;
+    }, [initialShowPlayer]);
 
     const showPlayer = !!initialShowPlayer && !localPlayerDismissed;
     const [playParams, setPlayParams] = useState(initialPlayParams);
@@ -2181,6 +2183,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
         const currentResumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
 
+        setLocalPlayerDismissed(false);
         onPlayStateChangeRef.current?.(true, playParams.season, playParams.episode);
         if (onProgress) {
             onProgress(movie, { 
@@ -2776,6 +2779,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     } else {
                                         handleClose();
                                     }
+                                    if (typeof window !== 'undefined' && window.location.pathname.includes('/watch')) {
+                                        const cleanPath = window.location.pathname.replace(/\/watch.*$/, '');
+                                        if (cleanPath && window.location.pathname !== cleanPath) {
+                                            window.history.replaceState(null, '', cleanPath);
+                                        }
+                                    }
                                 }} 
                                 mediaType={isTv ? 'tv' : 'movie'} 
                                 isAnime={isAnime || false} 
@@ -2795,7 +2804,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 isWatchlisted={isWatchlisted}
                                 onEpisodeChange={(season, episode) => {
                                     setPlayParams({ season, episode });
-                                    onPlayStateChangeRef.current?.(true, season, episode);
+                                    if (showPlayer && !localPlayerDismissed) {
+                                        onPlayStateChangeRef.current?.(true, season, episode);
+                                    }
                                 }}
                             />
                         </Suspense>

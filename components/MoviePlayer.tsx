@@ -1873,9 +1873,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             const foundIdx = parsed.findIndex(e => e.anilistId === targetAnilistId);
             if (foundIdx !== -1) {
               idx = foundIdx;
-              setCurrentSeason(foundIdx + 1);
-              if (onEpisodeChange) {
-                onEpisodeChange(foundIdx + 1, currentEpisode);
+              const targetSeason = foundIdx + 1;
+              if (currentSeason !== targetSeason) {
+                setCurrentSeason(targetSeason);
+                if (onEpisodeChange) {
+                  onEpisodeChange(targetSeason, currentEpisode);
+                }
               }
             }
           }
@@ -2058,9 +2061,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         const foundIdx = entries.findIndex(e => e.anilistId === matchId);
         if (foundIdx !== -1) {
           idx = foundIdx;
-          setCurrentSeason(foundIdx + 1);
-          if (onEpisodeChange) {
-            onEpisodeChange(foundIdx + 1, currentEpisode);
+          const targetSeason = foundIdx + 1;
+          if (currentSeason !== targetSeason) {
+            setCurrentSeason(targetSeason);
+            if (onEpisodeChange) {
+              onEpisodeChange(targetSeason, currentEpisode);
+            }
           }
         } else {
           idx = Math.min(currentSeason - 1, entries.length - 1);
@@ -2085,7 +2091,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     });
 
     return () => { active = false; };
-  }, [tmdbId, isAnime, title, details, isAnimeDirect, isTmdbSource]);
+  }, [tmdbId, isAnime, title, (details as any)?.id, (details as any)?.anilistId, isAnimeDirect, isTmdbSource]);
 
   useEffect(() => {
     setCurrentSeason(initialSeason);

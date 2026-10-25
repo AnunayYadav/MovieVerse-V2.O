@@ -5023,6 +5023,12 @@ export default function App() {
                         setIsWatching(playing);
                         if (s !== undefined) setWatchSeason(s);
                         if (e !== undefined) setWatchEpisode(e);
+                        if (!playing && typeof window !== 'undefined' && window.location.pathname.includes('/watch')) {
+                            const cleanPath = window.location.pathname.replace(/\/watch.*$/, '');
+                            if (cleanPath && window.location.pathname !== cleanPath) {
+                                window.history.replaceState(null, '', cleanPath);
+                            }
+                        }
                     }}
                     activeTab={activeDetailsTab}
                     onTabChange={setActiveDetailsTab}
