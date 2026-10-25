@@ -465,7 +465,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         artworkUrl: (details?.poster_path || movie?.poster_path) ? `${TMDB_IMAGE_BASE}${details?.poster_path || movie?.poster_path}` : undefined
     });
 
-    const showPlayer = initialShowPlayer;
+    const [localPlayerDismissed, setLocalPlayerDismissed] = useState(false);
+    useEffect(() => {
+        if (initialShowPlayer) {
+            setLocalPlayerDismissed(false);
+        }
+    }, [initialShowPlayer, initialPlayParams?.season, initialPlayParams?.episode]);
+
+    const showPlayer = !!initialShowPlayer && !localPlayerDismissed;
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [isTmdbSource, setIsTmdbSource] = useState(false);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
@@ -2760,7 +2767,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     if (isCasting) {
                                         handleStopCasting();
                                     }
-                                    onPlayStateChangeRef.current?.(false);
+                                    if (document.fullscreenElement && document.exitFullscreen) {
+                                        document.exitFullscreen().catch(() => {});
+                                    }
+                                    setLocalPlayerDismissed(true);
+                                    if (onPlayStateChangeRef.current) {
+                                        onPlayStateChangeRef.current(false);
+                                    } else {
+                                        handleClose();
+                                    }
                                 }} 
                                 mediaType={isTv ? 'tv' : 'movie'} 
                                 isAnime={isAnime || false} 

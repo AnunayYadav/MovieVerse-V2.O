@@ -5447,14 +5447,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       )}
 
       {/* Top Navbar */}
-      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] px-3 sm:px-6'} mx-auto pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 overflow-hidden`}>
+      <div className={`w-full ${isWatchParty ? 'max-w-none px-4 sm:px-6' : 'max-w-[1700px] px-3 sm:px-6'} mx-auto pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 overflow-hidden relative z-50 pointer-events-auto`}>
         <button
-          onClick={onClose}
-          className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm min-w-0"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (document.fullscreenElement && document.exitFullscreen) {
+              document.exitFullscreen().catch(() => {});
+            }
+            onClose();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="group relative z-50 pointer-events-auto inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 shadow-sm min-w-0 cursor-pointer border border-white/[0.06]"
           title="Go back"
         >
           <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5 shrink-0" />
-          <span className="truncate max-w-[200px] sm:max-w-md font-medium text-zinc-200 group-hover:text-white">{displayTitle}</span>
+          <span className="font-medium text-zinc-200 group-hover:text-white">Back</span>
         </button>
 
         <div className="flex items-center gap-2 shrink-0">
