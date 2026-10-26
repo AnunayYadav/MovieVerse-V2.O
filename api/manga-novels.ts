@@ -273,6 +273,92 @@ async function resolveBestGigaViewerHost(query: string) {
   };
 }
 
+const CF_PROXY = 'https://cloudflare-proxy.anunayarvind.workers.dev/';
+
+async function scrapeWeebCentralSearch(query: string) {
+  try {
+    const url = `${CF_PROXY}?provider=weebcentral&url=${encodeURIComponent(`https://weebcentral.com/search/data?limit=32&offset=0&text=${encodeURIComponent(query)}&sort=Best+Match&order=Descending&official=Any&anime=Any&adult=Any&display_mode=Full+Display`)}`;
+    const resp = await fetch(url, { headers: { 'HX-Request': 'true' } });
+    const html = await resp.text();
+    const $ = cheerio.load(html);
+    const results: any[] = [];
+    $('article.bg-base-300').each((_, el) => {
+      const link = $(el).find('section a').first();
+      const href = link.attr('href') || '';
+      const id = href.split('/series/')[1] || '';
+      const title = $(el).find('section.hidden.lg\\:block .tooltip a').text().trim() ||
+                    $(el).find('section a .text-ellipsis').text().trim() ||
+                    (href.split('/')[2] || '').replace(/-/g, ' ');
+      const image = $(el).find('picture source').first().attr('srcset') || $(el).find('picture img').attr('src');
+      if (id) {
+        results.push({ id, title, image });
+      }
+    });
+    return results;
+  } catch (err) {
+    console.warn('scrapeWeebCentralSearch error:', err);
+    return [];
+  }
+}
+
+async function scrapeWeebCentralInfo(id: string) {
+  const cleanId = id.split('/')[0];
+  const url = `${CF_PROXY}?provider=weebcentral&url=${encodeURIComponent(`https://weebcentral.com/series/${cleanId}/full-chapter-list`)}`;
+  const resp = await fetch(url, { headers: { 'HX-Request': 'true', 'HX-Target': 'chapter-list' } });
+  const html = await resp.text();
+  const $ = cheerio.load(html);
+  const chapters: any[] = [];
+  $('a[href*="/chapters/"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const chapterId = href.split('/chapters/')[1] || '';
+    const title = $(el).find('span.grow span').first().text().trim() || 'Chapter';
+    const numMatch = title.match(/(\d+(?:\.\d+)?)/);
+    const chapterNum = numMatch ? numMatch[1] : '';
+    const releaseDate = $(el).find('time').attr('datetime');
+    if (chapterId) {
+      chapters.push({
+        id: chapterId,
+        title,
+        chapter: chapterNum,
+        releaseDate,
+        attributes: {
+          title,
+          chapter: chapterNum,
+          publishAt: releaseDate
+        }
+      });
+    }
+  });
+  return {
+    id,
+    title: id.split('/')[1] ? id.split('/')[1].replace(/-/g, ' ') : id,
+    chapters
+  };
+}
+
+async function scrapeWeebCentralPages(chapterId: string) {
+  const url = `${CF_PROXY}?provider=weebcentral&url=${encodeURIComponent(`https://weebcentral.com/chapters/${chapterId}/images?is_prev=False&current_page=1&reading_style=long_strip`)}`;
+  const resp = await fetch(url, { headers: { 'HX-Request': 'true' } });
+  const html = await resp.text();
+  const $ = cheerio.load(html);
+  const pages: any[] = [];
+  $('img').each((i, el) => {
+    const src = $(el).attr('src');
+    if (src && !src.includes('brand.png') && !src.includes('404.png')) {
+      const alt = $(el).attr('alt') || '';
+      const match = alt.match(/Page (\d+)/);
+      const pageNum = match ? parseInt(match[1]) : i + 1;
+      pages.push({
+        img: src,
+        page: pageNum,
+        headerForImage: 'https://weebcentral.com'
+      });
+    }
+  });
+  return pages;
+}
+
+
 async function kadocomiFetch(url: string, options: any = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const proxyUrl = process.env.JAPAN_PROXY;
@@ -1553,25 +1639,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
-      const data = await provider.search(query);
-      const results = Array.isArray(data) ? data : (data.results || []);
-      return res.status(200).json(results);
+      try {
+        const data = await provider.search(query);
+        const results = Array.isArray(data) ? data : (data.results || []);
+        if (results && results.length > 0) {
+          return res.status(200).json(results);
+        }
+      } catch (e) {
+        console.warn(`Provider ${providerKey} search failed:`, e);
+      }
+      if (providerKey === 'weebcentral') {
+        try {
+          const results = await scrapeWeebCentralSearch(query);
+          return res.status(200).json(results);
+        } catch (e) {
+          console.error('WeebCentral search fallback failed:', e);
+        }
+      }
+      return res.status(200).json([]);
     }
 
     if (action === 'info') {
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const data = await provider.fetchMangaInfo(id);
-      return res.status(200).json(data);
+      try {
+        const data = await provider.fetchMangaInfo(id);
+        if (data && data.chapters && data.chapters.length > 0) {
+          return res.status(200).json(data);
+        }
+      } catch (e) {
+        console.warn(`Provider ${providerKey} info failed:`, e);
+      }
+      if (providerKey === 'weebcentral') {
+        try {
+          const data = await scrapeWeebCentralInfo(id);
+          return res.status(200).json(data);
+        } catch (e) {
+          console.error('WeebCentral info fallback failed:', e);
+        }
+      }
+      return res.status(500).json({ error: 'Failed to fetch manga info' });
     }
 
     if (action === 'pages') {
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const data = await provider.fetchChapterPages(id);
-      return res.status(200).json(data);
+      try {
+        const data = await provider.fetchChapterPages(id);
+        if (Array.isArray(data) && data.length > 0) {
+          return res.status(200).json(data);
+        }
+      } catch (e) {
+        console.warn(`Provider ${providerKey} pages failed:`, e);
+      }
+      if (providerKey === 'weebcentral') {
+        try {
+          const pages = await scrapeWeebCentralPages(id);
+          return res.status(200).json(pages);
+        } catch (e) {
+          console.error('WeebCentral pages fallback failed:', e);
+        }
+      }
+      return res.status(500).json({ error: 'Failed to fetch chapter pages' });
     }
 
     if (action === 'proxy-weloma-image') {
@@ -1640,15 +1771,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const isComicK = providerKey === 'comick' || imageUrl.includes('comick') || imageUrl.includes('comicknew') || imageUrl.includes('comick.pictures');
       const isMangaPill = providerKey === 'mangapill' || imageUrl.includes('mangapill') || imageUrl.includes('readdetectiveconan');
+      const isWeebCentral = providerKey === 'weebcentral' || imageUrl.includes('planeptune') || imageUrl.includes('weebcentral') || imageUrl.includes('lastation');
+      const isMangaKakalot = providerKey === 'mangakakalot' || imageUrl.includes('mangakakalot') || imageUrl.includes('chapmanganato') || imageUrl.includes('mreadercdn');
       const isDownload = req.query.download === 'true';
 
-      // If downloading or provider is ComicK / MangaPill (which block 302 referers with 403), fetch and stream image bytes with proper Referer & Edge Cache
-      if (isDownload || isComicK || isMangaPill) {
+      // If downloading or provider blocks hotlinking or CORS (ComicK, MangaPill, WeebCentral, MangaKakalot), fetch and stream image bytes with proper Referer & Edge Cache
+      if (isDownload || isComicK || isMangaPill || isWeebCentral || isMangaKakalot) {
         let referers: string[] = [];
         if (isComicK) {
           referers = ['https://comick.live', 'https://comick.io', 'https://comick.cc', 'https://comick.app'];
         } else if (isMangaPill) {
           referers = ['https://mangapill.com/'];
+        } else if (isWeebCentral) {
+          referers = ['https://weebcentral.com/'];
+        } else if (isMangaKakalot) {
+          referers = ['https://mangakakalot.com/', 'https://chapmanganato.to/'];
         } else {
           try {
             referers = [new URL(imageUrl).origin];
