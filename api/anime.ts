@@ -515,51 +515,122 @@ const animeSugeStreamCache = new Map<string, { url: string; expiresAt: number }>
 async function resolveMegaPlayStream({
   title,
   episode,
+  season = 1,
   server = 'hd-1',
   lang = 'sub'
 }: {
   title: string;
   episode: number;
+  season?: number;
   server?: string;
   lang?: string;
 }): Promise<string> {
   const normTitle = title.trim();
-  const cacheKey = `${normTitle.toLowerCase()}-${episode}-${server}-${lang}`;
+  const cacheKey = `${normTitle.toLowerCase()}-s${season}-e${episode}-${server}-${lang}`;
   const cachedStream = animeSugeStreamCache.get(cacheKey);
   if (cachedStream && cachedStream.expiresAt > Date.now()) {
     return cachedStream.url;
   }
 
-  // Step 1: Find Anime on stream network
-  let animeInfo = animeSugeAnimeCache.get(normTitle.toLowerCase());
+  // Step 1: Find Anime on stream network using full catalog filter search
+  let animeInfo = animeSugeAnimeCache.get(`${normTitle.toLowerCase()}-s${season}`);
   if (!animeInfo || animeInfo.expiresAt <= Date.now()) {
-    const searchUrl = `https://animesuge.cz/ajax/anime/search?keyword=${encodeURIComponent(normTitle)}`;
-    const searchRes = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    });
-    if (!searchRes.ok) throw new Error(`Stream search failed: HTTP ${searchRes.status}`);
-    const searchData = await searchRes.json() as any;
-    const searchHtml = searchData?.result?.html || '';
+    const cleanKeyword = normTitle
+      .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored)\)?\s*$/i, '')
+      .trim();
 
-    const items = [...searchHtml.matchAll(/<a\s+class="item"\s+href="([^"]+)"[\s\S]*?<div\s+class="name"[^>]*>([\s\S]*?)<\/div>/gi)].map(m => ({
-      url: m[1],
-      name: m[2].trim()
-    }));
+    const items: { url: string; name: string }[] = [];
+
+    // Query full catalog filter search first
+    try {
+      const filterUrl = `https://animesuge.cz/filter?keyword=${encodeURIComponent(cleanKeyword)}`;
+      const filterRes = await fetch(filterUrl, {
+        headers: { 'User-Agent': USER_AGENT }
+      });
+      if (filterRes.ok) {
+        const filterHtml = await filterRes.text();
+        const reg = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        let match;
+        const seen = new Set<string>();
+        while ((match = reg.exec(filterHtml)) !== null) {
+          const href = match[1];
+          const name = match[2].replace(/<[^>]*>/g, '').trim();
+          if (href.includes('/anime/') && name && !seen.has(href)) {
+            seen.add(href);
+            const baseUrl = href.replace(/\/ep-\d+.*$/, '');
+            items.push({ url: baseUrl, name });
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to quick autocomplete search if filter search yielded no links
+    if (items.length === 0) {
+      const searchUrl = `https://animesuge.cz/ajax/anime/search?keyword=${encodeURIComponent(cleanKeyword)}`;
+      const searchRes = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      if (searchRes.ok) {
+        const searchData = await searchRes.json() as any;
+        const searchHtml = searchData?.result?.html || '';
+        const searchMatches = [...searchHtml.matchAll(/<a\s+class="item"\s+href="([^"]+)"[\s\S]*?<div\s+class="name"[^>]*>([\s\S]*?)<\/div>/gi)];
+        for (const m of searchMatches) {
+          items.push({ url: m[1], name: m[2].trim() });
+        }
+      }
+    }
 
     if (items.length === 0) {
       throw new Error(`Anime not found on stream network for "${normTitle}"`);
     }
 
+    // Intelligent Scoring to match the exact show & season instead of picking movies or OVAs
+    const cleanTarget = cleanKeyword.toLowerCase()
+      .replace(/\s*\(?(tv|movie|special|ova)\)?\s*$/i, '')
+      .replace(/[^a-z0-9]/g, '');
+    const isSeason2 = season === 2 || /season\s*2|2nd\s*season/i.test(normTitle);
+    const isSeason3 = season === 3 || /season\s*3|3rd\s*season/i.test(normTitle);
+    const isSeason4 = season === 4 || /season\s*4|final\s*season/i.test(normTitle);
+
     let chosen = items[0];
-    const cleanNorm = normTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const matched = items.find(i => {
-      const itemClean = i.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      return itemClean.includes(cleanNorm) || cleanNorm.includes(itemClean);
-    });
-    if (matched) chosen = matched;
+    let bestScore = -999;
+
+    for (const it of items) {
+      let score = 0;
+      const cleanName = it.name.toLowerCase()
+        .replace(/\s*\(?(tv|movie|special|ova)\)?\s*$/i, '')
+        .replace(/[^a-z0-9]/g, '');
+      const nameLower = it.name.toLowerCase();
+
+      if (cleanName === cleanTarget) score += 100;
+      else if (cleanName.startsWith(cleanTarget)) score += 50;
+      else if (cleanName.includes(cleanTarget)) score += 20;
+
+      // Penalize OVAs, Recaps, and Movies when looking for TV episodes
+      if (/movie|ova|special|recap|chronicle|last attack|lost girls|junior high|compilation/i.test(nameLower)) {
+        score -= 80;
+      }
+
+      // Season specific matching
+      if (isSeason2) {
+        if (/season\s*2|2nd\s*season/i.test(nameLower)) score += 60;
+        else if (/season\s*[3-9]|final/i.test(nameLower)) score -= 60;
+      } else if (isSeason3) {
+        if (/season\s*3|3rd\s*season/i.test(nameLower)) score += 60;
+      } else if (isSeason4) {
+        if (/final\s*season|season\s*4/i.test(nameLower)) score += 60;
+      } else if (season === 1) {
+        if (/season\s*[2-9]|final\s*season|part\s*2/i.test(nameLower)) score -= 60;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        chosen = it;
+      }
+    }
 
     const pageRes = await fetch(chosen.url, {
       headers: { 'User-Agent': USER_AGENT }
@@ -573,7 +644,7 @@ async function resolveMegaPlayStream({
       entry: { animeId: dataId, url: chosen.url, title: chosen.name },
       expiresAt: Date.now() + 3600 * 1000 // 1 hour cache
     };
-    animeSugeAnimeCache.set(normTitle.toLowerCase(), animeInfo);
+    animeSugeAnimeCache.set(`${normTitle.toLowerCase()}-s${season}`, animeInfo);
   }
 
   const { animeId, url: animePageUrl } = animeInfo.entry;
@@ -796,6 +867,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (action === 'megaplay-embed' || action === 'megaplay-source') {
     const srv = typeof req.query.server === 'string' ? req.query.server : 'hd-1';
     const epNum = episode ? parseInt(String(episode), 10) : 1;
+    const seasonNum = season ? parseInt(String(season), 10) : 1;
     const animeLang = typeof req.query.lang === 'string' ? req.query.lang : (lang ? String(lang) : 'sub');
 
     if (!cleanTitle) {
@@ -806,6 +878,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const embedUrl = await resolveMegaPlayStream({
         title: cleanTitle,
         episode: epNum,
+        season: seasonNum,
         server: srv,
         lang: animeLang
       });
@@ -814,8 +887,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true, url: embedUrl });
       }
 
-      // Serve sleek, zero-margin dark HTML player iframe shell with postMessage forwarding
-      const htmlShell = `<!DOCTYPE html>
+      // Fetch the MegaPlay player HTML directly with the required Animesuge referer
+      // to eliminate cross-origin referer blocking and black screen "Error - MegaPlay"
+      let htmlShell = '';
+      try {
+        const mpRes = await fetch(embedUrl, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Referer': 'https://animesuge.cz/'
+          }
+        });
+        if (mpRes.ok) {
+          const rawHtml = await mpRes.text();
+          if (rawHtml && !rawHtml.includes('<title>Error')) {
+            htmlShell = rawHtml.replace('<head>', '<head><base href="https://megaplay.buzz/">');
+          }
+        }
+      } catch (err) {
+        console.warn("Direct MegaPlay fetch warning, falling back to iframe shell:", err);
+      }
+
+      if (!htmlShell) {
+        htmlShell = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -831,6 +924,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <iframe
     id="megaplay-frame"
     src="${embedUrl}"
+    referrerpolicy="origin"
     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
     allowfullscreen="true"
     webkitallowfullscreen="true"
@@ -850,6 +944,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   </script>
 </body>
 </html>`;
+      }
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=120');
