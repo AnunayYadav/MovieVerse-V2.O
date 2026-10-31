@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio, Download, Users, ArrowLeftRight } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast, Radio, Download, Users, ArrowLeftRight } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
@@ -2426,36 +2426,83 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const video = videoRef.current;
     if (!container) return;
 
-    const isFS = document.fullscreenElement ||
+    const isDocFS = !!(
+      document.fullscreenElement ||
       (document as any).webkitFullscreenElement ||
       (document as any).mozFullScreenElement ||
-      (document as any).msFullscreenElement;
+      (document as any).msFullscreenElement
+    );
+    const isVideoFS = !!(video && (video as any).webkitDisplayingFullscreen);
 
-    if (isFS) {
+    // If currently in document fullscreen, iOS native video fullscreen, or pseudo-fullscreen
+    if (isDocFS || isVideoFS || isFullscreen) {
       if (document.exitFullscreen) {
-        document.exitFullscreen();
+        document.exitFullscreen().catch(() => {});
       } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
+        try { (document as any).webkitExitFullscreen(); } catch {}
       } else if ((document as any).mozCancelFullScreen) {
-        (document as any).mozCancelFullScreen();
+        try { (document as any).mozCancelFullScreen(); } catch {}
       } else if ((document as any).msExitFullscreen) {
-        (document as any).msExitFullscreen();
+        try { (document as any).msExitFullscreen(); } catch {}
       }
-    } else {
-      if (container.requestFullscreen) {
-        container.requestFullscreen();
-      } else if ((container as any).webkitRequestFullscreen) {
-        (container as any).webkitRequestFullscreen();
-      } else if ((container as any).mozRequestFullScreen) {
-        (container as any).mozRequestFullScreen();
-      } else if ((container as any).msRequestFullscreen) {
-        (container as any).msRequestFullscreen();
-      } else if (video && (video as any).webkitEnterFullscreen) {
-        // Fallback for iOS Safari which only allows fullscreen on the video element itself
-        (video as any).webkitEnterFullscreen();
+
+      if (isVideoFS && video && typeof (video as any).webkitExitFullscreen === 'function') {
+        try {
+          (video as any).webkitExitFullscreen();
+        } catch {}
+      }
+
+      setIsFullscreen(false);
+      return;
+    }
+
+    // Attempting to enter fullscreen:
+    // 1. Try native HTML5 element fullscreen on container (Desktop, Android, iPadOS)
+    const requestElementFS =
+      container.requestFullscreen ||
+      (container as any).webkitRequestFullscreen ||
+      (container as any).mozRequestFullScreen ||
+      (container as any).msRequestFullscreen;
+
+    const isElementFSSupported = typeof requestElementFS === 'function' &&
+      (typeof document.fullscreenEnabled === 'undefined' || document.fullscreenEnabled || (document as any).webkitFullscreenEnabled);
+
+    if (isElementFSSupported) {
+      try {
+        const promise = requestElementFS.call(container);
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(() => {
+            // If element request was rejected, try iOS video fullscreen or pseudo-fullscreen
+            if (video && typeof (video as any).webkitEnterFullscreen === 'function') {
+              try {
+                (video as any).webkitEnterFullscreen();
+              } catch {
+                setIsFullscreen(true);
+              }
+            } else {
+              setIsFullscreen(true);
+            }
+          });
+        }
+        return;
+      } catch (err) {
+        console.warn("Element fullscreen failed, falling back", err);
       }
     }
-  }, []);
+
+    // 2. Fallback for iOS Safari when a native <video> element is active
+    if (video && typeof (video as any).webkitEnterFullscreen === 'function') {
+      try {
+        (video as any).webkitEnterFullscreen();
+        return;
+      } catch (err) {
+        console.warn("webkitEnterFullscreen failed, using pseudo-fullscreen fallback", err);
+      }
+    }
+
+    // 3. Fallback for iPhone Safari in iframe mode or unsupported devices: Pseudo-Fullscreen (fill viewport)
+    setIsFullscreen(true);
+  }, [isFullscreen]);
 
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
@@ -3137,6 +3184,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (isFullscreen) {
+          toggleFullscreen();
+          return;
+        }
         onClose();
         return;
       }
@@ -3187,27 +3238,46 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [useCustomControls, isDrawerOpen, onClose, togglePlayback, seekTo, changeVolume, toggleMuteState, toggleFullscreen, resetControlsTimeout, playerCurrentTime, playerDuration, playerVolume, isPlaying, playerMuted, isFullscreen]);
 
-  // Fullscreen change listener
+  // Fullscreen change listener (handles standard Document Fullscreen API and iOS WebKit Video Fullscreen events)
   useEffect(() => {
     const onFsChange = () => {
-      setIsFullscreen(!!(
+      const isDocFS = !!(
         document.fullscreenElement ||
         (document as any).webkitFullscreenElement ||
         (document as any).mozFullScreenElement ||
         (document as any).msFullscreenElement
-      ));
+      );
+      if (!isDocFS && !videoRef.current?.webkitDisplayingFullscreen) {
+        setIsFullscreen(false);
+      } else if (isDocFS) {
+        setIsFullscreen(true);
+      }
     };
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
     document.addEventListener('mozfullscreenchange', onFsChange);
     document.addEventListener('MSFullscreenChange', onFsChange);
+
+    const video = videoRef.current;
+    const onVideoBeginFS = () => setIsFullscreen(true);
+    const onVideoEndFS = () => setIsFullscreen(false);
+
+    if (video) {
+      video.addEventListener('webkitbeginfullscreen', onVideoBeginFS);
+      video.addEventListener('webkitendfullscreen', onVideoEndFS);
+    }
+
     return () => {
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
       document.removeEventListener('mozfullscreenchange', onFsChange);
       document.removeEventListener('MSFullscreenChange', onFsChange);
+      if (video) {
+        video.removeEventListener('webkitbeginfullscreen', onVideoBeginFS);
+        video.removeEventListener('webkitendfullscreen', onVideoEndFS);
+      }
     };
-  }, []);
+  }, [anivexaStreamUrl]);
 
   // Cleanup controls timeout on unmount
   useEffect(() => {
@@ -3551,6 +3621,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         )}
 
         </div>
+
+        {/* Floating exit fullscreen button for pseudo-fullscreen iframe mode */}
+        {isFullscreen && !useCustomControls && (
+          <button
+            onClick={toggleFullscreen}
+            className="absolute top-4 right-4 z-50 px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black text-white border border-white/20 backdrop-blur-md shadow-2xl transition-all active:scale-95 flex items-center gap-1.5 text-xs pointer-events-auto"
+            title="Exit Fullscreen"
+          >
+            <Minimize size={14} />
+            <span className="text-[11px] font-medium">Exit Fullscreen</span>
+          </button>
+        )}
 
         {/* Custom subtitle overlay */}
         {useCustomControls && currentSubtitleText && (
@@ -5180,8 +5262,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       )}
                     </div>
 
-                    <button onClick={toggleFullscreen} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Fullscreen">
-                      <Maximize size={24} />
+                    <button onClick={toggleFullscreen} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+                      {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
                     </button>
                   </div>
                 </div>
@@ -5440,6 +5522,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             if (document.fullscreenElement && document.exitFullscreen) {
               document.exitFullscreen().catch(() => {});
             }
+            if (videoRef.current && (videoRef.current as any).webkitDisplayingFullscreen) {
+              try { (videoRef.current as any).webkitExitFullscreen?.(); } catch {}
+            }
+            setIsFullscreen(false);
             onClose();
           }}
           onPointerDown={(e) => e.stopPropagation()}
@@ -5560,9 +5646,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 <button
                   onClick={toggleFullscreen}
                   className="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] text-zinc-300 hover:text-white transition-all active:scale-95 shrink-0"
-                  title="Expand / Fullscreen"
+                  title={isFullscreen ? "Exit Fullscreen" : "Expand / Fullscreen"}
                 >
-                  <Maximize size={14} />
+                  {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
                 </button>
               </div>
             </div>
