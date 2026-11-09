@@ -1213,10 +1213,6 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           </div>
 
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700 text-left font-sans">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 w-fit">
-              <Sparkles size={12} fill="currentColor" /> Spotlight Anime
-            </span>
-            
             {featuredLogoUrl ? (
               <img 
                 src={featuredLogoUrl} 
@@ -1272,7 +1268,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               <button
                 key={i}
                 onClick={() => setHeroIndex(i)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-white h-6 shadow-[0_0_8px_rgba(255,255,255,0.7)]' : 'bg-white/30 hover:bg-white/60'}`}
               />
             ))}
           </div>
@@ -1365,39 +1361,38 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         <div className="space-y-4">
           
           {/* Section Header with Language Selector Dropdown */}
-          <div className="flex items-center justify-between px-4 md:px-12 py-4 border-b border-white/5 mb-6">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2.5 text-left">
-                <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
+          <div className="flex items-center justify-between gap-3 px-4 md:px-12 py-4 border-b border-white/5 mb-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight text-left whitespace-nowrap truncate">
                 Anime Catalog
               </h2>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {/* NSFW Content Toggle Button */}
               <button
                 onClick={() => setIncludeNsfw(prev => !prev)}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-md backdrop-blur-md whitespace-nowrap shrink-0 ${
                   includeNsfw
-                    ? 'bg-red-600/20 border-red-500/40 text-red-400 hover:bg-red-600/30'
-                    : 'bg-white/5 border-white/15 text-gray-400 hover:bg-white/10'
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                    : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
                 }`}
                 title="Toggle Explicit/NSFW content"
               >
-                <AlertTriangle size={14} className={includeNsfw ? 'text-red-400 animate-pulse' : 'text-zinc-500'} />
-                <span>NSFW Content</span>
+                <AlertTriangle size={13} className={includeNsfw ? 'text-amber-400 animate-pulse' : 'text-zinc-400'} />
+                <span>NSFW<span className="hidden sm:inline"> Content</span></span>
               </button>
 
               <div className="relative group shrink-0">
                 <button 
                   onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full text-xs font-bold text-white transition-all active:scale-95 shadow-md backdrop-blur-md whitespace-nowrap shrink-0"
                 >
-                  <div className="flex items-center gap-2">
-                    <Languages size={14} className="text-red-500" /> 
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Languages size={14} className="text-white" /> 
                     <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
                   </div>
-                  <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+                  <ChevronDown size={12} className="text-zinc-400 group-hover:text-white transition-colors" />
                 </button>
                 {isLangDropdownOpen && (
                   <>
@@ -1416,7 +1411,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                           }} 
                           className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
                             titleLanguage === opt.value 
-                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
+                              ? 'bg-white/15 text-white shadow-sm' 
                               : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                           }`}
                         >
@@ -1435,13 +1430,12 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           <div className="px-4 md:px-12 mb-10 text-left">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-5 rounded-full bg-red-600"></span>
                 <h2 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2 select-none">
-                  <Calendar className="text-red-500" size={16} />
+                  <Calendar className="text-white" size={16} />
                   Streaming Timeline
                 </h2>
               </div>
-              <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-widest bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full select-none">
+              <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-widest bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full select-none w-fit">
                 Airing Schedule (Local Time)
               </span>
             </div>
@@ -1460,11 +1454,13 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                     onClick={() => setSelectedDayIdx(idx)}
                     className={`flex flex-col items-center justify-center min-w-[58px] py-2 px-3 rounded-xl border transition-all duration-300 active:scale-95 shrink-0 ${
                       isSelected
-                        ? 'bg-red-600/10 border-red-500/35 text-red-500 shadow-[0_2px_10px_rgba(239,68,68,0.1)] scale-[1.02]'
+                        ? 'bg-white text-black font-bold border-white shadow-md scale-[1.02]'
                         : 'bg-zinc-900/40 hover:bg-zinc-800/50 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
                     }`}
                   >
-                    <span className="text-[9px] uppercase font-semibold tracking-wider opacity-85">
+                    <span className={`text-[9px] uppercase font-semibold tracking-wider ${
+                      isSelected ? 'text-black/70' : 'opacity-85'
+                    }`}>
                       {isToday ? "Today" : dayName}
                     </span>
                     <span className="text-sm font-semibold mt-0.5">{dateNum}</span>
@@ -1476,7 +1472,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             {/* Airing Cards List/Grid */}
             {scheduleLoading ? (
               <div className="flex items-center justify-center py-12 gap-2">
-                <Loader2 className="animate-spin text-red-500" size={20} />
+                <Loader2 className="animate-spin text-white" size={20} />
                 <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Fetching schedule...</span>
               </div>
             ) : scheduleError ? (
@@ -1654,7 +1650,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
       className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left"
     >
       {/* Vertical Poster Container */}
-      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-white/20 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.8)] group-hover:scale-[1.03] transition-all duration-500">
         <img
           src={posterUrl || "https://placehold.co/300x450/111/444?text=Loading..."}
           alt={title}
@@ -1662,29 +1658,30 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
         />
-
-        {/* Episode / Status Badge */}
-        {anime.episodes && (
-          <div className="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm text-[8px] font-bold text-white px-1.5 py-0.5 rounded shadow-md z-10 font-sans">
-            {anime.episodes} Ep
-          </div>
-        )}
       </div>
 
       {/* Details below poster */}
       <div className="flex flex-col px-1">
-        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-red-500 transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
+        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-white transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
           {title}
         </h4>
-        <div className="flex items-center justify-between mt-1 text-[9px] text-zinc-400 font-semibold font-sans">
-          <span>{anime.seasonYear || anime.season || 'TBA'}</span>
+        <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 font-medium font-sans">
+          <div className="flex items-center gap-1.5 truncate">
+            <span>{anime.seasonYear || anime.season || 'TBA'}</span>
+            {anime.episodes ? (
+              <>
+                <span className="text-zinc-600">•</span>
+                <span>{anime.episodes} Ep</span>
+              </>
+            ) : null}
+          </div>
           {anime.averageScore ? (
-            <span className="flex items-center gap-1 font-bold text-white/90">
+            <span className="flex items-center gap-1 font-semibold text-white/90 shrink-0 ml-1">
               <Star size={10} fill="currentColor" className="text-yellow-400" />
               {(anime.averageScore / 10).toFixed(1)}
             </span>
           ) : (
-            <span className="uppercase text-[8px] px-1 py-0.2 rounded bg-white/5 text-zinc-300 border border-white/5">
+            <span className="uppercase text-[8px] px-1 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5 shrink-0 ml-1">
               {anime.status ? anime.status.replace('_', ' ') : 'Anime'}
             </span>
           )}
@@ -1847,7 +1844,6 @@ export const AnimeRow: React.FC<AnimeRowProps> = ({
     <div className="mb-10 animate-in fade-in duration-500 text-left">
       <div className="flex items-center justify-between px-4 md:px-12 mb-4">
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
-          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
           {title}
         </h3>
         {onExpand && (
@@ -1927,8 +1923,8 @@ export const AiringCountdown: React.FC<AiringCountdownProps> = ({ airingAt }) =>
   }
 
   return (
-    <span className="text-red-500 font-bold text-[10px] animate-pulse flex items-center gap-1">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block"></span>
+    <span className="text-amber-400 font-medium text-[10px] flex items-center gap-1">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block"></span>
       {text}
     </span>
   );
@@ -1959,7 +1955,6 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
 
   const title = getAnimeTitle(item.media, titleLanguage);
   const posterUrl = item.media.coverImage.extraLarge || item.media.coverImage.large || item.media.coverImage.medium;
-  const airTime = new Date(item.airingAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   return (
     <div
@@ -1967,8 +1962,8 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
       onClick={() => onAnimeClick(item.media)}
       className="group flex flex-col gap-2 shrink-0 w-[140px] md:w-[170px] cursor-pointer select-none text-left"
     >
-      {/* Vertical Poster Container */}
-      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
+      {/* Vertical Poster Container - Clean without overlay badges */}
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-white/20 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.8)] group-hover:scale-[1.03] transition-all duration-500">
         <img
           src={posterUrl || "https://placehold.co/300x450/111/444?text=Loading..."}
           alt={title}
@@ -1976,24 +1971,16 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
         />
-
-        {/* Episode Badge */}
-        <div className="absolute top-2 left-2 bg-red-600/90 text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md z-10 font-sans">
-          Ep {item.episode}
-        </div>
-
-        {/* Air Time Badge */}
-        <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white/90 px-1.5 py-0.5 rounded border border-white/5 shadow-md z-10 font-sans">
-          {airTime}
-        </div>
       </div>
 
-      {/* Details below poster */}
+      {/* Details below poster in clean text */}
       <div className="flex flex-col px-1">
-        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-red-500 transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
+        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-white transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
           {title}
         </h4>
-        <div className="mt-1 flex items-center justify-between text-[9px] font-semibold text-zinc-400 font-sans">
+        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-zinc-400 font-medium font-sans truncate">
+          <span className="text-zinc-300 font-semibold shrink-0">Ep {item.episode}</span>
+          <span className="text-zinc-600">•</span>
           <AiringCountdown airingAt={item.airingAt} />
         </div>
       </div>

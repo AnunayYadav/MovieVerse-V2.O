@@ -69,12 +69,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Path parameter is required for TMDB or action=anilist for AniList' });
   }
 
-  const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
+  const fallbackKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
+  const userApiKey = req.query.api_key;
+  const effectiveApiKey = (userApiKey && typeof userApiKey === 'string' && userApiKey.trim()) ? userApiKey.trim() : fallbackKey;
+
   const searchParams = new URLSearchParams();
-  searchParams.append('api_key', apiKey);
+  searchParams.append('api_key', effectiveApiKey);
 
   for (const [key, value] of Object.entries(req.query)) {
-    if (key === 'path' || key === 'action') continue;
+    if (key === 'path' || key === 'action' || key === 'api_key') continue;
     if (Array.isArray(value)) {
       value.forEach(v => searchParams.append(key, v));
     } else if (value) {
@@ -85,7 +88,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const tmdbUrl = `https://api.themoviedb.org/3${path}?${searchParams.toString()}`;
 
   try {
-    const response = await fetch(tmdbUrl);
+    let response: any = null;
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await fetch(tmdbUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'MovieVerse/2.0'
+          }
+        });
+        if (response.ok || (response.status !== 500 && response.status !== 502 && response.status !== 503)) {
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        if (attempt === 2) throw err;
+        await new Promise(r => setTimeout(r, 150));
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('TMDB connection failed');
+    }
+
     if (!response.ok) {
       if (response.status === 404 && path.includes('/recommendations')) {
         return res.status(200).json({ page: 1, results: [], total_pages: 0, total_results: 0 });

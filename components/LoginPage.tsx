@@ -192,7 +192,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                 {/* Logo & Header */}
                 <div className="mb-8 text-center">
                    <div className="inline-flex items-center justify-center mb-5 hover:scale-105 transition-transform duration-500">
-                      <BrandLogo size={64} className="text-red-600" />
+                      <BrandLogo size={52} variant="responsive" className="transition-all duration-300" />
                    </div>
                    <h1 className="text-3xl font-black tracking-tight text-white mt-1">
                        {isLogin ? "Welcome Back" : "Join MovieVerse"}

@@ -5864,16 +5864,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
 
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
-            <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5">
-              <Sparkles size={11} fill="currentColor" /> Spotlight Manga
-            </span>
-
             <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
               {getMangaTitle(trending[heroIndex])}
             </h1>
 
             <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
-              <span className="text-red-500 font-extrabold flex items-center gap-1 text-sm bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 uppercase">
+              <span className="text-zinc-200 font-extrabold flex items-center gap-1 text-sm bg-white/10 px-2 py-0.5 rounded border border-white/15 uppercase">
                 {trending[heroIndex].attributes.status}
               </span>
               {trending[heroIndex].attributes.year && (
@@ -5907,7 +5903,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <button
                 key={i}
                 onClick={() => setHeroIndex(i)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-white h-6 shadow-[0_0_8px_rgba(255,255,255,0.7)]' : 'bg-white/30 hover:bg-white/60'}`}
               />
             ))}
           </div>
@@ -5983,38 +5979,37 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         <div className="space-y-4">
 
           {/* Section Header with Language Selector Dropdown */}
-          <div className="flex items-center justify-between px-4 md:px-12 py-4 border-b border-white/5 mb-6 select-none">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2.5 text-left">
-                <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
+          <div className="flex items-center justify-between gap-3 px-4 md:px-12 py-4 border-b border-white/5 mb-6 select-none">
+            <div className="flex items-center gap-3 min-w-0">
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight text-left whitespace-nowrap truncate">
                 Manga Catalog
               </h2>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {/* NSFW Content Toggle Button */}
               <button
                 onClick={() => setIncludeNsfw(prev => !prev)}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${includeNsfw
-                    ? 'bg-red-600/20 border-red-500/40 text-red-400 hover:bg-red-600/30'
-                    : 'bg-white/5 border-white/15 text-gray-400 hover:bg-white/10'
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-md backdrop-blur-md whitespace-nowrap shrink-0 ${includeNsfw
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                    : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
                   }`}
                 title="Toggle Explicit/NSFW content"
               >
-                <AlertTriangle size={14} className={includeNsfw ? 'text-red-400 animate-pulse' : 'text-zinc-500'} />
-                <span>NSFW Content</span>
+                <AlertTriangle size={13} className={includeNsfw ? 'text-amber-400 animate-pulse' : 'text-zinc-400'} />
+                <span>NSFW<span className="hidden sm:inline"> Content</span></span>
               </button>
 
               <div className="relative group shrink-0">
                 <button
                   onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full text-xs font-bold text-white transition-all active:scale-95 shadow-md backdrop-blur-md whitespace-nowrap shrink-0"
                 >
-                  <div className="flex items-center gap-2">
-                    <Languages size={14} className="text-red-500" />
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Languages size={14} className="text-white" />
                     <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
                   </div>
-                  <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+                  <ChevronDown size={12} className="text-zinc-400 group-hover:text-white transition-colors" />
                 </button>
                 {isLangDropdownOpen && (
                   <>
@@ -6032,7 +6027,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                             setIsLangDropdownOpen(false);
                           }}
                           className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${titleLanguage === opt.value
-                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                              ? 'bg-white/15 text-white shadow-sm'
                               : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                             }`}
                         >
@@ -6166,30 +6161,39 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
     <div
       ref={ref}
       onClick={() => onMangaClick(manga.id)}
-      className="group relative shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500"
+      className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left"
     >
-      {/* Format Badge (Manga/Manhwa/Manhua) */}
-      <div className={`absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border shadow-md ${formatInfo.cardClass}`}>
-        {formatInfo.label}
+      {/* Vertical Poster Container */}
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-white/20 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.8)] group-hover:scale-[1.03] transition-all duration-500">
+        <img
+          src={coverUrl}
+          alt={title}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        />
       </div>
 
-      <img
-        src={coverUrl}
-        alt={title}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-      {/* Title Details Overlay */}
-      <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-        <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+      {/* Details below poster in clean text */}
+      <div className="flex flex-col px-1">
+        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-white transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
           {title}
         </h4>
-        <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
-          <span>{manga.attributes.year || 'TBA'}</span>
-          <span className="uppercase text-[8px] px-1 rounded bg-white/10">{manga.attributes.status}</span>
+        <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 font-medium font-sans">
+          <div className="flex items-center gap-1.5 truncate">
+            <span>{manga.attributes.year || 'TBA'}</span>
+            {formatInfo.label && (
+              <>
+                <span className="text-zinc-600">•</span>
+                <span className="capitalize">{formatInfo.label.toLowerCase()}</span>
+              </>
+            )}
+          </div>
+          {manga.attributes.status && (
+            <span className="uppercase text-[8px] px-1 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5 shrink-0 ml-1">
+              {manga.attributes.status}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -6211,7 +6215,6 @@ export const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, 
     <div className="mb-10 animate-in fade-in duration-500 text-left font-sans">
       <div className="flex items-center justify-between px-4 md:px-12 mb-4">
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
-          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
           {title}
         </h3>
         {onExpand && (

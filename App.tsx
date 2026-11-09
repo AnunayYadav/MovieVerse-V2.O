@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox, Flame } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox, Flame, MoreHorizontal } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch, getMovieLogo } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch, getMovieLogo, AnimeNavIcon, MangaNavIcon } from './components/Shared';
+import { SearchDrawer } from './components/SearchDrawer';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -632,7 +633,6 @@ const MovieRow = ({
         <div ref={rowRef} className="mb-10 animate-in fade-in duration-500">
             <div className="flex items-center justify-between px-4 md:px-12 mb-4">
                 <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
-                    <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
                     {title}
                 </h3>
                 {onExpand && movies.length > 0 && (
@@ -848,7 +848,6 @@ const ContinueWatchingRow = ({
         <div className="mb-10 animate-in fade-in duration-500">
             <div className="flex items-center justify-between px-4 md:px-12 mb-4">
                 <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
-                    <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
                     Continue Watching
                 </h3>
                 {onExpand && activeProgress.length > 0 && (
@@ -948,7 +947,6 @@ const PopularGenresRow = ({
     return (
         <div className="mb-10 animate-in fade-in duration-500">
             <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
                 Explore Genres
             </h3>
             <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
@@ -1025,7 +1023,6 @@ export default function App() {
 
 
     const [authChecking, setAuthChecking] = useState(true);
-    const [splashFinished, setSplashFinished] = useState(false);
     const [isCloudSync, setIsCloudSync] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
 
@@ -1034,6 +1031,7 @@ export default function App() {
     const [franchiseList, setFranchiseList] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isAiSearchActive, setIsAiSearchActive] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchInput, setSearchInput] = useState("");
     const [searchHistory, setSearchHistory] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("All");
@@ -1254,6 +1252,38 @@ export default function App() {
     const selectedDramaSlugRef = useRef<string | null>(null);
 
     useEffect(() => { isWatchingRef.current = isWatching; }, [isWatching]);
+
+    // Reactive mobile viewport listener to handle mobile browser address bar / bottom toolbar geometry
+    useEffect(() => {
+        const updateMobileViewport = () => {
+            if (typeof window === 'undefined') return;
+            const vv = window.visualViewport;
+            if (vv) {
+                const bottomDiff = window.innerHeight - (vv.height + vv.offsetTop);
+                // Address/navigation bars typically create an offset of 15px - 90px.
+                // We cap at 100px so virtual keyboards (> 150px) don't shove the pill to the center of screen.
+                const toolbarOffset = (bottomDiff > 0 && bottomDiff <= 100) ? bottomDiff : 0;
+                document.documentElement.style.setProperty('--mobile-viewport-offset', `${Math.round(toolbarOffset)}px`);
+            }
+        };
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateMobileViewport);
+            window.visualViewport.addEventListener('scroll', updateMobileViewport);
+        }
+        window.addEventListener('resize', updateMobileViewport);
+        window.addEventListener('orientationchange', updateMobileViewport);
+        updateMobileViewport();
+
+        return () => {
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', updateMobileViewport);
+                window.visualViewport.removeEventListener('scroll', updateMobileViewport);
+            }
+            window.removeEventListener('resize', updateMobileViewport);
+            window.removeEventListener('orientationchange', updateMobileViewport);
+        };
+    }, []);
     useEffect(() => { selectedMovieRef.current = selectedMovie; }, [selectedMovie]);
     useEffect(() => { selectedPersonIdRef.current = selectedPersonId; }, [selectedPersonId]);
     useEffect(() => { selectedCharacterIdRef.current = selectedCharacterId; }, [selectedCharacterId]);
@@ -2031,9 +2061,9 @@ export default function App() {
 
             if (isTyping) return;
 
-            if (e.key === '/') {
+            if (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
                 e.preventDefault();
-                searchInputRef.current?.focus();
+                setIsSearchOpen(prev => !prev);
             }
 
             if (e.altKey) {
@@ -2071,6 +2101,7 @@ export default function App() {
     }, []);
 
     const resetFilters = () => {
+        setIsSearchOpen(false);
         setSearchQuery("");
         setSearchInput("");
         setFranchiseSearchQuery("");
@@ -2355,6 +2386,17 @@ export default function App() {
         const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
         setSearchHistory(newHistory);
         localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
+    };
+
+    const handleClearSearchHistory = () => {
+        setSearchHistory([]);
+        localStorage.removeItem('movieverse_search_history');
+    };
+
+    const handleRemoveSearchHistoryItem = (itemToRemove: string) => {
+        const updated = searchHistory.filter(h => h !== itemToRemove);
+        setSearchHistory(updated);
+        localStorage.setItem('movieverse_search_history', JSON.stringify(updated));
     };
 
     // Debounce dynamic search history logging
@@ -3050,7 +3092,14 @@ export default function App() {
             const data = await res.json();
             let results = data.results || [];
             if (selectedCategory !== "People") {
-                if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
+                if (endpoint.includes("/search/multi")) {
+                    results = results.filter((m: any) => {
+                        if (m.media_type !== 'movie' && m.media_type !== 'tv') return false;
+                        const isAnimation = m.genre_ids?.includes(16) || m.genres?.some((g: any) => g.id === 16);
+                        const isJapanese = m.original_language === 'ja';
+                        return !(isAnimation && isJapanese);
+                    });
+                }
                 if (searchQuery) {
                     const seasonPattern = /\s*[:\-]?\s*\(?(season\s*\d+|part\s*\d+|\d+(st|nd|rd|th)\s*season)\)?\s*$/i;
                     results = results.filter((m: any) => {
@@ -3070,6 +3119,67 @@ export default function App() {
                         }
                         return true;
                     });
+
+                    if (!isLoadMore) {
+                        try {
+                            const aniRes = await fetch('https://graphql.anilist.co', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    query: `
+                                        query ($search: String) {
+                                          Page(page: 1, perPage: 8) {
+                                            media(type: ANIME, isAdult: false, search: $search) {
+                                              id
+                                              title {
+                                                english
+                                                romaji
+                                                userPreferred
+                                              }
+                                              coverImage {
+                                                large
+                                                medium
+                                              }
+                                              bannerImage
+                                              format
+                                              startDate {
+                                                year
+                                              }
+                                              averageScore
+                                            }
+                                          }
+                                        }
+                                    `,
+                                    variables: { search: searchQuery }
+                                })
+                            });
+                            if (aniRes.ok) {
+                                const aniData = await aniRes.json();
+                                const aniMedia = (aniData?.data?.Page?.media || []).map((anime: any) => ({
+                                    id: anime.id,
+                                    aniListId: anime.id,
+                                    isAnimeDirect: true,
+                                    media_type: anime.format === 'MOVIE' ? 'movie' : 'tv',
+                                    title: anime.title?.english || anime.title?.romaji || anime.title?.userPreferred || 'Anime',
+                                    name: anime.title?.english || anime.title?.romaji || anime.title?.userPreferred || 'Anime',
+                                    overview: '',
+                                    poster_path: anime.coverImage?.large || anime.coverImage?.medium,
+                                    backdrop_path: anime.bannerImage || anime.coverImage?.large,
+                                    vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
+                                    vote_count: 0,
+                                    popularity: 100,
+                                    release_date: anime.startDate?.year ? `${anime.startDate.year}-01-01` : undefined,
+                                    first_air_date: anime.startDate?.year ? `${anime.startDate.year}-01-01` : undefined,
+                                }));
+                                results = [...aniMedia, ...results];
+                            }
+                        } catch (e) {
+                            console.error("AniList search merge error", e);
+                        }
+                    }
                 }
                 results = results.filter((m: any) => {
                     if (!m.poster_path) return false;
@@ -3873,6 +3983,7 @@ export default function App() {
     };
 
     const browseOptions = [
+        { id: "Dramas", icon: Film, label: "Dramas", action: () => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); } },
         { id: "LiveTV", icon: Tv, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
@@ -3880,10 +3991,10 @@ export default function App() {
         { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } }
     ];
 
-    if (authChecking || !splashFinished) {
+    if (authChecking) {
         return (
-            <div className="fixed inset-0 bg-black flex items-center justify-center z-[9999]">
-                <LogoLoader onComplete={() => setSplashFinished(true)} />
+            <div className="fixed inset-0 bg-[#030303] flex items-center justify-center z-[9999]">
+                <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
             </div>
         );
     }
@@ -3895,40 +4006,42 @@ export default function App() {
             
 
             {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && !showDetailsCast && !showDetailsCrew && !activeMangaChapterId && (
-                <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
-                        (selectedMovie ? isMovieDetailsScrolled : isScrolled)
-                            ? 'bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b-0 border-transparent shadow-lg'
-                            : 'bg-gradient-to-b from-black/50 via-black/15 to-transparent backdrop-blur-none border-b-0 border-transparent shadow-none'
+                <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 ${isTV ? 'flex' : 'hidden md:flex'} items-center justify-center px-4 md:px-6 transition-all duration-300 ${
+                        isSearchOpen
+                            ? 'bg-[#0a0a0c] border-b-0 shadow-none'
+                            : (selectedMovie ? isMovieDetailsScrolled : isScrolled)
+                                ? 'bg-black/60 backdrop-blur-2xl backdrop-saturate-150 border-b-0 border-transparent shadow-lg'
+                                : 'bg-gradient-to-b from-black/50 via-black/15 to-transparent backdrop-blur-none border-b-0 border-transparent shadow-none'
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl gap-2 md:gap-4">
-                        <div className="flex items-center gap-2 md:gap-8 shrink-0">
-                            
-
+                        {/* Brand Logo on the Left */}
+                        <div className="flex items-center gap-2 shrink-0">
                             <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                                 <div className="relative group flex items-center justify-center">
-                                    <BrandLogo size={36} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
+                                    <BrandLogo size={34} variant="responsive" className="relative z-10 transition-all duration-300 group-hover:opacity-90 active:scale-95" />
                                 </div>
                             </div>
+                        </div>
 
-                            <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-1.5`}>
-                                <TvFocusButton onClick={resetToHome} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "All" && !searchQuery ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                        {/* Right side: Nav options cleanly arranged */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0 ml-auto">
+                            {/* Navigation Tabs (Home, Anime, Manga, Browse) */}
+                            <div className={`${isTV ? 'flex' : 'hidden md:flex'} items-center gap-1`}>
+                                <TvFocusButton onClick={resetToHome} className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "All" && !searchQuery ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Home</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Anime" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Anime" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Anime</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Manga" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Manga" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Manga</span>
-                                </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Dramas" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
-                                    <span>Dramas</span>
                                 </TvFocusButton>
                                 <div
                                     className="relative flex items-center h-full"
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels", "Dramas"].includes(selectedCategory)
                                             ? "bg-white text-black shadow-sm"
                                             : "text-gray-300 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -3973,32 +4086,19 @@ export default function App() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Right side: Search bar and Profile */}
-                        <div className="flex items-center gap-2.5 md:gap-3 shrink-0 ml-auto">
-                            <div className="w-48 sm:w-64 md:w-80 lg:w-96 xl:w-[400px]">
-                                <div className="relative w-full group">
-                                    <TvFocusInput
-                                        ref={searchInputRef}
-                                        type="text"
-                                        placeholder={window.innerWidth < 640 ? "Search..." : "Search... (Press /)"}
-                                        className={`w-full bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] backdrop-blur-xl border ${isAiSearchActive ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'border-white/10 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30'} rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-200 text-white placeholder-zinc-400`}
-                                        value={searchInput}
-                                        onChange={(e) => setSearchInput(e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchInput); }}
-                                        onSubmit={() => handleSearchSubmit(searchInput)}
-                                    />
-                                    <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors ${loading && searchQuery ? "text-red-500 animate-pulse" : "group-focus-within:text-white"}`} size={14} />
-                                    <button
-                                        onClick={() => setIsAiSearchActive(!isAiSearchActive)}
-                                        className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-200 ${isAiSearchActive ? 'text-amber-400 bg-amber-500/15 shadow-[0_0_8px_rgba(245,158,11,0.3)]' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'}`}
-                                        title={isAiSearchActive ? "Smart Semantic Search Enabled" : "Enable Smart Semantic Search"}
-                                    >
-                                        <Sparkles size={14} className={isAiSearchActive ? 'text-amber-400' : ''} />
-                                    </button>
-                                </div>
-                            </div>
+                            {/* Expanding Search Trigger Button */}
+                            <TvFocusButton
+                                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                                    isSearchOpen
+                                        ? 'bg-white/[0.1] text-white border border-white/20'
+                                        : 'bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/10'
+                                }`}
+                                title={isSearchOpen ? "Close Search (Esc)" : "Search (/ or Ctrl+K)"}
+                            >
+                                {isSearchOpen ? <X size={17} /> : <Search size={16} />}
+                            </TvFocusButton>
 
                             {/* Profile Dropdown Container */}
                             <div className="relative">
@@ -4154,10 +4254,45 @@ export default function App() {
                 </nav>
             )}
 
-            <div className={`flex ${(hasHeroBanner || (activeWatchPartyRoom && watchPartyMovie) || (selectedCategory === "Manga" && activeMangaChapterId)) ? 'pt-0' : 'pt-16'}`}>
+            {/* Expanding Search Drawer Overlay */}
+            <SearchDrawer
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                apiKey={apiKey}
+                searchHistory={searchHistory}
+                onClearHistory={handleClearSearchHistory}
+                onRemoveHistoryItem={handleRemoveSearchHistoryItem}
+                onSelectMovie={(movie) => {
+                    setSelectedMovie(movie);
+                    setIsSearchOpen(false);
+                }}
+                onSelectManga={(mangaId) => {
+                    resetFilters();
+                    setSelectedCategory("Manga");
+                    setSelectedMangaId(mangaId);
+                    setIsSearchOpen(false);
+                }}
+                onSelectPerson={(personId) => {
+                    setSelectedPersonId(personId);
+                    setIsSearchOpen(false);
+                }}
+                onSelectCollection={(collectionId) => {
+                    setTmdbCollectionId(Number(collectionId));
+                    setIsSearchOpen(false);
+                }}
+                onSearchSubmit={(query) => {
+                    handleSearchSubmit(query);
+                    setIsSearchOpen(false);
+                }}
+                isAiSearchActive={isAiSearchActive}
+                onToggleAiSearch={() => setIsAiSearchActive(!isAiSearchActive)}
+                userProfile={userProfile}
+            />
+
+            <div className={`flex ${(hasHeroBanner || (activeWatchPartyRoom && watchPartyMovie) || (selectedCategory === "Manga" && activeMangaChapterId)) ? 'pt-0' : 'pt-safe pt-3 md:pt-16'}`}>
                 <main className={`flex-1 w-full ${(activeWatchPartyRoom && watchPartyMovie)
                         ? 'h-screen overflow-hidden'
-                        : `min-h-[calc(100vh-4rem)] ${isTV ? 'pb-0' : 'pb-20 md:pb-0'}`
+                        : `min-h-[calc(100vh-4rem)] ${isTV ? 'pb-0' : 'pb-24 md:pb-0'}`
                     }`}>
                     {activeWatchPartyRoom && watchPartyMovie ? (
                         <div className={`relative w-full h-full bg-black overflow-hidden animate-in fade-in duration-500 ${isWatchPartyImmersive ? '' : 'flex flex-col lg:flex-row'}`}>
@@ -4575,12 +4710,6 @@ export default function App() {
                                             </div>
                                             {/* Foreground details overlay */}
                                             <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700 text-left font-sans">
-                                                <div className="flex flex-wrap items-center gap-2.5 mb-1">
-                                                    <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-600 text-white shadow-lg shadow-red-600/30">
-                                                        Featured
-                                                    </span>
-                                                </div>
-
                                                 {featuredLogo ? (
                                                     <img 
                                                         src={`https://image.tmdb.org/t/p/w500${featuredLogo}`} 
@@ -4638,7 +4767,7 @@ export default function App() {
                                                         <button
                                                             key={i}
                                                             onClick={() => setFeaturedIndex(i)}
-                                                            className={`w-2 h-2 rounded-full transition-all duration-300 ${featuredIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                                                            className={`w-2 h-2 rounded-full transition-all duration-300 ${featuredIndex === i ? 'bg-white h-6 shadow-[0_0_8px_rgba(255,255,255,0.7)]' : 'bg-white/30 hover:bg-white/60'}`}
                                                         />
                                                     ))}
                                                 </div>
@@ -4815,6 +4944,25 @@ export default function App() {
                                                     </div>
                                                 ) : (
                                                     <>
+                                                        {searchQuery && (
+                                                            <div className="flex items-center justify-between pb-6 border-b border-white/5 mb-6 animate-in fade-in duration-300">
+                                                                <div>
+                                                                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                                                                        Results for <span className="text-red-500">"{searchQuery}"</span>
+                                                                    </h1>
+                                                                    <p className="text-xs text-zinc-400 mt-1">
+                                                                        Found {movies.length} {movies.length === 1 ? 'match' : 'matches'}
+                                                                    </p>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => { resetFilters(); resetToHome(); }}
+                                                                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
+                                                                >
+                                                                    <X size={14} />
+                                                                    <span>Clear search</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                         {matchingCollections.length > 0 && (
                                                             <div className="space-y-6 -mx-4 md:-mx-12">
                                                                 {matchingCollections.map(cat => (
@@ -5097,76 +5245,293 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Mobile Browse Dropdown Backdrop */}
+            {/* Mobile More Sheet Backdrop */}
             <div
-                className={`fixed inset-0 z-[75] ${isTV ? 'hidden' : 'md:hidden'} transition-all duration-300 ${isBrowseOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
+                className={`fixed inset-0 z-[75] ${isTV ? 'hidden' : 'md:hidden'} transition-all duration-300 ${isBrowseOpen ? 'visible opacity-100 pointer-events-auto bg-black/70 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
                 onClick={() => setIsBrowseOpen(false)}
             />
 
-            {/* Mobile Browse Dropdown Menu */}
-            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[330px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-[#090a0e]/95 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.95)] p-3 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
-                {browseOptions.map(opt => {
-                    const isActive = selectedCategory === opt.id ||
-                        (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || selectedCategory === "WatchParty"));
+            {/* Mobile Merged "More" Sheet (Browse + Profile & Library) */}
+            <div 
+                style={{
+                    bottom: 'calc(5.25rem + env(safe-area-inset-bottom, 0px) + var(--mobile-viewport-offset, 0px))'
+                }}
+                className={`fixed left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-[390px] z-[85] max-h-[75vh] overflow-y-auto ${isTV ? 'hidden' : 'md:hidden'} bg-[#0e0e11]/98 backdrop-blur-3xl border border-white/[0.05] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] p-5 pb-6 space-y-5 transition-all duration-300 transform origin-bottom select-none custom-scrollbar ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}
+            >
+                {/* Drag Handle */}
+                <div className="w-10 h-1 rounded-full bg-white/15 mx-auto -mt-1 mb-2" />
 
-                    return (
+                {/* 1. Profile Header Card */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.04]">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm text-white overflow-hidden shrink-0 shadow-md ${userProfile?.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-950'}`}>
+                            {userProfile?.avatar ? (
+                                <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                            ) : (
+                                ((userProfile?.name) || 'M').charAt(0).toUpperCase()
+                            )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold text-white truncate">
+                                {userProfile?.name || 'MovieVerse Member'}
+                            </span>
+                            <span className="text-xs text-zinc-400 truncate">
+                                {userProfile?.genres?.slice(0, 2).join(' • ') || 'Cinephile Explorer'}
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setIsBrowseOpen(false);
+                            setIsSettingsOpen(true);
+                        }}
+                        className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-all cursor-pointer shrink-0 border border-white/[0.04]"
+                        title="Settings"
+                    >
+                        <Settings size={17} />
+                    </button>
+                </div>
+
+                {/* 2. Library Quick Shortcuts */}
+                <div className="grid grid-cols-3 gap-2">
+                    {[
+                        {
+                            label: 'Watchlist',
+                            icon: Bookmark,
+                            action: () => {
+                                resetFilters();
+                                setSelectedCategory("Watchlist");
+                                setIsBrowseOpen(false);
+                            },
+                            count: watchlist.length,
+                            active: selectedCategory === "Watchlist"
+                        },
+                        {
+                            label: 'Favorites',
+                            icon: Heart,
+                            action: () => {
+                                resetFilters();
+                                setSelectedCategory("Favorites");
+                                setIsBrowseOpen(false);
+                            },
+                            count: favorites.length,
+                            active: selectedCategory === "Favorites"
+                        },
+                        {
+                            label: 'History',
+                            icon: History,
+                            action: () => {
+                                resetFilters();
+                                setSelectedCategory("History");
+                                setIsBrowseOpen(false);
+                            },
+                            count: watched.length,
+                            active: selectedCategory === "History"
+                        }
+                    ].map((item) => (
                         <button
-                            key={opt.id}
-                            onClick={() => handleBrowseAction(opt.action)}
-                            className={`group flex flex-col items-center justify-center gap-2 py-3 px-1.5 rounded-2xl transition-all duration-200 text-center active:scale-95 ${
-                                isActive
-                                    ? 'text-white'
-                                    : 'text-zinc-300 hover:text-white hover:bg-white/[0.04]'
+                            key={item.label}
+                            onClick={item.action}
+                            className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border transition-all text-center cursor-pointer ${
+                                item.active
+                                    ? 'bg-white/12 text-white border-white/10 shadow-sm'
+                                    : 'bg-white/[0.025] text-zinc-300 hover:text-white hover:bg-white/[0.05] border-white/[0.03]'
                             }`}
                         >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
-                                isActive
-                                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
-                                    : 'bg-white/[0.05] text-zinc-300 group-hover:bg-white/[0.1]'
-                            }`}>
-                                <opt.icon size={19} className="transition-transform duration-200" />
-                            </div>
-                            <span className={`text-[11px] font-semibold tracking-wide truncate max-w-full ${
-                                isActive ? 'text-white' : 'text-zinc-300'
-                            }`}>
-                                {opt.label}
-                            </span>
+                            <item.icon size={16} className={item.active ? 'text-white' : 'text-zinc-400'} />
+                            <span className="text-[11px] font-medium leading-none">{item.label}</span>
+                            <span className="text-[10px] text-zinc-500 font-mono leading-none">({item.count})</span>
                         </button>
-                    );
-                })}
-            </div>
+                    ))}
+                </div>
 
-            {/* Mobile Bottom Navigation Bar */}
-            <div className={`fixed bottom-0 left-0 right-0 z-[80] ${(isTV || activeMangaChapterId) ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
-                <div className="h-16 flex items-center justify-around px-2">
-                    {[
-                        { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
-                        { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
-                        { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "WatchParty", "Dramas"].includes(selectedCategory) }
-                    ].map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = tab.activeCondition;
+                {/* 3. Explore Categories Grid */}
+                <div className="space-y-2.5">
+                    <span className="text-[10px] font-bold tracking-wider text-zinc-500 uppercase px-1">
+                        EXPLORE CATEGORIES
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                        {browseOptions.map(opt => {
+                            const isActive = selectedCategory === opt.id ||
+                                (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || selectedCategory === "WatchParty"));
+
                             return (
                                 <button
-                                    key={tab.id}
-                                    onClick={tab.action}
-                                    className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.88] relative gpu-layer ${isActive ? 'text-red-500 font-medium' : 'text-zinc-400 hover:text-white'
-                                        }`}
+                                    key={opt.id}
+                                    onClick={() => {
+                                        handleBrowseAction(opt.action);
+                                        setIsBrowseOpen(false);
+                                    }}
+                                    className={`group flex flex-col items-center justify-center gap-2 py-3 px-1.5 rounded-2xl transition-all duration-200 text-center active:scale-95 cursor-pointer ${
+                                        isActive
+                                            ? 'text-white'
+                                            : 'text-zinc-300 hover:text-white hover:bg-white/[0.04]'
+                                    }`}
                                 >
-                                    <Icon size={18} className={`transition-transform duration-300 ease-[cubic-bezier(0.34,1.25,0.64,1)] ${isActive ? 'scale-110 -translate-y-0.5' : ''}`} />
-                                    <span className={`text-[10px] mt-1 tracking-normal transition-colors ${isActive ? 'font-medium text-white' : 'font-normal text-zinc-400'}`}>{tab.label}</span>
-                                    {isActive && (
-                                        <span className="absolute -top-1 w-1 h-1 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
-                                    )}
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
+                                        isActive
+                                            ? 'bg-white text-black shadow-md'
+                                            : 'bg-white/[0.04] text-zinc-300 group-hover:bg-white/[0.08]'
+                                    }`}>
+                                        <opt.icon size={19} className="transition-transform duration-200" />
+                                    </div>
+                                    <span className={`text-[11px] font-semibold tracking-wide truncate max-w-full ${
+                                        isActive ? 'text-white' : 'text-zinc-300'
+                                    }`}>
+                                        {opt.label}
+                                    </span>
                                 </button>
                             );
                         })}
                     </div>
                 </div>
 
+                {/* 4. Account Actions (Sign Out) */}
+                <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between">
+                    <button
+                        onClick={() => {
+                            setIsBrowseOpen(false);
+                            handleLogout();
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+                    >
+                        <LogOut size={14} />
+                        <span>Sign Out</span>
+                    </button>
+                    <span className="text-[10px] text-zinc-600 font-medium">
+                        MovieVerse AI v2.0
+                    </span>
+                </div>
+            </div>
 
-            {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center"><LogoLoader /></div>}
+            {/* Mobile 5-Tab Floating Pill Navigation Bar */}
+            {(() => {
+                const activeBottomTabIndex = (() => {
+                    if (isBrowseOpen) return 4;
+                    if (isSearchOpen || (!!searchQuery && !isBrowseOpen)) return 3;
+                    if (selectedCategory === "Manga") return 2;
+                    if (selectedCategory === "Anime") return 1;
+                    if (["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "WatchParty", "Dramas", "Watchlist", "Favorites", "History"].includes(selectedCategory)) return 4;
+                    return 0; // Default: Home ("All")
+                })();
+
+                const mobileNavTabs = [
+                    {
+                        id: 'Home',
+                        label: 'Home',
+                        icon: Home,
+                        action: () => {
+                            setIsBrowseOpen(false);
+                            setIsSearchOpen(false);
+                            resetToHome();
+                        },
+                        index: 0
+                    },
+                    {
+                        id: 'Anime',
+                        label: 'Anime',
+                        icon: AnimeNavIcon,
+                        action: () => {
+                            setIsBrowseOpen(false);
+                            setIsSearchOpen(false);
+                            resetFilters();
+                            setSelectedCategory("Anime");
+                        },
+                        index: 1
+                    },
+                    {
+                        id: 'Manga',
+                        label: 'Manga',
+                        icon: MangaNavIcon,
+                        action: () => {
+                            setIsBrowseOpen(false);
+                            setIsSearchOpen(false);
+                            resetFilters();
+                            setSelectedMangaId(null);
+                            setActiveMangaChapterId(null);
+                            setSelectedCategory("Manga");
+                        },
+                        index: 2
+                    },
+                    {
+                        id: 'Search',
+                        label: 'Search',
+                        icon: Search,
+                        action: () => {
+                            setIsBrowseOpen(false);
+                            setIsSearchOpen(!isSearchOpen);
+                        },
+                        index: 3
+                    },
+                    {
+                        id: 'More',
+                        label: 'More',
+                        icon: MoreHorizontal,
+                        action: () => {
+                            setIsSearchOpen(false);
+                            setIsBrowseOpen(!isBrowseOpen);
+                        },
+                        index: 4
+                    }
+                ];
+
+                return (
+                    <div 
+                        style={{
+                            bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px) + var(--mobile-viewport-offset, 0px))'
+                        }}
+                        className={`fixed left-1/2 -translate-x-1/2 z-[80] ${(isTV || activeMangaChapterId || isWatching) ? 'hidden' : 'md:hidden'} w-[calc(100%-2rem)] max-w-[380px] h-[60px] p-1 bg-[#101013]/92 backdrop-blur-2xl border border-white/[0.04] rounded-full shadow-[0_16px_40px_rgba(0,0,0,0.9),0_2px_8px_rgba(0,0,0,0.6)] select-none transition-[bottom] duration-150`}
+                    >
+                        <div className="relative h-full w-full flex items-center justify-between">
+                            {/* Smooth sliding active indicator */}
+                            <div
+                                aria-hidden="true"
+                                className="absolute top-0 bottom-0 pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] p-0.5"
+                                style={{
+                                    width: '20%',
+                                    left: 0,
+                                    transform: `translateX(${activeBottomTabIndex * 100}%)`,
+                                }}
+                            >
+                                <div className="w-full h-full rounded-full bg-white/[0.12] backdrop-blur-md" />
+                            </div>
+
+                            {/* Nav Tab Buttons */}
+                            {mobileNavTabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeBottomTabIndex === tab.index;
+
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={tab.action}
+                                        className="relative z-10 flex-1 h-full flex flex-col items-center justify-center rounded-full select-none cursor-pointer transition-transform duration-150 active:scale-95 group"
+                                    >
+                                        <Icon
+                                            size={18}
+                                            className={`transition-all duration-200 ${
+                                                isActive ? 'scale-105 text-white' : 'text-zinc-400 group-hover:text-zinc-200'
+                                            }`}
+                                        />
+                                        <span className={`text-[10px] mt-0.5 tracking-tight transition-colors duration-200 ${
+                                            isActive ? 'font-semibold text-white' : 'font-medium text-zinc-400 group-hover:text-zinc-200'
+                                        }`}>
+                                            {tab.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })()}
+
+
+            {!apiKey && loading && (
+                <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                </div>
+            )}
         </div>
     );
 }

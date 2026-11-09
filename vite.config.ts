@@ -147,6 +147,23 @@ export default defineConfig(({ mode }) => {
                   },
                 };
                 
+                // Read request body if present for POST/PUT/PATCH
+                let body: any = {};
+                if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+                  const buffers = [];
+                  for await (const chunk of req) {
+                    buffers.push(chunk);
+                  }
+                  const rawBody = Buffer.concat(buffers).toString('utf-8');
+                  if (rawBody) {
+                    try {
+                      body = JSON.parse(rawBody);
+                    } catch {
+                      body = rawBody;
+                    }
+                  }
+                }
+
                 // Build mock VercelRequest
                 const mockReq: any = Object.create(req);
                 let mockQuery: any = { ...parsedUrl.query };
@@ -169,6 +186,7 @@ export default defineConfig(({ mode }) => {
                 }
                 
                 mockReq.query = mockQuery;
+                mockReq.body = body;
                 mockReq.method = req.method;
                 
                 await handler(mockReq, mockRes);

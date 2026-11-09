@@ -91,101 +91,118 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 };
 
-export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
+export interface BrandLogoProps {
+  className?: string;
+  size?: number;
+  accentColor?: string;
+  variant?: 'responsive' | 'full' | 'icon';
+}
+
+export const BrandLogo = ({
+  className = "",
+  size = 32,
+  accentColor = "text-red-600",
+  variant = "responsive"
+}: BrandLogoProps) => {
   const [imgError, setImgError] = useState(false);
-  // Path updated to image.png as requested
-  const logoPath = "/image.png";
 
   if (imgError) {
     return <Film size={size} className={`${accentColor} ${className}`} />;
   }
 
+  if (variant === 'icon') {
+    return (
+      <img
+        src="/movieverse_icon.png"
+        alt="MovieVerse"
+        className={`object-contain select-none shrink-0 ${className}`}
+        style={{ height: size, width: 'auto' }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  if (variant === 'full') {
+    return (
+      <img
+        src="/movieverse_logo.png"
+        alt="MovieVerse"
+        className={`object-contain select-none shrink-0 ${className}`}
+        style={{ height: size, width: 'auto' }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  // Responsive: Compact icon on mobile (<md), full logo with brand text on laptop/desktop (>=md)
   return (
-    <img
-      src={logoPath}
-      alt="Logo"
-      className={`object-contain ${className}`}
-      // Use height to constrain size but allow width to scale (maintain aspect ratio)
-      style={{ height: size, width: 'auto', maxWidth: '200px' }}
-      onError={() => setImgError(true)}
-    />
+    <div className={`inline-flex items-center shrink-0 select-none ${className}`}>
+      {/* Mobile Icon */}
+      <img
+        src="/movieverse_icon.png"
+        alt="MovieVerse"
+        className="block md:hidden object-contain"
+        style={{ height: size, width: 'auto' }}
+        onError={() => setImgError(true)}
+      />
+      {/* Laptop / Desktop Full Text Logo */}
+      <img
+        src="/movieverse_logo.png"
+        alt="MovieVerse"
+        className="hidden md:block object-contain"
+        style={{ height: size, width: 'auto' }}
+        onError={() => setImgError(true)}
+      />
+    </div>
   );
 };
 
+export const AnimeNavIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M13.5 0.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8 0-5.39-2.5-9.33L13.5 0.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z" />
+  </svg>
+);
+
+export const MangaNavIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.41.21.75-.19.75-.55V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z" />
+    <path d="M17.5 10.5c.88 0 1.73.09 2.5.26V9.24c-.79-.15-1.64-.24-2.5-.24-1.7 0-3.24.29-4.5.83v1.66c1.13-.64 2.7-.99 4.5-.99z" />
+    <path d="M17.5 13.5c.88 0 1.73.09 2.5.26v-1.52c-.79-.15-1.64-.24-2.5-.24-1.7 0-3.24.29-4.5.83v1.66c1.13-.64 2.7-.99 4.5-.99z" />
+    <path d="M17.5 16.5c.88 0 1.73.09 2.5.26v-1.52c-.79-.15-1.64-.24-2.5-.24-1.7 0-3.24.29-4.5.83v1.66c1.13-.64 2.7-.99 4.5-.99z" />
+  </svg>
+);
+
 export const LogoLoader = ({
   className = "",
-  onComplete,
-  speed = 1.75
+  onComplete
 }: {
   className?: string;
   onComplete?: () => void;
   speed?: number;
 } = {}) => {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  const completedRef = React.useRef(false);
-
-  const applySpeed = React.useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = speed;
-    }
-  }, [speed]);
-
-  const markComplete = React.useCallback(() => {
-    if (!completedRef.current) {
-      completedRef.current = true;
-      if (onComplete) {
-        onComplete();
-      }
+  React.useEffect(() => {
+    if (onComplete) {
+      onComplete();
     }
   }, [onComplete]);
 
-  React.useEffect(() => {
-    applySpeed();
-    // Safety fallback: scaled to playback speed
-    const timeoutDuration = Math.max(1500, Math.round(3000 / speed));
-    const timer = setTimeout(() => {
-      markComplete();
-    }, timeoutDuration);
-
-    return () => clearTimeout(timer);
-  }, [applySpeed, markComplete, speed]);
-
-  const handleEnded = () => {
-    markComplete();
-    // Seamlessly loop if still mounted/loading
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      applySpeed();
-      videoRef.current.play().catch(() => { });
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current && videoRef.current.duration) {
-      // Near end of video
-      if (videoRef.current.currentTime >= videoRef.current.duration - 0.12) {
-        markComplete();
-      }
-    }
-  };
-
   return (
-    <div className={`flex flex-col items-center justify-center animate-in fade-in duration-500 py-12 font-sans ${className}`}>
-      <div className="relative w-52 h-52 sm:w-64 sm:h-64 md:w-72 md:h-72 flex items-center justify-center">
-        <video
-          ref={videoRef}
-          src="/loader.mp4"
-          autoPlay
-          muted
-          playsInline
-          onLoadedMetadata={applySpeed}
-          onPlay={applySpeed}
-          onEnded={handleEnded}
-          onTimeUpdate={handleTimeUpdate}
-          onError={markComplete}
-          className="w-full h-full object-contain relative z-10"
-        />
-      </div>
+    <div className={`flex items-center justify-center py-12 ${className}`}>
+      <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
     </div>
   );
 };

@@ -1810,7 +1810,7 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                   <button
                     key={i}
                     onClick={() => setHeroIndex(i)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-white h-6 shadow-[0_0_8px_rgba(255,255,255,0.7)]' : 'bg-white/30 hover:bg-white/60'}`}
                   />
                 ))}
               </div>

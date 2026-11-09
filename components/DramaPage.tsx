@@ -588,7 +588,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 <button
                   key={i}
                   onClick={() => setHeroIndex(i)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-white h-6 shadow-[0_0_8px_rgba(255,255,255,0.7)]' : 'bg-white/30 hover:bg-white/60'}`}
                 />
               ))}
             </div>
@@ -1108,7 +1108,6 @@ export const DramaRow: React.FC<DramaRowProps> = ({ title, items: initialItems, 
     <div className="animate-in fade-in duration-500 text-left font-sans select-none px-3 md:px-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
-          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
           {title}
         </h3>
         {onExpand && (

@@ -303,7 +303,6 @@ const HorizontalScrollRow = ({
     return (
         <div className="mb-8 text-left animate-in fade-in duration-500">
             <h3 className="text-sm md:text-base font-semibold text-white mb-3.5 flex items-center gap-2">
-                <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
                 {title}
             </h3>
             <div 
@@ -377,7 +376,6 @@ const TimelineScrollRow = ({
         <div className="mb-8 text-left animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-3.5">
                 <h3 className="text-sm md:text-base font-semibold text-white flex items-center gap-2">
-                    <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
                     {title}
                 </h3>
                 <button
@@ -430,7 +428,6 @@ const CharacterScrollRow = ({
     return (
         <div className="mb-10 text-left animate-in fade-in duration-500">
             <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block" />
                 {title}
             </h3>
             <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar scroll-smooth">
@@ -1252,7 +1249,6 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, is
                      {details.biography && (
                          <div className="text-left space-y-2 mb-8 w-full">
                              <div className="flex items-center gap-2 mb-2">
-                                 <span className="w-1 h-4 bg-red-600 rounded-full shrink-0" />
                                  <h3 className="text-sm md:text-base font-semibold text-white tracking-tight">Biography</h3>
                              </div>
                              <p className={`text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line w-full ${isBioExpanded ? '' : 'line-clamp-3 sm:line-clamp-4'}`}>
