@@ -168,7 +168,7 @@ export const CollectionPage: React.FC<CollectionPageProps> = ({
     : (sortedParts[0]?.poster_path ? `${TMDB_IMAGE_BASE}${sortedParts[0].poster_path}` : null);
 
   return (
-    <div className={`fixed inset-0 z-[100] bg-[#070709] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
+    <div className={`fixed inset-0 z-[95] bg-[#070709] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'ios-sheet-exit' : 'ios-sheet-enter'}`}>
       {/* Top Floating Navigation Bar */}
       <div className="fixed top-0 left-0 right-0 z-50 px-4 md:px-10 py-4 flex items-center justify-between pointer-events-none">
         <button

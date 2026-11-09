@@ -530,7 +530,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
 
   const resolveImageUrl = (path: any, isBackdrop = false) => {
     if (!path || typeof path !== 'string') return null;
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/api/') || path.startsWith('data:')) return path;
     const clean = path.startsWith('/') ? path : `/${path}`;
     return `${isBackdrop ? TMDB_BACKDROP_BASE : TMDB_IMAGE_BASE}${clean}`;
   };

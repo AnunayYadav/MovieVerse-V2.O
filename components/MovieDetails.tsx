@@ -2774,7 +2774,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[85]'} bg-[#0a0a0a] ${showPlayer || showFullCast || showFullCrew || viewingTrailerKey || viewingImage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
+        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[140]' : 'z-[110]'} bg-[#0a0a0a] ${showPlayer || showFullCast || showFullCrew || viewingTrailerKey || viewingImage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
             <div className={`relative w-full ${showPlayer ? 'h-full overflow-hidden' : 'min-h-screen'} flex flex-col`}>
                 {!showPlayer && (
                     <TvFocusButton 

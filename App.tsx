@@ -3,6 +3,7 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch, getMovieLogo, AnimeNavIcon, MangaNavIcon } from './components/Shared';
 import { SearchDrawer } from './components/SearchDrawer';
+import { SearchPage } from './components/SearchPage';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
 import { CollectionPage } from './components/CollectionPage';
@@ -1633,6 +1634,11 @@ export default function App() {
             setSelectedPersonId(null);
             setSelectedPersonName(null);
             setIsPersonAniListStaff(false);
+        } else if (selectedMovieRef.current) {
+            setSelectedMovie(null);
+            setShowDetailsCast(false);
+            setShowDetailsCrew(false);
+            setActiveDetailsTab("overview");
         } else if (tmdbCollectionIdRef.current) {
             setTmdbCollectionId(null);
         } else if (selectedStudioIdRef.current || selectedStudioNameRef.current) {
@@ -1644,11 +1650,6 @@ export default function App() {
             setSelectedMangaId(null);
         } else if (selectedDramaSlugRef.current) {
             setSelectedDramaSlug(null);
-        } else if (selectedMovieRef.current) {
-            setSelectedMovie(null);
-            setShowDetailsCast(false);
-            setShowDetailsCrew(false);
-            setActiveDetailsTab("overview");
         } else {
             syncStateFromPath();
         }
@@ -1726,7 +1727,7 @@ export default function App() {
             newPath = '/library/history';
         } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
             newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
-        } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
+        } else if (tmdbCollectionId) {
             newPath = `/collection/${tmdbCollectionId}`;
         } else if (selectedCategory === 'Countries' && activeCountry) {
             newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
@@ -2062,6 +2063,7 @@ export default function App() {
                 if (isSettingsOpen) return setIsSettingsOpen(false);
                 if (isNotificationOpen) return setIsNotificationOpen(false);
                 if (selectedMovie) return setSelectedMovie(null);
+                if (tmdbCollectionId) return setTmdbCollectionId(null);
             }
 
             if (isTyping) return;
@@ -4783,7 +4785,7 @@ export default function App() {
 
 
                                     <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
-                                        {fetchError && !loading && movies.length === 0 && (
+                                        {fetchError && !loading && !searchQuery && movies.length === 0 && (
                                             <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
                                                 <CloudOff size={48} className="text-red-500 mb-4 opacity-80" />
                                                 <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
@@ -4949,66 +4951,76 @@ export default function App() {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        {searchQuery && (
-                                                            <div className="flex items-center justify-between pb-6 border-b border-white/5 mb-6 animate-in fade-in duration-300">
-                                                                <div>
-                                                                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                                                                        Results for <span className="text-red-500">"{searchQuery}"</span>
-                                                                    </h1>
-                                                                    <p className="text-xs text-zinc-400 mt-1">
-                                                                        Found {movies.length} {movies.length === 1 ? 'match' : 'matches'}
-                                                                    </p>
+                                                        {searchQuery ? (
+                                                            <SearchPage
+                                                                initialQuery={searchQuery}
+                                                                onQueryChange={(q) => {
+                                                                    setSearchQuery(q);
+                                                                    setSearchInput(q);
+                                                                }}
+                                                                onClearSearch={() => {
+                                                                    resetFilters();
+                                                                    resetToHome();
+                                                                }}
+                                                                apiKey={apiKey}
+                                                                isAiSearchActive={isAiSearchActive}
+                                                                onToggleAiSearch={() => setIsAiSearchActive(!isAiSearchActive)}
+                                                                onSelectMovie={setSelectedMovie}
+                                                                onSelectManga={(mangaId) => {
+                                                                    resetFilters();
+                                                                    setSelectedCategory("Manga");
+                                                                    setSelectedMangaId(mangaId);
+                                                                }}
+                                                                onSelectPerson={(personId) => setSelectedPersonId(personId)}
+                                                                onSelectCollection={(colId) => handleTmdbCollectionClick(Number(colId))}
+                                                                watched={watched}
+                                                                onToggleWatched={handleToggleWatched}
+                                                            />
+                                                        ) : (
+                                                            <>
+                                                                {matchingCollections.length > 0 && (
+                                                                    <div className="space-y-6 -mx-4 md:-mx-12">
+                                                                        {matchingCollections.map(cat => (
+                                                                            <MovieRow
+                                                                                key={cat.id}
+                                                                                title={cat.title}
+                                                                                endpoint={cat.endpoint}
+                                                                                mediaType={cat.mediaType}
+                                                                                apiKey={apiKey}
+                                                                                onMovieClick={setSelectedMovie}
+                                                                                sortOption={sortOption}
+                                                                                selectedLanguage={selectedLanguage}
+                                                                                onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 animate-in fade-in duration-700">
+                                                                    {movies.map((movie, idx) => (
+                                                                        <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+                                                                            {selectedCategory !== "People" ? (
+                                                                                <MovieCard
+                                                                                    movie={movie}
+                                                                                    onClick={setSelectedMovie}
+                                                                                    isWatched={watched.some(m => m.id === movie.id)}
+                                                                                    onToggleWatched={handleToggleWatched}
+                                                                                    horizontal={false}
+                                                                                />
+                                                                            ) : (
+                                                                                <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                    {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} isAi={isAiSearchActive} />)}
                                                                 </div>
-                                                                <button
-                                                                    onClick={() => { resetFilters(); resetToHome(); }}
-                                                                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-medium text-zinc-300 hover:text-white transition-all cursor-pointer active:scale-95"
-                                                                >
-                                                                    <X size={14} />
-                                                                    <span>Clear search</span>
-                                                                </button>
-                                                            </div>
+                                                            </>
                                                         )}
-                                                        {matchingCollections.length > 0 && (
-                                                            <div className="space-y-6 -mx-4 md:-mx-12">
-                                                                {matchingCollections.map(cat => (
-                                                                    <MovieRow
-                                                                        key={cat.id}
-                                                                        title={cat.title}
-                                                                        endpoint={cat.endpoint}
-                                                                        mediaType={cat.mediaType}
-                                                                        apiKey={apiKey}
-                                                                        onMovieClick={setSelectedMovie}
-                                                                        sortOption={sortOption}
-                                                                        selectedLanguage={selectedLanguage}
-                                                                        onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        <div className={`grid ${searchQuery ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' : 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'} gap-x-4 gap-y-8 animate-in fade-in duration-700`}>
-                                                            {movies.map((movie, idx) => (
-                                                                <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                                                    {selectedCategory !== "People" ? (
-                                                                        <MovieCard
-                                                                            movie={movie}
-                                                                            onClick={setSelectedMovie}
-                                                                            isWatched={watched.some(m => m.id === movie.id)}
-                                                                            onToggleWatched={handleToggleWatched}
-                                                                            horizontal={false}
-                                                                        />
-                                                                    ) : (
-                                                                        <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                            {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} isAi={isAiSearchActive} />)}
-                                                        </div>
                                                     </>
                                                 )}
                                             </div>
                                         )}
 
-                                        {!loading && !fetchError && movies.length === 0 && (
+                                        {!loading && !fetchError && !searchQuery && movies.length === 0 && (
                                             <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in">
                                                 <Ghost size={48} className="mb-4 text-white/20" /> <p>No results found.</p>
                                             </div>
@@ -5022,6 +5034,22 @@ export default function App() {
             )}
                 </main>
             </div>
+
+            {tmdbCollectionId && (
+                <CollectionPage
+                    key={tmdbCollectionId}
+                    collectionId={tmdbCollectionId}
+                    onClose={() => {
+                        setTmdbCollectionId(null);
+                    }}
+                    apiKey={apiKey}
+                    onMovieClick={(m) => {
+                        setSelectedMovie(m);
+                    }}
+                    watched={watched}
+                    onToggleWatched={handleToggleWatched}
+                />
+            )}
 
             {selectedMovie && (
                 <MoviePage
@@ -5165,21 +5193,6 @@ export default function App() {
                         setSelectedCategory("Manga");
                         setSelectedMangaId(String(id));
                     }}
-                />
-            )}
-            {tmdbCollectionId && (
-                <CollectionPage
-                    key={tmdbCollectionId}
-                    collectionId={tmdbCollectionId}
-                    onClose={() => {
-                        setTmdbCollectionId(null);
-                    }}
-                    apiKey={apiKey}
-                    onMovieClick={(m) => {
-                        setSelectedMovie(m);
-                    }}
-                    watched={watched}
-                    onToggleWatched={handleToggleWatched}
                 />
             )}
             {activeOtt && activeProvider && (
