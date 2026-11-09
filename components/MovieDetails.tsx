@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize, Newspaper, ExternalLink, ThumbsUp, MoreVertical } from 'lucide-react';
+import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize, Newspaper, ExternalLink, ThumbsUp, MoreVertical, ArrowUpRight } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
+import { AwardBadge, FamilyFriendlyBadge, CreditSceneBadge } from './MovieBadges';
 import { FullCreditsModal } from './Modals';
 import { triggerSystemNotification } from '../services/supabase';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
@@ -2504,10 +2505,37 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const logo = displayData.images?.logos?.find((l) => l.iso_639_1 === 'en') || displayData.images?.logos?.[0];
     const trailer = displayData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || displayData.videos?.results?.find(v => v.site === 'YouTube');
 
-    const ratingLabel = isTv ? (displayData.content_ratings?.results?.find(r => r.iso_3166_1 === 'US')?.rating || 'NR') : (displayData.release_dates?.results?.find(r => r.iso_3166_1 === 'US')?.release_dates.find(x => x.certification)?.certification || 'NR');
-    const isMature = ['R', 'NC-17', 'TV-MA'].includes(ratingLabel);
-    const isTeen = ['PG-13', 'TV-14'].includes(ratingLabel);
-    const ratingColor = isMature ? 'bg-red-600 text-white' : isTeen ? 'bg-yellow-500 text-black' : 'bg-green-500 text-white';
+    const { ratingLabel, ratingColor } = useMemo(() => {
+        let inCert = '';
+        let usCert = '';
+
+        if (isTv) {
+            inCert = displayData.content_ratings?.results?.find((r: any) => r.iso_3166_1 === 'IN')?.rating || '';
+            usCert = displayData.content_ratings?.results?.find((r: any) => r.iso_3166_1 === 'US')?.rating || '';
+        } else {
+            const inRelease = displayData.release_dates?.results?.find((r: any) => r.iso_3166_1 === 'IN');
+            const usRelease = displayData.release_dates?.results?.find((r: any) => r.iso_3166_1 === 'US');
+            inCert = inRelease?.release_dates?.find((x: any) => x.certification)?.certification || '';
+            usCert = usRelease?.release_dates?.find((x: any) => x.certification)?.certification || '';
+        }
+
+        // Standardize Indian certification formats (e.g. UA -> U/A)
+        let formattedIn = inCert.trim();
+        if (formattedIn.toUpperCase() === 'UA') formattedIn = 'U/A';
+        const formattedUs = usCert.trim();
+
+        let label = 'NR';
+        if (formattedIn && formattedUs && formattedIn.toUpperCase() !== formattedUs.toUpperCase()) {
+            label = `${formattedIn} • ${formattedUs}`;
+        } else {
+            label = formattedIn || formattedUs || 'NR';
+        }
+
+        // Clean, minimal matching other badges without colored outlines
+        const color = 'border border-white/10 bg-white/[0.03] text-zinc-200';
+
+        return { ratingLabel: label, ratingColor: color };
+    }, [displayData, isTv]);
 
     const tabs = [
         { id: 'overview', label: 'Overview' },
@@ -2749,8 +2777,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] ${showPlayer || showFullCast || showFullCrew || viewingTrailerKey || viewingImage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
             <div className={`relative w-full ${showPlayer ? 'h-full overflow-hidden' : 'min-h-screen'} flex flex-col`}>
                 {!showPlayer && (
-                    <TvFocusButton onClick={handleClose} className="absolute top-20 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
-                        <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
+                    <TvFocusButton 
+                        onClick={handleClose} 
+                        className="absolute top-20 left-4 md:left-8 z-[40] w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.14] backdrop-blur-xl border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all duration-200 active:scale-90 shadow-md cursor-pointer group"
+                        title="Go back"
+                    >
+                        <ArrowLeft size={16} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
                     </TvFocusButton>
                 )}
                 
@@ -2846,17 +2878,35 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </div>
                                 )}
 
-                                {/* Right Section: Clean Title / Logo, Metadata, Watch Buttons */}
-                                <div className="flex-1 flex flex-col items-center sm:items-start justify-end gap-2 sm:gap-3 min-w-0 text-center sm:text-left">
+                                {/* Right Section: Studio-grade Title, Subtitle, Spec Grid & Outlined Badges */}
+                                <div className="flex-1 flex flex-col items-center sm:items-start justify-end gap-2.5 sm:gap-3.5 min-w-0 text-center sm:text-left">
+                                    {/* 1. Subtitle metadata line (Screenshot 1 & 2: "Movie • 2026 • 3h 15m") */}
+                                    <div className="flex items-center gap-2 text-xs sm:text-sm text-zinc-400 font-medium">
+                                        <span>{isAnime ? 'Anime' : (displayData.title ? 'Movie' : 'Series')}</span>
+                                        {(displayData.release_date || displayData.first_air_date) && (
+                                            <>
+                                                <span className="text-zinc-600">•</span>
+                                                <span>{(displayData.release_date || displayData.first_air_date).slice(0, 4)}</span>
+                                            </>
+                                        )}
+                                        {runtime && (
+                                            <>
+                                                <span className="text-zinc-600">•</span>
+                                                <span>{runtime}</span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* 2. Bold Clean Title / Logo */}
                                     <div className="flex flex-col items-center sm:items-start gap-1">
                                         {!isAnime && logo ? (
                                             <img 
                                                 src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                                 alt={title} 
-                                                className="max-h-14 sm:max-h-24 md:max-h-32 max-w-[220px] sm:max-w-xs md:max-w-md w-auto object-contain drop-shadow-2xl mb-1 sm:mb-2" 
+                                                className="max-h-16 sm:max-h-24 md:max-h-28 max-w-[240px] sm:max-w-xs md:max-w-md w-auto object-contain drop-shadow-2xl mb-1" 
                                             />
                                         ) : (
-                                            <h1 className="text-xl sm:text-3xl lg:text-5xl font-bold text-white tracking-tight leading-tight drop-shadow-md">
+                                            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
                                                 {title}
                                             </h1>
                                         )}
@@ -2867,15 +2917,43 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         )}
                                     </div>
 
-                                    {/* Metadata Badges */}
-                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3 text-white/90 text-xs sm:text-sm font-medium">
-                                        {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
-                                        <span className="flex items-center gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-xs"><Calendar size={13} className={accentText}/> {releaseDate}</span>
-                                        <span className="flex items-center gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-xs"><Clock size={13} className={accentText}/> {runtime}</span>
-                                        {displayData.vote_average && (
-                                            <span className="flex items-center gap-1 sm:gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10 font-medium text-[11px] sm:text-xs">
-                                                <Star size={13} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}
+                                    {/* 3. MovieVerse Spec Grid: Directed By | Country | Language */}
+                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-8 gap-y-2 py-1 text-left">
+                                        {director?.name && (
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] text-zinc-400 font-normal">Directed By</span>
+                                                <span className="text-xs sm:text-sm font-semibold text-white tracking-tight">{director.name}</span>
+                                            </div>
+                                        )}
+                                        {productionCountries.length > 0 && (
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] text-zinc-400 font-normal">Country</span>
+                                                <span className="text-xs sm:text-sm font-semibold text-white tracking-tight">{productionCountries[0]}</span>
+                                            </div>
+                                        )}
+                                        {originalLangFull && (
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] text-zinc-400 font-normal">Language</span>
+                                                <span className="text-xs sm:text-sm font-semibold text-white tracking-tight">{originalLangFull}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 4. Sleek Outlined Badges Row (Screenshot 2: Award, Family Friendly, Credit Scene) */}
+                                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-2.5 pt-0.5">
+                                        <AwardBadge movie={displayData} />
+                                        <FamilyFriendlyBadge movie={displayData} />
+                                        <CreditSceneBadge keywordsData={displayData.keywords} releaseDate={displayData.release_date || displayData.first_air_date} />
+                                        {ratingLabel !== 'NR' && (
+                                            <span className={`h-7 inline-flex items-center px-2.5 rounded-lg text-xs font-semibold leading-none shadow-sm ${ratingColor}`}>
+                                                {ratingLabel}
                                             </span>
+                                        )}
+                                        {displayData.vote_average > 0 && (
+                                            <div className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-lg border border-white/10 bg-white/[0.03] text-xs font-semibold text-white leading-none backdrop-blur-sm">
+                                                <Star size={12} className="text-yellow-400" fill="currentColor"/>
+                                                <span>{displayData.vote_average.toFixed(1)}</span>
+                                            </div>
                                         )}
                                     </div>
 
@@ -3163,6 +3241,57 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     </div>
                                                 )}
 
+                                                {/* Watch Online - Clean Minimal Inline Row */}
+                                                {(providers?.flatrate || providers?.rent || providers?.buy) && (
+                                                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                        <span className="text-xs text-zinc-500 font-normal mr-1">Watch Online:</span>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            {(() => {
+                                                                const streamList: Array<{ id: number; name: string; logo: string; tier: string }> = [];
+                                                                (providers.flatrate || []).forEach((p: any) => {
+                                                                    if (!streamList.find(x => x.id === p.provider_id)) {
+                                                                        streamList.push({
+                                                                            id: p.provider_id,
+                                                                            name: p.provider_name,
+                                                                            logo: p.logo_path,
+                                                                            tier: 'Stream'
+                                                                        });
+                                                                    }
+                                                                });
+                                                                [...(providers.rent || []), ...(providers.buy || [])].forEach((p: any) => {
+                                                                    if (!streamList.find(x => x.id === p.provider_id) && streamList.length < 5) {
+                                                                        streamList.push({
+                                                                            id: p.provider_id,
+                                                                            name: p.provider_name,
+                                                                            logo: p.logo_path,
+                                                                            tier: 'Rent/Buy'
+                                                                        });
+                                                                    }
+                                                                });
+                                                                return streamList.slice(0, 5).map(provider => (
+                                                                    <a
+                                                                        key={provider.id}
+                                                                        href={providers.link || `https://www.google.com/search?q=watch+${encodeURIComponent(title)}+${encodeURIComponent(provider.name)}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-all text-xs font-normal border border-white/5 hover:border-white/15 active:scale-95 group"
+                                                                        title={`${provider.name} (${provider.tier})`}
+                                                                    >
+                                                                        {provider.logo ? (
+                                                                            <div className="w-4 h-4 rounded-[3px] overflow-hidden shrink-0">
+                                                                                <img src={`${TMDB_IMAGE_BASE}${provider.logo}`} alt={provider.name} className="w-full h-full object-cover" />
+                                                                            </div>
+                                                                        ) : null}
+                                                                        <span>{provider.name}</span>
+                                                                        <span className="text-[10px] text-zinc-500 font-normal">({provider.tier})</span>
+                                                                        <ArrowUpRight size={11} className="text-zinc-500 group-hover:text-white transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                                                                    </a>
+                                                                ));
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* MyDramaList extra if drama */}
                                                 {isDrama && mdlDetails && (
                                                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
@@ -3206,37 +3335,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 )}
                                             </div>
 
-                                            {/* Where to Watch (JustWatch streaming badges) */}
-                                            {(providers?.flatrate || providers?.rent || providers?.buy) && (
-                                                <div className="pt-1">
-                                                    <div className="flex items-center gap-2 mb-2.5">
-                                                        <span className="text-xs text-zinc-400 font-normal">Where to watch</span>
-                                                        <span className="text-[10px] text-zinc-600 font-normal">• JustWatch</span>
-                                                    </div>
-                                                    <div className="flex flex-wrap items-center gap-4">
-                                                        {providers.flatrate && providers.flatrate.length > 0 && (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-zinc-500 font-normal">Stream:</span>
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {providers.flatrate.map(p => (
-                                                                        <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-7 h-7 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {(providers.rent || providers.buy) && (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-zinc-500 font-normal">Rent / Buy:</span>
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {[...(providers.rent || []), ...(providers.buy || [])].reduce((acc: any[], curr) => { if (!acc.find(p => p.provider_id === curr.provider_id)) acc.push(curr); return acc; }, []).map(p => (
-                                                                        <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-7 h-7 rounded-lg shadow-sm hover:opacity-80 transition-opacity" title={p.provider_name} alt={p.provider_name}/>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
 
                                             {/* Movie & Genre Tags - strictly 2 rows max */}
                                             {((displayData.genres && displayData.genres.length > 0) || (displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags)) && (
@@ -4601,9 +4699,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             {showCastModal && (
                 <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
                     <div className="bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden text-center select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom">
-                        {/* Header border design */}
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-red-600"></div>
-                        
                         <button 
                             onClick={() => setShowCastModal(false)}
                             className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
@@ -4753,9 +4848,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             {showDownloadModal && (
                 <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
                     <div className={`bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom flex flex-col transition-all duration-300 ${activeDownloadUrl ? 'max-w-4xl w-full h-[80vh]' : isAnime ? 'max-w-xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar' : 'max-w-md w-full'}`}>
-                        {/* Header border design */}
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-red-600"></div>
-                        
                         {activeDownloadUrl ? (
                             // Embedded Iframe view
                             <div className="w-full h-full flex flex-col min-h-0 text-left">
@@ -4911,7 +5003,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     : `https://02moviedownloader.site/api/download/movie/${displayData.id}`;
                                                 setActiveDownloadUrl(url);
                                             }}
-                                            className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-red-600/10 flex items-center justify-between border border-red-500/20 cursor-pointer"
+                                            className="w-full py-3 px-4 bg-red-600 hover:bg-red-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-red-500/30 cursor-pointer"
                                         >
                                             <span>Server 1: 02MovieDownloader</span>
                                             <Download size={14} />

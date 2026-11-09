@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare, Zap, ArrowLeft, Inbox, Flame } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch, getMovieLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -9,7 +9,7 @@ import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, markNotificationsRead, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
 import { WatchPartySection } from './components/WatchParty';
 import { WatchPartyRoomsPage } from './components/WatchPartyRoomsPage';
-import { MoviePlayer } from './components/MoviePlayer';
+const MoviePlayer = React.lazy(() => import('./components/MoviePlayer').then(m => ({ default: m.MoviePlayer })));
 import { PROVIDERS } from './components/Providers';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
@@ -57,28 +57,17 @@ const MovieRowCard = ({
             setLogoLoading(false);
             return;
         }
-        const key = getTmdbKey();
-        if (!key) {
-            setLogoLoading(false);
-            return;
-        }
 
         const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
 
-        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data => {
-                if (!isMounted) return;
-                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
-                if (logo) {
-                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+        getMovieLogo(movie.id, type)
+            .then(url => {
+                if (isMounted) {
+                    setLogoUrl(url);
+                    setLogoLoading(false);
                 }
             })
-            .catch(() => { })
-            .finally(() => {
+            .catch(() => {
                 if (isMounted) setLogoLoading(false);
             });
 
@@ -168,23 +157,17 @@ const ComingSoonCard = ({
             setLogoLoading(false);
             return;
         }
-        if (!apiKey || !movie.id) {
-            setLogoLoading(false);
-            return;
-        }
+
         const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
 
-        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${apiKey}`)
-            .then(res => res.json())
-            .then(data => {
-                if (!isMounted) return;
-                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
-                if (logo) {
-                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+        getMovieLogo(movie.id, type, apiKey)
+            .then(url => {
+                if (isMounted) {
+                    setLogoUrl(url);
+                    setLogoLoading(false);
                 }
             })
-            .catch(() => { })
-            .finally(() => {
+            .catch(() => {
                 if (isMounted) setLogoLoading(false);
             });
 
@@ -206,7 +189,7 @@ const ComingSoonCard = ({
                 <div className="absolute -left-16 sm:-left-20 md:-left-24 top-3 md:top-5 z-0 pointer-events-none select-none flex flex-col items-start leading-none">
                     <span
                         className="text-6xl sm:text-7xl md:text-8xl font-black text-white/85 group-hover:text-white transition-colors tracking-tighter leading-none select-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]"
-                        style={{ fontFamily: 'Outfit, Inter, sans-serif' }}
+                        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                     >
                         {formattedDate.day}
                     </span>
@@ -782,7 +765,7 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
         >
             <div 
                 className="absolute -bottom-4 sm:-bottom-5 md:-bottom-6 left-0 z-0 text-[100px] sm:text-[120px] md:text-[140px] font-black leading-none select-none pointer-events-none transition-all duration-500 transform group-hover:scale-105 text-zinc-400/50 group-hover:text-zinc-300/75 tracking-tighter drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
-                style={{ transform: 'translateX(-20%)', fontFamily: 'Outfit, Inter, sans-serif' }}
+                style={{ transform: 'translateX(-20%)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
                 {idx + 1}
             </div>
@@ -891,6 +874,18 @@ const ContinueWatchingRow = ({
     );
 };
 
+const GENRE_CURATED_BACKDROPS: Record<string, string> = {
+    "Action": "https://image.tmdb.org/t/p/w780/hZkgoQYus5vegHoetLkCJzb17zJ.jpg",
+    "Adventure": "https://image.tmdb.org/t/p/w780/r2J02Z2OpNTctfOSN2Ydgii51I3.jpg",
+    "Animation": "https://image.tmdb.org/t/p/w780/4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg",
+    "Comedy": "https://image.tmdb.org/t/p/w780/9l1eZiJHmhr5jYmsVha2N9ImzSu.jpg",
+    "Drama": "https://image.tmdb.org/t/p/w780/nb3xI8XI3w4pMVZ38VijbsyBqP4.jpg",
+    "Sci-Fi": "https://image.tmdb.org/t/p/w780/xOMo8BRK7PfcJv9JCnx7s520QIq.jpg",
+    "Thriller": "https://image.tmdb.org/t/p/w780/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg",
+    "Horror": "https://image.tmdb.org/t/p/w780/h9r5v2a7g6fT0565860q876.jpg",
+    "Romance": "https://image.tmdb.org/t/p/w780/qJeU7KM4o0Zeq80M6t0xU0082qM.jpg"
+};
+
 const GenreCard = ({
     genreName,
     genreId,
@@ -903,60 +898,27 @@ const GenreCard = ({
     apiKey?: string;
     key?: string | number;
 }) => {
-    const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
+    const backdropUrl = GENRE_CURATED_BACKDROPS[genreName] || `https://placehold.co/600x338/111/444?text=${encodeURIComponent(genreName)}`;
 
     const { ref } = useTvFocus({
         onEnterPress: () => onClick()
     });
 
-    useEffect(() => {
-        let isMounted = true;
-        if (!apiKey) return;
-
-        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_genres=${genreId}&sort_by=popularity.desc&page=1`;
-
-        fetch(url)
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data => {
-                if (!isMounted) return;
-                const results = data.results || [];
-                if (results.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * Math.min(5, results.length));
-                    const movie = results[randomIndex];
-                    if (movie.backdrop_path) {
-                        setBackdropUrl(`https://image.tmdb.org/t/p/w500${movie.backdrop_path}`);
-                    } else if (movie.poster_path) {
-                        setBackdropUrl(`https://image.tmdb.org/t/p/w500${movie.poster_path}`);
-                    }
-                }
-            })
-            .catch(() => { });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [genreId, apiKey]);
-
-    const fallbackImage = `https://placehold.co/600x338/111/444?text=${encodeURIComponent(genreName)}`;
-
     return (
         <div
             ref={ref}
             onClick={onClick}
-            className="relative w-[180px] md:w-[220px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 transition-all duration-500 group"
+            className="relative w-[180px] md:w-[220px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 transition-all duration-300 group"
         >
             <img
-                src={backdropUrl || fallbackImage}
+                src={backdropUrl}
                 alt={genreName}
                 className="w-full h-full object-cover opacity-60 group-hover:opacity-85 transition-all duration-500"
                 loading="lazy"
             />
             {/* Overlay with high-contrast text */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent flex items-center justify-center p-3 text-center">
-                <span className="text-white text-xs md:text-sm font-black uppercase tracking-[0.2em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-500">
+                <span className="text-white text-xs md:text-sm font-black uppercase tracking-[0.2em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300">
                     {genreName}
                 </span>
             </div>
@@ -1006,8 +968,11 @@ const PopularGenresRow = ({
 
 const PREDEFINED_CATEGORIES = [
     { id: 'trending_movies', title: 'Trending Movies', type: 'row', endpoint: `${TMDB_BASE_URL}/trending/movie/week` },
+    { id: 'top_rated_acclaimed', title: 'Critically Acclaimed Masterpieces', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?vote_average.gte=8.2&vote_count.gte=800&sort_by=vote_average.desc` },
     { id: 'trending_tv', title: 'Trending TV Shows', type: 'row', endpoint: `${TMDB_BASE_URL}/trending/tv/week`, mediaType: 'tv' as const },
+    { id: 'highly_recommended', title: 'Highly Recommended', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?vote_average.gte=7.2&vote_average.lte=8.1&vote_count.gte=400&sort_by=popularity.desc` },
     { id: 'new_popular', title: 'New & Popular', type: 'row', endpoint: `${TMDB_BASE_URL}/movie/popular` },
+    { id: 'binge_worthy', title: 'Binge-Worthy Hits', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?vote_average.gte=6.0&vote_average.lte=7.1&with_genres=35|28|12&sort_by=popularity.desc` },
     { id: 'netflix', title: 'Netflix Originals', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=8&watch_region=US` },
     { id: 'prime', title: 'Prime Video Picks', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=119&watch_region=US` },
     { id: 'disney', title: 'Disney+ Collection', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=337&watch_region=US` },
@@ -3946,16 +3911,16 @@ export default function App() {
                             </div>
 
                             <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-1.5`}>
-                                <TvFocusButton onClick={resetToHome} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={resetToHome} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "All" && !searchQuery ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Home</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "Anime" ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Anime" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Anime</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "Manga" ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Manga" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Manga</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${selectedCategory === "Dramas" ? "bg-white/10 text-white font-medium shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 active:scale-95 gpu-layer ${selectedCategory === "Dramas" ? "bg-white text-black shadow-sm" : "text-gray-300 hover:text-white hover:bg-white/5"}`}>
                                     <span>Dramas</span>
                                 </TvFocusButton>
                                 <div
@@ -3963,8 +3928,8 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-normal tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
-                                            ? "bg-white/10 text-white font-medium shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold tracking-normal transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95 gpu-layer ${isBrowseOpen || ["Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Novels"].includes(selectedCategory)
+                                            ? "bg-white text-black shadow-sm"
                                             : "text-gray-300 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
                                         <span>Browse</span>
@@ -4018,19 +3983,19 @@ export default function App() {
                                         ref={searchInputRef}
                                         type="text"
                                         placeholder={window.innerWidth < 640 ? "Search..." : "Search... (Press /)"}
-                                        className={`w-full bg-white/[0.07] hover:bg-white/[0.1] focus:bg-white/[0.12] backdrop-blur-xl border border-white/[0.1] focus:border-white/25 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-300 text-white placeholder-zinc-400 focus:shadow-[0_0_20px_rgba(255,255,255,0.08)] ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
+                                        className={`w-full bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] backdrop-blur-xl border ${isAiSearchActive ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'border-white/10 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30'} rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all duration-200 text-white placeholder-zinc-400`}
                                         value={searchInput}
                                         onChange={(e) => setSearchInput(e.target.value)}
                                         onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchInput); }}
                                         onSubmit={() => handleSearchSubmit(searchInput)}
                                     />
-                                    <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
+                                    <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors ${loading && searchQuery ? "text-red-500 animate-pulse" : "group-focus-within:text-white"}`} size={14} />
                                     <button
                                         onClick={() => setIsAiSearchActive(!isAiSearchActive)}
-                                        className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-300 ${isAiSearchActive ? 'text-purple-400 bg-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:text-purple-300' : 'text-zinc-400 hover:text-zinc-200'}`}
-                                        title="Toggle AI Semantic Search"
+                                        className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-200 ${isAiSearchActive ? 'text-amber-400 bg-amber-500/15 shadow-[0_0_8px_rgba(245,158,11,0.3)]' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'}`}
+                                        title={isAiSearchActive ? "Smart Semantic Search Enabled" : "Enable Smart Semantic Search"}
                                     >
-                                        <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
+                                        <Sparkles size={14} className={isAiSearchActive ? 'text-amber-400' : ''} />
                                     </button>
                                 </div>
                             </div>
@@ -4200,49 +4165,51 @@ export default function App() {
                                     ? 'absolute inset-0 w-full h-full z-0'
                                     : 'flex-1 relative h-[56.25vw] max-h-[60vh] lg:h-full lg:max-h-none overflow-y-auto custom-scrollbar'
                                 }`}>
-                                <MoviePlayer
-                                    tmdbId={watchPartyMovie.id}
-                                    onClose={handleLeaveWatchParty}
-                                    mediaType={watchPartyMovie.media_type || (watchPartyMovie.first_air_date ? 'tv' : 'movie')}
-                                    isAnime={!!((watchPartyMovie.genre_ids?.includes(16) || watchPartyMovie.genres?.some((g: any) => g.id === 16)) && watchPartyMovie.original_language === 'ja')}
-                                    initialSeason={watchPartyParams.season}
-                                    initialEpisode={watchPartyParams.episode}
-                                    apiKey={apiKey}
-                                    isWatchParty={true}
-                                    playState={watchPartyPlayerState}
-                                    providerId={watchPartyProviderId}
-                                    onProviderChange={setWatchPartyProviderId}
-                                    onEpisodeChange={handleWatchPartyEpisodeChange}
-                                    onProgress={(data) => {
-                                        // Always track local playback time for drift calculation
-                                        setWatchPartyGuestTime(data.currentTime);
+                                <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={32} /></div>}>
+                                    <MoviePlayer
+                                        tmdbId={watchPartyMovie.id}
+                                        onClose={handleLeaveWatchParty}
+                                        mediaType={watchPartyMovie.media_type || (watchPartyMovie.first_air_date ? 'tv' : 'movie')}
+                                        isAnime={!!((watchPartyMovie.genre_ids?.includes(16) || watchPartyMovie.genres?.some((g: any) => g.id === 16)) && watchPartyMovie.original_language === 'ja')}
+                                        initialSeason={watchPartyParams.season}
+                                        initialEpisode={watchPartyParams.episode}
+                                        apiKey={apiKey}
+                                        isWatchParty={true}
+                                        playState={watchPartyPlayerState}
+                                        providerId={watchPartyProviderId}
+                                        onProviderChange={setWatchPartyProviderId}
+                                        onEpisodeChange={handleWatchPartyEpisodeChange}
+                                        onProgress={(data) => {
+                                            // Always track local playback time for drift calculation
+                                            setWatchPartyGuestTime(data.currentTime);
 
-                                        if (watchPartyHostId === currentUserId) {
-                                            setWatchPartyCurrentTime(data.currentTime);
+                                            if (watchPartyHostId === currentUserId) {
+                                                setWatchPartyCurrentTime(data.currentTime);
 
-                                            const newState = data.event === 'pause' ? 'pause' : 'play';
-                                            if (watchPartyPlayerState !== newState) {
-                                                setWatchPartyPlayerState(newState);
+                                                const newState = data.event === 'pause' ? 'pause' : 'play';
+                                                if (watchPartyPlayerState !== newState) {
+                                                    setWatchPartyPlayerState(newState);
+                                                }
+
+                                                const now = Date.now();
+                                                if (!(window as any).lastWatchPartyDbUpdate || now - (window as any).lastWatchPartyDbUpdate > 5000) {
+                                                    (window as any).lastWatchPartyDbUpdate = now;
+                                                    updateWatchPartyRoom(activeWatchPartyRoom, {
+                                                        current_time: data.currentTime,
+                                                        is_playing: newState === 'play'
+                                                    });
+                                                }
                                             }
 
-                                            const now = Date.now();
-                                            if (!(window as any).lastWatchPartyDbUpdate || now - (window as any).lastWatchPartyDbUpdate > 5000) {
-                                                (window as any).lastWatchPartyDbUpdate = now;
-                                                updateWatchPartyRoom(activeWatchPartyRoom, {
-                                                    current_time: data.currentTime,
-                                                    is_playing: newState === 'play'
-                                                });
+                                            if (watchPartyMovie) {
+                                                handleProgressUpdate(watchPartyMovie, data);
                                             }
-                                        }
-
-                                        if (watchPartyMovie) {
-                                            handleProgressUpdate(watchPartyMovie, data);
-                                        }
-                                    }}
-                                    color="EF4444"
-                                    forceProgress={watchPartyForceProgress}
-                                    title={watchPartyMovie.title || watchPartyMovie.name}
-                                />
+                                        }}
+                                        color="EF4444"
+                                        forceProgress={watchPartyForceProgress}
+                                        title={watchPartyMovie.title || watchPartyMovie.name}
+                                    />
+                                </Suspense>
                             </div>
                             <div className={`transition-all duration-500 ${isWatchPartyImmersive
                                     ? 'absolute right-4 top-16 bottom-24 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border-none shadow-none opacity-40 hover:opacity-100'
@@ -4608,9 +4575,11 @@ export default function App() {
                                             </div>
                                             {/* Foreground details overlay */}
                                             <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700 text-left font-sans">
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30">
-                                                    Featured
-                                                </span>
+                                                <div className="flex flex-wrap items-center gap-2.5 mb-1">
+                                                    <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-600 text-white shadow-lg shadow-red-600/30">
+                                                        Featured
+                                                    </span>
+                                                </div>
 
                                                 {featuredLogo ? (
                                                     <img 
@@ -4624,12 +4593,18 @@ export default function App() {
                                                     </h1>
                                                 )}
 
-                                                <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
-                                                    <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
-                                                    <span>•</span>
-                                                    <span>{featuredMovie.release_date?.split('-')[0] || featuredMovie.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                                    <span>•</span>
-                                                    <span className="uppercase">{GENRES_MAP[Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === featuredMovie.genre_ids?.[0]) || ""] || "Movie"}</span>
+                                                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-zinc-300">
+                                                    {featuredMovie.vote_average ? (
+                                                        <span className="flex items-center gap-1 font-bold text-amber-400">
+                                                            <Star size={13} fill="currentColor" /> {featuredMovie.vote_average.toFixed(1)}
+                                                        </span>
+                                                    ) : null}
+                                                    <span className="text-zinc-600">•</span>
+                                                    <span className="font-mono text-zinc-300">{featuredMovie.release_date?.split('-')[0] || featuredMovie.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                                    <span className="text-zinc-600">•</span>
+                                                    <span className="text-zinc-300 font-medium">
+                                                        {(featuredMovie.genre_ids || []).map(id => GENRES_MAP[id]).filter(Boolean).slice(0, 3).join(' • ') || 'Feature Film'}
+                                                    </span>
                                                 </div>
 
                                                 <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
