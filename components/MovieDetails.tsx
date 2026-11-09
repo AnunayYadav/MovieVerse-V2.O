@@ -2774,15 +2774,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[50]'} bg-[#0a0a0a] ${showPlayer || showFullCast || showFullCrew || viewingTrailerKey || viewingImage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
+        <div onScroll={handleScroll} className={`fixed inset-0 ${showPlayer || showFullCast || showFullCrew || viewingImage || viewingTrailerKey || showCastModal ? 'z-[100]' : 'z-[85]'} bg-[#0a0a0a] ${showPlayer || showFullCast || showFullCrew || viewingTrailerKey || viewingImage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden custom-scrollbar ${isClosing ? 'ios-sheet-exit' : (showPlayer ? '' : 'ios-sheet-enter')}`}>
             <div className={`relative w-full ${showPlayer ? 'h-full overflow-hidden' : 'min-h-screen'} flex flex-col`}>
                 {!showPlayer && (
                     <TvFocusButton 
                         onClick={handleClose} 
-                        className="absolute top-20 left-4 md:left-8 z-[40] w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.14] backdrop-blur-xl border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all duration-200 active:scale-90 shadow-md cursor-pointer group"
+                        className="absolute top-5 sm:top-6 left-4 sm:left-6 md:left-8 z-[40] w-10 h-10 rounded-full bg-black/40 hover:bg-white/15 backdrop-blur-xl border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all duration-200 active:scale-90 shadow-lg cursor-pointer group"
                         title="Go back"
                     >
-                        <ArrowLeft size={16} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
+                        <ArrowLeft size={18} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
                     </TvFocusButton>
                 )}
                 
@@ -2861,7 +2861,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/75 to-black/30' : 'bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent'}`}></div>
                                 <div className={`absolute inset-0 pointer-events-none ${isAnime ? 'bg-gradient-to-r from-[#0a0a0a]/90 via-[#0a0a0a]/40 to-transparent' : 'bg-gradient-to-r from-[#0a0a0a]/60 via-transparent to-transparent'}`}></div>
                                  {trailer && videoLoaded && (
-                                     <TvFocusButton onClick={toggleMute} className="absolute top-20 right-4 md:bottom-6 md:right-6 z-30 w-9 h-9 sm:w-11 sm:h-11 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={18} strokeWidth={1.5} /> : <Volume2 size={18} strokeWidth={1.5} />}</TvFocusButton>
+                                     <TvFocusButton onClick={toggleMute} className="absolute top-5 right-4 sm:top-6 sm:right-6 md:bottom-6 md:right-6 z-30 w-10 h-10 bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex items-center justify-center shrink-0" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={18} strokeWidth={1.5} /> : <Volume2 size={18} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
                              </div>
 
@@ -3156,8 +3156,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             {/* Details & Production */}
                                             <div className="space-y-4 text-left">
-                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                    <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                <h3 className="text-base md:text-lg font-semibold text-white tracking-tight">
                                                     Details
                                                 </h3>
                                                 <p className="text-zinc-300 leading-relaxed text-sm md:text-base font-normal">{displayData.overview || "No overview available."}</p>
@@ -3388,8 +3387,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {/* Top Cast */}
                                             <div className="pt-2">
                                                 <div className="flex items-center justify-between mb-3.5">
-                                                    <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                        <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                    <h3 className="text-base md:text-lg font-semibold text-white tracking-tight">
                                                         Top Cast
                                                     </h3>
                                                     {displayData.credits?.cast && displayData.credits.cast.length > 10 && (
@@ -3412,8 +3410,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {/* Crew */}
                                             <div>
                                                 <div className="flex items-center justify-between mb-3.5">
-                                                    <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                        <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                    <h3 className="text-base md:text-lg font-semibold text-white tracking-tight">
                                                         Crew
                                                     </h3>
                                                     {displayData.credits?.crew && displayData.credits.crew.length > 10 && (
@@ -3433,7 +3430,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 {collection && collection.parts && collection.parts.length > 0 && (
                                 <div className="pt-6 border-t border-white/[0.06]">
                                     <div className="flex items-center gap-2.5 mb-4">
-                                        <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
                                         <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-baseline gap-2">
                                             <span>{collection.name}</span>
                                             <span className="text-xs text-zinc-500 font-normal">• {collection.parts.length} Films</span>
@@ -3975,8 +3971,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 {allVideos.length > 0 && (
                                                     <div className="space-y-4">
                                                         <div className="flex items-center justify-between">
-                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Trailers & More</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {allVideos.length}
@@ -4051,8 +4046,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 {backdrops.length > 0 && (
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between">
-                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Images</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {backdrops.length}
@@ -4085,8 +4079,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 {posters.length > 0 && (
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between">
-                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Posters</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {posters.length}
@@ -4119,8 +4112,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 {logos.length > 0 && (
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between">
-                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2.5">
-                                                                <span className="w-1 h-4 md:h-4.5 bg-red-600 rounded-full shrink-0" />
+                                                            <h3 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2">
                                                                 <span>Logos</span>
                                                                 <span className="text-xs font-medium text-zinc-400 bg-white/[0.06] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
                                                                     {logos.length}
@@ -4333,10 +4325,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <div className="space-y-4 animate-in fade-in select-none text-left">
                                             {/* Season and Episode Control Header */}
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
-                                                    <h3 className="text-sm sm:text-base font-semibold text-white tracking-wide">Episodes</h3>
-                                                </div>
+                                                <h3 className="text-sm sm:text-base font-semibold text-white tracking-wide">Episodes</h3>
                                                 <div className="flex items-center gap-2 w-full sm:w-auto">
                                                     {/* Season Selector Dropdown */}
                                                     <div className="relative shrink-0 z-30" ref={dropdownRef}>
@@ -4573,8 +4562,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                     {activeTab === 'mdlEpisodes' && isDrama && (
                                         <div className="space-y-4 animate-in fade-in select-none text-left">
-                                            <div className="flex items-center gap-2 pb-3 border-b border-white/[0.08]">
-                                                <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
+                                            <div className="pb-3 border-b border-white/[0.08]">
                                                 <h3 className="text-sm sm:text-base font-semibold text-white tracking-wide">Episodes</h3>
                                             </div>
 

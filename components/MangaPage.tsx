@@ -69,18 +69,20 @@ interface MangaPageProps {
 }
 
 const MANGA_GENRES = [
-  { name: "Action", id: "391b0423-d847-456f-aff0-8b0cfc03066b" },
-  { name: "Adventure", id: "87cc87cd-a395-47af-b27a-93258283bbc6" },
-  { name: "Comedy", id: "4d32cc48-9f00-4cca-9b5a-a839f0764984" },
-  { name: "Drama", id: "b9af3a63-f058-46de-a9a0-e0c13906197a" },
-  { name: "Fantasy", id: "cdc58593-87dd-415e-bbc0-2ec27bf404cc" },
   { name: "Romance", id: "423e2eae-a7a2-4a8b-ac03-a8351462d71d" },
-  { name: "Sci-Fi", id: "256c8bd9-4904-4360-bf4f-508a76d67183" },
-  { name: "Supernatural", id: "eabc5b4c-6aff-42f3-b657-3e90cbd00b75" },
-  { name: "Thriller", id: "07251805-a27e-4d59-b488-f0bfbec15168" },
+  { name: "Action", id: "391b0423-d847-456f-aff0-8b0cfc03066b" },
   { name: "Mystery", id: "ee968100-4191-4968-93d3-f82d72be7e46" },
+  { name: "Comedy", id: "4d32cc48-9f00-4cca-9b5a-a839f0764984" },
+  { name: "Sci-Fi", id: "256c8bd9-4904-4360-bf4f-508a76d67183" },
+  { name: "Fantasy", id: "cdc58593-87dd-415e-bbc0-2ec27bf404cc" },
+  { name: "Sports", id: "69964a64-2f90-4d33-beeb-f3ed2f12bbe2" },
+  { name: "Supernatural", id: "eabc5b4c-6aff-42f3-b657-3e90cbd00b75" },
   { name: "Slice of Life", id: "e5301a23-ebd9-49dd-a0cb-2add944c7fe9" },
-  { name: "Psychological", id: "3b60b75c-a2d7-4860-ab56-05f391bb889c" }
+  { name: "Horror", id: "cdad7e68-07dd-4270-a397-c2c60d7d323a" },
+  { name: "Psychological", id: "3b60b75c-a2d7-4860-ab56-05f391bb889c" },
+  { name: "Drama", id: "b9af3a63-f058-46de-a9a0-e0c13906197a" },
+  { name: "Thriller", id: "07251805-a27e-4d59-b488-f0bfbec15168" },
+  { name: "Adventure", id: "87cc87cd-a395-47af-b27a-93258283bbc6" }
 ];
 
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -492,6 +494,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
   const [loadingGenreRows, setLoadingGenreRows] = useState(false);
   const currentGenreIndexRef = useRef(0);
+  const isFetchingGenreRef = useRef(false);
+  const seenMangaIdsRef = useRef(new Set<string>());
 
   const [heroIndex, setHeroIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -1138,6 +1142,25 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return res.json();
   }, []);
 
+  // GraphQL fetch helper for AniList
+  const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
+    const url = '/api/anilist';
+    const response = await window.fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ query, variables })
+    });
+
+    const json = await response.json();
+    if (json.errors) {
+      throw new Error(json.errors[0]?.message || 'GraphQL Error');
+    }
+    return json.data;
+  }, []);
+
   const handleMangaSelect = useCallback(async (id: string | null, optionalTitle?: string) => {
     if (!id) {
       onMangaSelect(null);
@@ -1151,9 +1174,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onMangaSelect(id);
 
       try {
-        const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga, ...staffMedia, ...studioMedia];
+        const genreItems = genreRows.flatMap(r => r.media || []);
+        const allItems = [...trending, ...latest, ...popular, ...topRated, ...genreItems, ...characterModalMediaManga, ...staffMedia, ...studioMedia];
         const item = allItems.find((x: any) => x.id === id) as any;
-        const title = optionalTitle || item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
+        let title = optionalTitle || item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
+
+        if (!title && aniId) {
+          try {
+            const aniData = await fetchAniList(`query($id: Int) { Media(id: $id, type: MANGA) { title { english romaji } } }`, { id: aniId });
+            title = aniData?.Media?.title?.english || aniData?.Media?.title?.romaji || "";
+          } catch {}
+        }
 
         console.log(`[AniList-to-MangaDex] Resolving MangaDex ID for AniList ID ${aniId} ("${title}")...`);
 
@@ -1176,26 +1207,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } else {
       onMangaSelect(id);
     }
-  }, [onMangaSelect, trending, popular, topRated, characterModalMediaManga, staffMedia, studioMedia, fetchMangaDex, showToast]);
-
-  // GraphQL fetch helper for AniList
-  const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
-    const url = '/api/anilist';
-    const response = await window.fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ query, variables })
-    });
-
-    const json = await response.json();
-    if (json.errors) {
-      throw new Error(json.errors[0]?.message || 'GraphQL Error');
-    }
-    return json.data;
-  }, []);
+  }, [onMangaSelect, trending, latest, popular, topRated, genreRows, characterModalMediaManga, staffMedia, studioMedia, fetchAniList, fetchMangaDex, showToast]);
 
   const mapAniListToMangaDex = useCallback(async (aniListMedia: any[], ratings: string) => {
     if (!aniListMedia || aniListMedia.length === 0) return [];
@@ -2580,9 +2592,21 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setPopular(popularMapped);
       setTopRated(topRatedMapped);
 
+      // Track all seen manga IDs and titles across initial categories to ensure diverse, non-duplicate genre rows
+      const seen = new Set<string>();
+      [...trendingMapped, ...latestMapped, ...popularMapped, ...topRatedMapped].forEach(m => {
+        if (m.id) seen.add(String(m.id));
+        const enTitle = (m.attributes?.title?.en || '').toLowerCase().trim();
+        const jaRoTitle = (m.attributes?.title?.['ja-ro'] || '').toLowerCase().trim();
+        if (enTitle) seen.add(enTitle);
+        if (jaRoTitle) seen.add(jaRoTitle);
+      });
+      seenMangaIdsRef.current = seen;
+
       // Reset endless categories
       setGenreRows([]);
       currentGenreIndexRef.current = 0;
+      isFetchingGenreRef.current = false;
     } catch (err: any) {
       console.error("Manga catalog load error:", err);
       setError(err?.message || "Failed to retrieve Manga catalog");
@@ -2591,25 +2615,104 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   }, [fetchMangaDex, fetchAniList, getContentRatingParams]);
 
-  // Load next genre row
+  // Load next genre row with diverse items, deduplication, and AniList + MangaDex fallback
   const loadNextGenreRow = useCallback(async () => {
-    if (loadingGenreRows || currentGenreIndexRef.current >= MANGA_GENRES.length) return;
+    if (isFetchingGenreRef.current || currentGenreIndexRef.current >= MANGA_GENRES.length) return;
+    isFetchingGenreRef.current = true;
     setLoadingGenreRows(true);
+
     const genre = MANGA_GENRES[currentGenreIndexRef.current];
-    const ratings = getContentRatingParams();
+    currentGenreIndexRef.current += 1; // Increment immediately to prevent duplicate rows
+
     try {
-      const data = await fetchMangaDex(`/manga?limit=12&includedTags[]=${genre.id}&includes[]=cover_art&order[followedCount]=desc&availableTranslatedLanguage[]=en${ratings}`);
-      const list = data.data || [];
-      if (list.length > 0) {
-        setGenreRows(prev => [...prev, { genre: genre.name, media: list }]);
+      let items: MangaDexManga[] = [];
+
+      // 1. Try fetching high-quality, genre-specific items from AniList
+      try {
+        const genreQuery = `
+          query ($genre: String) {
+            Page(page: 1, perPage: 25) {
+              media(type: MANGA, genre: $genre, sort: [TRENDING_DESC, POPULARITY_DESC], format_in: [MANGA, ONE_SHOT]) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  extraLarge
+                  large
+                }
+                bannerImage
+                description
+                startDate {
+                  year
+                }
+                status
+                genres
+              }
+            }
+          }
+        `;
+        const aniRes = await fetchAniList(genreQuery, { genre: genre.name });
+        const mediaList = aniRes?.Page?.media || [];
+        if (mediaList.length > 0) {
+          items = mediaList.map(translateAniListToManga);
+        }
+      } catch (aniErr) {
+        console.warn(`AniList fetch failed for genre ${genre.name}, falling back to MangaDex:`, aniErr);
       }
-      currentGenreIndexRef.current += 1;
+
+      // 2. Fallback to MangaDex if AniList was empty
+      if (items.length === 0) {
+        const ratings = getContentRatingParams();
+        const data = await fetchMangaDex(`/manga?limit=25&includedTags[]=${genre.id}&includes[]=cover_art&order[followedCount]=desc&availableTranslatedLanguage[]=en${ratings}`);
+        items = data.data || [];
+      }
+
+      if (items.length > 0) {
+        // Filter out items already shown in other rows/sections to guarantee distinct rows
+        const unseen: MangaDexManga[] = [];
+        const seen: MangaDexManga[] = [];
+
+        items.forEach(m => {
+          const id = String(m.id || '');
+          const enTitle = (m.attributes?.title?.en || '').toLowerCase().trim();
+          const jaRoTitle = (m.attributes?.title?.['ja-ro'] || '').toLowerCase().trim();
+
+          const alreadySeen = (id && seenMangaIdsRef.current.has(id)) ||
+            (enTitle && seenMangaIdsRef.current.has(enTitle)) ||
+            (jaRoTitle && seenMangaIdsRef.current.has(jaRoTitle));
+
+          if (!alreadySeen) {
+            unseen.push(m);
+            if (id) seenMangaIdsRef.current.add(id);
+            if (enTitle) seenMangaIdsRef.current.add(enTitle);
+            if (jaRoTitle) seenMangaIdsRef.current.add(jaRoTitle);
+          } else {
+            seen.push(m);
+          }
+        });
+
+        // Prefer unique, unseen manga; fallback to seen only if row has too few items
+        const finalList = unseen.length >= 8 ? unseen.slice(0, 16) : [...unseen, ...seen].slice(0, 16);
+
+        if (finalList.length > 0) {
+          setGenreRows(prev => {
+            if (prev.some(r => r.genre.toLowerCase() === genre.name.toLowerCase())) {
+              return prev;
+            }
+            return [...prev, { genre: genre.name, media: finalList }];
+          });
+        }
+      }
     } catch (e) {
       console.error("Failed to load manga genre:", genre.name, e);
     } finally {
+      isFetchingGenreRef.current = false;
       setLoadingGenreRows(false);
     }
-  }, [fetchMangaDex, loadingGenreRows, getContentRatingParams]);
+  }, [fetchAniList, fetchMangaDex, getContentRatingParams]);
 
   // Load first catalogs
   useEffect(() => {
@@ -2629,7 +2732,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const handleScroll = () => {
       const threshold = 1200;
       const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
-      if (isNearBottom && !loadingGenreRows && currentGenreIndexRef.current < MANGA_GENRES.length) {
+      if (isNearBottom && !loadingGenreRows && !isFetchingGenreRef.current && currentGenreIndexRef.current < MANGA_GENRES.length) {
         loadNextGenreRow();
       }
     };
@@ -3313,10 +3416,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const getMangaCover = (manga: MangaDexManga) => {
     const coverRel = manga.relationships?.find(r => r.type === 'cover_art');
     if (coverRel?.attributes?.fileName) {
-      if (coverRel.attributes.fileName.startsWith('http')) {
-        return coverRel.attributes.fileName;
+      const fileName = coverRel.attributes.fileName;
+      if (fileName.startsWith('http')) {
+        if (fileName.includes('uploads.mangadex.org')) {
+          return `/api/manga-novels?action=proxy-image&url=${encodeURIComponent(fileName)}`;
+        }
+        return fileName;
       }
-      return `https://uploads.mangadex.org/covers/${manga.id}/${coverRel.attributes.fileName}.512.jpg`;
+      const rawUrl = `https://uploads.mangadex.org/covers/${manga.id}/${fileName}.512.jpg`;
+      return `/api/manga-novels?action=proxy-image&url=${encodeURIComponent(rawUrl)}`;
     }
     return 'https://placehold.co/400x600/111/444?text=No+Cover';
   };
@@ -5006,7 +5114,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
           <button
             onClick={handleCloseDetails}
-            className="absolute top-20 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md border border-white/10 text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30 shadow-md cursor-pointer"
+            className="absolute top-5 sm:top-6 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md border border-white/10 text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30 shadow-md cursor-pointer"
           >
             <ArrowLeft size={14} /> Back to Manga
           </button>
@@ -6152,9 +6260,19 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
 
   const title = getMangaTitleHelper(manga, titleLanguage);
   const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
-  const coverUrl = coverFileName?.startsWith('http')
-    ? coverFileName
-    : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
+  let coverUrl = 'https://placehold.co/400x600/111/444?text=No+Cover';
+  if (coverFileName) {
+    if (coverFileName.startsWith('http')) {
+      if (coverFileName.includes('uploads.mangadex.org')) {
+        coverUrl = `/api/manga-novels?action=proxy-image&url=${encodeURIComponent(coverFileName)}`;
+      } else {
+        coverUrl = coverFileName;
+      }
+    } else {
+      const rawCover = `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg`;
+      coverUrl = `/api/manga-novels?action=proxy-image&url=${encodeURIComponent(rawCover)}`;
+    }
+  }
   const formatInfo = getMangaFormat(manga);
 
   return (
@@ -6170,6 +6288,12 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
           alt={title}
           loading="lazy"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.src.includes('placehold.co')) {
+              target.src = 'https://placehold.co/400x600/111/444?text=No+Cover';
+            }
+          }}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
       </div>
@@ -6179,20 +6303,13 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
         <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-white transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
           {title}
         </h4>
-        <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-400 font-medium font-sans">
-          <div className="flex items-center gap-1.5 truncate">
-            <span>{manga.attributes.year || 'TBA'}</span>
-            {formatInfo.label && (
-              <>
-                <span className="text-zinc-600">•</span>
-                <span className="capitalize">{formatInfo.label.toLowerCase()}</span>
-              </>
-            )}
-          </div>
-          {manga.attributes.status && (
-            <span className="uppercase text-[8px] px-1 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5 shrink-0 ml-1">
-              {manga.attributes.status}
-            </span>
+        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-zinc-400 font-medium font-sans truncate">
+          <span>{manga.attributes.year || 'TBA'}</span>
+          {formatInfo.label && (
+            <>
+              <span className="text-zinc-600">•</span>
+              <span className="capitalize">{formatInfo.label.toLowerCase()}</span>
+            </>
           )}
         </div>
       </div>

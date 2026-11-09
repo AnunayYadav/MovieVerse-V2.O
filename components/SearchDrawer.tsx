@@ -19,7 +19,7 @@ interface SearchDrawerProps {
     userProfile?: any;
 }
 
-type SearchTab = 'Content' | 'Collections' | 'Cast & Crew' | 'Users';
+type SearchTab = 'Content' | 'Collections' | 'Cast & Crew';
 
 interface CategorizedResults {
     anime: any[];
@@ -28,7 +28,6 @@ interface CategorizedResults {
     manga: any[];
     collections: any[];
     cast: any[];
-    users: any[];
 }
 
 const emptyResults: CategorizedResults = {
@@ -37,8 +36,7 @@ const emptyResults: CategorizedResults = {
     tvShows: [],
     manga: [],
     collections: [],
-    cast: [],
-    users: []
+    cast: []
 };
 
 export const SearchDrawer: React.FC<SearchDrawerProps> = ({
@@ -219,7 +217,8 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
                             const title = m.attributes?.title?.en || m.attributes?.title?.['ja-ro'] || Object.values(m.attributes?.title || {})[0] || 'Manga';
                             const coverRel = m.relationships?.find((r: any) => r.type === 'cover_art');
                             const fileName = coverRel?.attributes?.fileName;
-                            const poster = fileName ? `https://uploads.mangadex.org/covers/${m.id}/${fileName}.256.jpg` : '';
+                            const rawPoster = fileName ? `https://uploads.mangadex.org/covers/${m.id}/${fileName}.256.jpg` : '';
+                            const poster = rawPoster ? `/api/manga-novels?action=proxy-image&url=${encodeURIComponent(rawPoster)}` : '';
                             return {
                                 id: m.id,
                                 mangaId: m.id,
@@ -261,16 +260,6 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
                     const data = await res.json();
                     newResults.cast = (data.results || []).slice(0, 16);
                 }
-            } else if (tab === 'Users') {
-                newResults.users = [
-                    {
-                        id: 'current-user',
-                        name: userProfile?.name || 'You',
-                        avatar: userProfile?.avatar,
-                        role: 'User',
-                        bio: userProfile?.genres?.join(', ') || 'MovieVerse Member'
-                    }
-                ].filter(u => u.name.toLowerCase().includes(trimmed.toLowerCase()));
             }
 
             resultsCache.current[cacheKey] = newResults;
@@ -328,9 +317,6 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
             onClose();
             return;
         }
-        if (activeTab === 'Users') {
-            onClose();
-        }
     };
 
     const handleFormSubmit = (e: React.FormEvent) => {
@@ -347,7 +333,7 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
         inputRef.current?.focus();
     };
 
-    const tabs: SearchTab[] = ['Content', 'Collections', 'Cast & Crew', 'Users'];
+    const tabs: SearchTab[] = ['Content', 'Collections', 'Cast & Crew'];
 
     // Total content count check
     const hasContentResults =
@@ -426,7 +412,7 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
                                 type="text"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Search for Movies, Shows, Anime, Manga, Cast & Crew or Users..."
+                                placeholder="Search for Movies, Shows, Anime, Manga, Cast & Crew..."
                                 className="w-full bg-transparent border-none outline-none text-sm md:text-base text-zinc-100 placeholder-zinc-500 font-normal selection:bg-white/20"
                             />
                             {query && (
@@ -744,43 +730,6 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
                                                 ) : (
                                                     <div className="py-10 text-center text-zinc-500 text-xs select-none">
                                                         No cast or crew found for "{query}".
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {/* TAB: USERS */}
-                                        {activeTab === 'Users' && (
-                                            <>
-                                                {results.users.length > 0 ? (
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                        {results.users.map((item) => (
-                                                            <div
-                                                                key={`user-${item.id}`}
-                                                                onClick={() => handleItemClick(item)}
-                                                                className="flex items-center gap-3.5 p-2 rounded-xl bg-[#121214] hover:bg-[#18181b] border border-white/5 hover:border-white/15 transition-all duration-200 cursor-pointer group text-left shadow-sm active:scale-[0.98]"
-                                                            >
-                                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-zinc-700 to-zinc-900 border border-white/10 shrink-0 flex items-center justify-center font-bold text-white text-base">
-                                                                    {item.avatar ? (
-                                                                        <img src={item.avatar} alt={item.name} className="w-full h-full object-cover" />
-                                                                    ) : (
-                                                                        item.name.charAt(0).toUpperCase()
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex flex-col min-w-0 justify-center">
-                                                                    <h4 className="text-sm font-semibold text-zinc-100 group-hover:text-white truncate">
-                                                                        {item.name}
-                                                                    </h4>
-                                                                    <p className="text-xs text-zinc-400 truncate mt-0.5">
-                                                                        {item.bio || 'MovieVerse Member'}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="py-10 text-center text-zinc-500 text-xs select-none">
-                                                        No users found for "{query}".
                                                     </div>
                                                 )}
                                             </>

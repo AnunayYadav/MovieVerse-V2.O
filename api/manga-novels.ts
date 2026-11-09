@@ -1773,55 +1773,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const isMangaPill = providerKey === 'mangapill' || imageUrl.includes('mangapill') || imageUrl.includes('readdetectiveconan');
       const isWeebCentral = providerKey === 'weebcentral' || imageUrl.includes('planeptune') || imageUrl.includes('weebcentral') || imageUrl.includes('lastation');
       const isMangaKakalot = providerKey === 'mangakakalot' || imageUrl.includes('mangakakalot') || imageUrl.includes('chapmanganato') || imageUrl.includes('mreadercdn');
+      const isMangaDex = providerKey === 'mangadex' || imageUrl.includes('mangadex.org') || imageUrl.includes('uploads.mangadex.org');
       const isDownload = req.query.download === 'true';
 
-      // If downloading or provider blocks hotlinking or CORS (ComicK, MangaPill, WeebCentral, MangaKakalot), fetch and stream image bytes with proper Referer & Edge Cache
-      if (isDownload || isComicK || isMangaPill || isWeebCentral || isMangaKakalot) {
-        let referers: string[] = [];
-        if (isComicK) {
-          referers = ['https://comick.live', 'https://comick.io', 'https://comick.cc', 'https://comick.app'];
-        } else if (isMangaPill) {
-          referers = ['https://mangapill.com/'];
-        } else if (isWeebCentral) {
-          referers = ['https://weebcentral.com/'];
-        } else if (isMangaKakalot) {
-          referers = ['https://mangakakalot.com/', 'https://chapmanganato.to/'];
-        } else {
-          try {
-            referers = [new URL(imageUrl).origin];
-          } catch {
-            referers = ['https://comick.live'];
-          }
-        }
-
+      // If downloading or provider blocks hotlinking or CORS (ComicK, MangaPill, WeebCentral, MangaKakalot, MangaDex), fetch and stream image bytes with proper Referer & Edge Cache
+      if (isDownload || isComicK || isMangaPill || isWeebCentral || isMangaKakalot || isMangaDex) {
         let fetchResponse: any = null;
-        for (const ref of referers) {
-          try {
-            const resp = await fetch(imageUrl, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Referer': ref,
-                'Origin': ref
-              }
-            });
-            if (resp.ok) {
-              fetchResponse = resp;
-              break;
-            }
-          } catch (e) {
-            // try next referer
-          }
-        }
 
-        if (!fetchResponse || !fetchResponse.ok) {
+        if (isMangaDex) {
           try {
             fetchResponse = await fetch(imageUrl, {
               headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+                'User-Agent': 'MovieVerse/2.0 (contact@movieverse.app)'
               }
             });
+            // If .256.jpg thumbnail fails on MangaDex, try original without .256.jpg / .512.jpg
+            if ((!fetchResponse || !fetchResponse.ok) && (imageUrl.endsWith('.256.jpg') || imageUrl.endsWith('.512.jpg'))) {
+              const rawOriginal = imageUrl.replace(/\.(256|512)\.jpg$/, '');
+              const altResp = await fetch(rawOriginal, {
+                headers: {
+                  'User-Agent': 'MovieVerse/2.0 (contact@movieverse.app)'
+                }
+              });
+              if (altResp.ok) {
+                fetchResponse = altResp;
+              }
+            }
           } catch (err: any) {
-            console.error("proxy-image fetch error:", err.message);
+            console.error("MangaDex cover proxy error:", err.message);
+          }
+        } else {
+          let referers: string[] = [];
+          if (isComicK) {
+            referers = ['https://comick.live', 'https://comick.io', 'https://comick.cc', 'https://comick.app'];
+          } else if (isMangaPill) {
+            referers = ['https://mangapill.com/'];
+          } else if (isWeebCentral) {
+            referers = ['https://weebcentral.com/'];
+          } else if (isMangaKakalot) {
+            referers = ['https://mangakakalot.com/', 'https://chapmanganato.to/'];
+          } else {
+            try {
+              referers = [new URL(imageUrl).origin];
+            } catch {
+              referers = ['https://comick.live'];
+            }
+          }
+
+          for (const ref of referers) {
+            try {
+              const resp = await fetch(imageUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                  'Referer': ref,
+                  'Origin': ref
+                }
+              });
+              if (resp.ok) {
+                fetchResponse = resp;
+                break;
+              }
+            } catch (e) {
+              // try next referer
+            }
+          }
+
+          if (!fetchResponse || !fetchResponse.ok) {
+            try {
+              fetchResponse = await fetch(imageUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+                }
+              });
+            } catch (err: any) {
+              console.error("proxy-image fetch error:", err.message);
+            }
           }
         }
 

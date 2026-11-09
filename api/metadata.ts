@@ -85,12 +85,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const tmdbUrl = `https://api.themoviedb.org/3${path}?${searchParams.toString()}`;
+  const hosts = ['https://api.tmdb.org/3', 'https://api.themoviedb.org/3'];
 
   try {
     let response: any = null;
     let lastError: any = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+
+    for (const host of hosts) {
+      const tmdbUrl = `${host}${path}?${searchParams.toString()}`;
       try {
         response = await fetch(tmdbUrl, {
           headers: {
@@ -98,13 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             'User-Agent': 'MovieVerse/2.0'
           }
         });
-        if (response.ok || (response.status !== 500 && response.status !== 502 && response.status !== 503)) {
+        if (response && (response.ok || (response.status !== 500 && response.status !== 502 && response.status !== 503))) {
           break;
         }
       } catch (err: any) {
         lastError = err;
-        if (attempt === 2) throw err;
-        await new Promise(r => setTimeout(r, 150));
       }
     }
 

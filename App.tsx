@@ -5,6 +5,7 @@ import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_B
 import { SearchDrawer } from './components/SearchDrawer';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
+import { CollectionPage } from './components/CollectionPage';
 import { SettingsPage } from './components/SettingsModal';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, markNotificationsRead, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
@@ -1185,7 +1186,7 @@ export default function App() {
 
     // Scroll Lock Controller
     useEffect(() => {
-        const isAnyModalOpen = Boolean(selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen);
+        const isAnyModalOpen = Boolean(selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen || tmdbCollectionId);
         if (isAnyModalOpen) {
             document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
@@ -1197,7 +1198,7 @@ export default function App() {
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
         };
-    }, [selectedMovie, isSettingsOpen, selectedPersonId, selectedCharacterId, isNotificationOpen, isComparisonOpen]);
+    }, [selectedMovie, isSettingsOpen, selectedPersonId, selectedCharacterId, isNotificationOpen, isComparisonOpen, tmdbCollectionId]);
 
     const [isScrolled, setIsScrolled] = useState(false);
 
@@ -1250,6 +1251,7 @@ export default function App() {
     const selectedMangaIdRef = useRef<string | null>(null);
     const activeMangaChapterIdRef = useRef<string | null>(null);
     const selectedDramaSlugRef = useRef<string | null>(null);
+    const tmdbCollectionIdRef = useRef<number | null>(null);
 
     useEffect(() => { isWatchingRef.current = isWatching; }, [isWatching]);
 
@@ -1292,6 +1294,7 @@ export default function App() {
     useEffect(() => { selectedMangaIdRef.current = selectedMangaId; }, [selectedMangaId]);
     useEffect(() => { activeMangaChapterIdRef.current = activeMangaChapterId; }, [activeMangaChapterId]);
     useEffect(() => { selectedDramaSlugRef.current = selectedDramaSlug; }, [selectedDramaSlug]);
+    useEffect(() => { tmdbCollectionIdRef.current = tmdbCollectionId; }, [tmdbCollectionId]);
 
     const isPopStateNavigating = useRef(false);
 
@@ -1630,6 +1633,8 @@ export default function App() {
             setSelectedPersonId(null);
             setSelectedPersonName(null);
             setIsPersonAniListStaff(false);
+        } else if (tmdbCollectionIdRef.current) {
+            setTmdbCollectionId(null);
         } else if (selectedStudioIdRef.current || selectedStudioNameRef.current) {
             setSelectedStudioId(null);
             setSelectedStudioName(null);
@@ -3248,7 +3253,7 @@ export default function App() {
 
     const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
     const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); };
-    const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); };
+    const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); setTmdbCollectionId(id); };
     const handleKeywordClick = (keyword: Keyword) => {
         setSelectedMovie(null);
         resetFilters();
@@ -4005,7 +4010,7 @@ export default function App() {
         <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
             
 
-            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !isWatching && !showDetailsCast && !showDetailsCrew && !activeMangaChapterId && (
+            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && !selectedMovie && !selectedMangaId && !isWatching && !showDetailsCast && !showDetailsCrew && !activeMangaChapterId && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 ${isTV ? 'flex' : 'hidden md:flex'} items-center justify-center px-4 md:px-6 transition-all duration-300 ${
                         isSearchOpen
                             ? 'bg-[#0a0a0c] border-b-0 shadow-none'
@@ -4277,7 +4282,7 @@ export default function App() {
                     setIsSearchOpen(false);
                 }}
                 onSelectCollection={(collectionId) => {
-                    setTmdbCollectionId(Number(collectionId));
+                    handleTmdbCollectionClick(Number(collectionId));
                     setIsSearchOpen(false);
                 }}
                 onSearchSubmit={(query) => {
@@ -4696,7 +4701,7 @@ export default function App() {
                         <>
                             {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Franchise" && (
                                 <>
-                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && (
+                                    {!searchQuery && featuredMovie && !tmdbCollectionId && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Deep Dive"].includes(selectedCategory) && (
                                         <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group select-none bg-black">
                                             {/* Backdrop Background */}
                                             <div className="absolute inset-0">
@@ -5160,6 +5165,21 @@ export default function App() {
                         setSelectedCategory("Manga");
                         setSelectedMangaId(String(id));
                     }}
+                />
+            )}
+            {tmdbCollectionId && (
+                <CollectionPage
+                    key={tmdbCollectionId}
+                    collectionId={tmdbCollectionId}
+                    onClose={() => {
+                        setTmdbCollectionId(null);
+                    }}
+                    apiKey={apiKey}
+                    onMovieClick={(m) => {
+                        setSelectedMovie(m);
+                    }}
+                    watched={watched}
+                    onToggleWatched={handleToggleWatched}
                 />
             )}
             {activeOtt && activeProvider && (
